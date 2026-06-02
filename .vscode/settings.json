@@ -67,5 +67,8 @@
         "*.sln": "*.csproj",
         "*.slnx": "*.csproj"
     },
-    "dotnet.defaultSolution": "BicycleSimulator.slnx"
+    "dotnet.defaultSolution": "BicycleSimulator.slnx",
+    "cSpell.words": [
+        "Behaviour"
+    ]
 }
