@@ -1,0 +1,287 @@
+<svg viewBox="0 0 980 700" xmlns="http://www.w3.org/2000/svg">
+<title>ESP32-S3 핀 연결도 v5 — ICM-20948 조향 센서</title>
+<defs>
+  <filter id="sh"><feDropShadow dx="1" dy="2" stdDeviation="2" flood-color="#00000014"/></filter>
+  <marker id="arr" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+    <path d="M0,0 L6,3 L0,6 Z" fill="#95A5A6"/>
+  </marker>
+</defs>
+
+<!-- 배경 -->
+<rect width="980" height="700" fill="#F7F9FC"/>
+
+<!-- 헤더 -->
+<rect x="0" y="0" width="980" height="48" fill="#1A3A5C"/>
+<text font-family="Arial" font-size="15" font-weight="bold" fill="#FFF" x="490" y="20" text-anchor="middle">자전거 안전체험 시뮬레이터 — 핀 연결도 v5</text>
+<text font-family="Arial" font-size="10" fill="#AAC8E8" x="490" y="38" text-anchor="middle">ESP32-S3 22핀 보드 · PAS 12자석 홀 센서 · PWM 진동모듈 ×2 · ICM-20948 조향 · 브레이크·버튼</text>
+
+<!-- ══ ESP32-S3 보드 ══ -->
+<rect x="330" y="60" width="196" height="572" rx="10" fill="#1E2D3D" stroke="#2E86C1" stroke-width="1.5" filter="url(#sh)"/>
+<rect x="346" y="70" width="164" height="24" rx="4" fill="#2980B9" opacity="0.8"/>
+<text font-family="Arial" font-size="11" font-weight="bold" fill="#FFF" x="428" y="87" text-anchor="middle">ESP32-S3</text>
+<text font-family="Arial" font-size="9" fill="#85C1E9" x="428" y="103" text-anchor="middle">22핀 커스텀 보드</text>
+
+<!-- RST 버튼 -->
+<rect x="330" y="126" width="20" height="10" rx="2" fill="#34495E" stroke="#5D6D7E" stroke-width="0.5"/>
+<text font-family="Arial" font-size="7" fill="#85929E" x="340" y="131" text-anchor="middle" dominant-baseline="central">RST</text>
+<!-- BOOT 버튼 -->
+<rect x="500" y="398" width="26" height="11" rx="2" fill="#34495E" stroke="#5D6D7E" stroke-width="0.5"/>
+<text font-family="Arial" font-size="7" fill="#85929E" x="513" y="403" text-anchor="middle" dominant-baseline="central">BOOT</text>
+<!-- RGB LED 내장 -->
+<circle cx="428" cy="500" r="6" fill="#2ECC71" opacity="0.8"/>
+<text font-family="Arial" font-size="7.5" fill="#85C1E9" x="428" y="514" text-anchor="middle">RGB LED</text>
+<text font-family="Arial" font-size="7" fill="#7FB3D3" x="428" y="524" text-anchor="middle">GPIO48 WS2812</text>
+<!-- USB-C -->
+<rect x="394" y="616" width="68" height="14" rx="4" fill="#566573" stroke="#85929E" stroke-width="0.6"/>
+<text font-family="Arial" font-size="8" fill="#D5D8DC" x="428" y="624" text-anchor="middle" dominant-baseline="central">USB-C → PC</text>
+
+<!-- ── 왼쪽 핀 (y = 120 + row*21) ── -->
+<!-- 3V3 Row0 y=120 -->
+<circle cx="330" cy="120" r="5" fill="#E74C3C" stroke="#C0392B" stroke-width="0.6"/>
+<text font-family="Arial" font-size="8.5" font-weight="bold" fill="#E74C3C" x="323" y="123" text-anchor="end">3V3</text>
+<!-- 3V3 Row1 y=141 -->
+<circle cx="330" cy="141" r="5" fill="#E74C3C" stroke="#C0392B" stroke-width="0.6"/>
+<text font-family="Arial" font-size="8.5" font-weight="bold" fill="#E74C3C" x="323" y="144" text-anchor="end">3V3</text>
+<!-- RST Row2 y=162 -->
+<circle cx="330" cy="162" r="3" fill="#BDC3C7"/>
+<text font-family="Arial" font-size="7.5" fill="#BDC3C7" x="323" y="165" text-anchor="end">RST</text>
+<!-- GPIO4 BRK_L Row3 y=183 -->
+<circle cx="330" cy="183" r="5" fill="#27AE60" stroke="#1E8449" stroke-width="0.6"/>
+<text font-family="Arial" font-size="8.5" font-weight="bold" fill="#229954" x="323" y="186" text-anchor="end">IO4</text>
+<!-- GPIO5 BRK_R Row4 y=204 -->
+<circle cx="330" cy="204" r="5" fill="#27AE60" stroke="#1E8449" stroke-width="0.6"/>
+<text font-family="Arial" font-size="8.5" font-weight="bold" fill="#229954" x="323" y="207" text-anchor="end">IO5</text>
+<!-- GPIO6 O BTN Row5 y=225 -->
+<circle cx="330" cy="225" r="5" fill="#1ABC9C" stroke="#17A589" stroke-width="0.6"/>
+<text font-family="Arial" font-size="8.5" font-weight="bold" fill="#17A589" x="323" y="228" text-anchor="end">IO6</text>
+<!-- GPIO7 X BTN Row6 y=246 -->
+<circle cx="330" cy="246" r="5" fill="#E74C3C" stroke="#C0392B" stroke-width="0.6"/>
+<text font-family="Arial" font-size="8.5" font-weight="bold" fill="#C0392B" x="323" y="249" text-anchor="end">IO7</text>
+<!-- GPIO11 SDA Row16 y=456 -->
+<circle cx="330" cy="456" r="5" fill="#2980B9" stroke="#2471A3" stroke-width="0.6"/>
+<text font-family="Arial" font-size="8.5" font-weight="bold" fill="#2471A3" x="323" y="459" text-anchor="end">IO11</text>
+<!-- GPIO12 SCL Row17 y=477 -->
+<circle cx="330" cy="477" r="5" fill="#8E44AD" stroke="#7D3C98" stroke-width="0.6"/>
+<text font-family="Arial" font-size="8.5" font-weight="bold" fill="#7D3C98" x="323" y="480" text-anchor="end">IO12</text>
+<!-- GND Row21 y=561 -->
+<circle cx="330" cy="561" r="5" fill="#7F8C8D" stroke="#626567" stroke-width="0.6"/>
+<text font-family="Arial" font-size="8.5" font-weight="bold" fill="#7F8C8D" x="323" y="564" text-anchor="end">GND</text>
+
+<!-- 미사용 왼쪽 -->
+<circle cx="330" cy="267" r="3" fill="#BDC3C7"/><text font-family="Arial" font-size="7.5" fill="#BDC3C7" x="323" y="270" text-anchor="end">IO15</text>
+<circle cx="330" cy="288" r="3" fill="#BDC3C7"/><text font-family="Arial" font-size="7.5" fill="#BDC3C7" x="323" y="291" text-anchor="end">IO16</text>
+<circle cx="330" cy="309" r="3" fill="#BDC3C7"/><text font-family="Arial" font-size="7.5" fill="#BDC3C7" x="323" y="312" text-anchor="end">IO17</text>
+<circle cx="330" cy="330" r="3" fill="#BDC3C7"/><text font-family="Arial" font-size="7.5" fill="#BDC3C7" x="323" y="333" text-anchor="end">IO18</text>
+<circle cx="330" cy="351" r="3" fill="#BDC3C7"/><text font-family="Arial" font-size="7.5" fill="#BDC3C7" x="323" y="354" text-anchor="end">IO8</text>
+<circle cx="330" cy="372" r="3" fill="#BDC3C7"/><text font-family="Arial" font-size="7.5" fill="#BDC3C7" x="323" y="375" text-anchor="end">IO3</text>
+<circle cx="330" cy="393" r="3" fill="#BDC3C7"/><text font-family="Arial" font-size="7.5" fill="#BDC3C7" x="323" y="396" text-anchor="end">IO46</text>
+<circle cx="330" cy="414" r="3" fill="#D5D8DC" stroke="#AEB6BF" stroke-width="0.5"/>
+<text font-family="Arial" font-size="7.5" fill="#AEB6BF" x="323" y="417" text-anchor="end">IO9 (미사용)</text>
+<circle cx="330" cy="435" r="3" fill="#D5D8DC" stroke="#AEB6BF" stroke-width="0.5"/>
+<text font-family="Arial" font-size="7.5" fill="#AEB6BF" x="323" y="438" text-anchor="end">IO10 (미사용)</text>
+<circle cx="330" cy="498" r="3" fill="#BDC3C7"/><text font-family="Arial" font-size="7.5" fill="#BDC3C7" x="323" y="501" text-anchor="end">IO13</text>
+<circle cx="330" cy="519" r="3" fill="#BDC3C7"/><text font-family="Arial" font-size="7.5" fill="#BDC3C7" x="323" y="522" text-anchor="end">IO14</text>
+<circle cx="330" cy="540" r="3" fill="#BDC3C7"/><text font-family="Arial" font-size="7.5" fill="#BDC3C7" x="323" y="543" text-anchor="end">5Vin</text>
+
+<!-- ── 오른쪽 핀 ── -->
+<!-- GND Row0 y=120 -->
+<circle cx="526" cy="120" r="5" fill="#7F8C8D" stroke="#626567" stroke-width="0.6"/>
+<text font-family="Arial" font-size="8.5" font-weight="bold" fill="#7F8C8D" x="533" y="123" dominant-baseline="central">GND</text>
+<!-- GPIO1 PAS Row3 y=183 -->
+<circle cx="526" cy="183" r="5" fill="#F39C12" stroke="#D68910" stroke-width="0.6"/>
+<text font-family="Arial" font-size="8.5" font-weight="bold" fill="#D68910" x="533" y="186" dominant-baseline="central">IO1</text>
+<!-- GPIO2 Vibe L Row4 y=204 -->
+<circle cx="526" cy="204" r="5" fill="#9B59B6" stroke="#884EA0" stroke-width="0.6"/>
+<text font-family="Arial" font-size="8.5" font-weight="bold" fill="#884EA0" x="533" y="207" dominant-baseline="central">IO2</text>
+<!-- GPIO42 Vibe R Row5 y=225 -->
+<circle cx="526" cy="225" r="5" fill="#8E44AD" stroke="#7D3C98" stroke-width="0.6"/>
+<text font-family="Arial" font-size="8.5" font-weight="bold" fill="#7D3C98" x="533" y="228" dominant-baseline="central">IO42</text>
+<!-- GPIO48 RGB Row15 y=435 -->
+<circle cx="526" cy="435" r="5" fill="#2ECC71" stroke="#27AE60" stroke-width="0.6"/>
+<text font-family="Arial" font-size="8.5" font-weight="bold" fill="#1E8449" x="533" y="438" dominant-baseline="central">IO48</text>
+<!-- GND Row20 y=540 -->
+<circle cx="526" cy="540" r="5" fill="#7F8C8D" stroke="#626567" stroke-width="0.6"/>
+<text font-family="Arial" font-size="8.5" font-weight="bold" fill="#7F8C8D" x="533" y="543" dominant-baseline="central">GND</text>
+<circle cx="526" cy="561" r="5" fill="#7F8C8D" stroke="#626567" stroke-width="0.6"/>
+
+<!-- 미사용 오른쪽 -->
+<circle cx="526" cy="141" r="3" fill="#BDC3C7"/><text font-family="Arial" font-size="7.5" fill="#BDC3C7" x="533" y="144" dominant-baseline="central">IO43 TX</text>
+<circle cx="526" cy="162" r="3" fill="#BDC3C7"/><text font-family="Arial" font-size="7.5" fill="#BDC3C7" x="533" y="165" dominant-baseline="central">IO44 RX</text>
+<circle cx="526" cy="246" r="3" fill="#BDC3C7"/><text font-family="Arial" font-size="7.5" fill="#BDC3C7" x="533" y="249" dominant-baseline="central">IO41</text>
+<circle cx="526" cy="267" r="3" fill="#BDC3C7"/><text font-family="Arial" font-size="7.5" fill="#BDC3C7" x="533" y="270" dominant-baseline="central">IO40</text>
+<circle cx="526" cy="288" r="3" fill="#BDC3C7"/><text font-family="Arial" font-size="7.5" fill="#BDC3C7" x="533" y="291" dominant-baseline="central">IO39</text>
+<circle cx="526" cy="309" r="3" fill="#BDC3C7"/><text font-family="Arial" font-size="7.5" fill="#BDC3C7" x="533" y="312" dominant-baseline="central">IO38</text>
+<circle cx="526" cy="330" r="3" fill="#BDC3C7"/><text font-family="Arial" font-size="7.5" fill="#BDC3C7" x="533" y="333" dominant-baseline="central">IO37</text>
+<circle cx="526" cy="351" r="3" fill="#BDC3C7"/><text font-family="Arial" font-size="7.5" fill="#BDC3C7" x="533" y="354" dominant-baseline="central">IO36</text>
+<circle cx="526" cy="372" r="3" fill="#BDC3C7"/><text font-family="Arial" font-size="7.5" fill="#BDC3C7" x="533" y="375" dominant-baseline="central">IO35</text>
+<circle cx="526" cy="393" r="4" fill="#FDEBD0" stroke="#E67E22" stroke-width="0.8"/>
+<text font-family="Arial" font-size="7.5" fill="#E67E22" x="533" y="396" dominant-baseline="central">IO0  ⚠ BOOT</text>
+<circle cx="526" cy="414" r="3" fill="#BDC3C7"/><text font-family="Arial" font-size="7.5" fill="#BDC3C7" x="533" y="417" dominant-baseline="central">IO45</text>
+<circle cx="526" cy="456" r="3" fill="#BDC3C7"/><text font-family="Arial" font-size="7.5" fill="#BDC3C7" x="533" y="459" dominant-baseline="central">IO47</text>
+<circle cx="526" cy="477" r="3" fill="#BDC3C7"/><text font-family="Arial" font-size="7.5" fill="#BDC3C7" x="533" y="480" dominant-baseline="central">IO21</text>
+<circle cx="526" cy="498" r="3" fill="#BDC3C7"/><text font-family="Arial" font-size="7.5" fill="#BDC3C7" x="533" y="501" dominant-baseline="central">IO20</text>
+<circle cx="526" cy="519" r="3" fill="#BDC3C7"/><text font-family="Arial" font-size="7.5" fill="#BDC3C7" x="533" y="522" dominant-baseline="central">IO19</text>
+
+<!-- ══════════════════════════════════════
+     왼쪽 컴포넌트
+════════════════════════════════════════ -->
+
+<!-- 3V3 전원 레일 -->
+<rect x="48" y="112" width="224" height="20" rx="4" fill="#FDEDEC" stroke="#E74C3C" stroke-width="0.8"/>
+<text font-family="Arial" font-size="9.5" font-weight="bold" fill="#C0392B" x="160" y="122" text-anchor="middle" dominant-baseline="central">3.3V 공통 전원 → 모든 VCC</text>
+<line x1="272" y1="120" x2="330" y2="120" stroke="#E74C3C" stroke-width="2"/>
+<line x1="272" y1="141" x2="330" y2="141" stroke="#E74C3C" stroke-width="2"/>
+
+<!-- GND 레일 -->
+<text font-family="Arial" font-size="9" fill="#7F8C8D" x="280" y="567" text-anchor="end" dominant-baseline="central">⏚ 공통 접지</text>
+<line x1="282" y1="561" x2="330" y2="561" stroke="#95A5A6" stroke-width="1.5"/>
+
+<!-- 브레이크 좌 IO4 y=183 -->
+<rect x="48" y="173" width="224" height="22" rx="5" fill="#EAFAF1" stroke="#27AE60" stroke-width="0.9" filter="url(#sh)"/>
+<text font-family="Arial" font-size="10" font-weight="bold" fill="#1E8449" x="160" y="184" text-anchor="middle" dominant-baseline="central">브레이크 스위치 (좌)</text>
+<line x1="272" y1="183" x2="330" y2="183" stroke="#27AE60" stroke-width="2"/>
+
+<!-- 브레이크 우 IO5 y=204 -->
+<rect x="48" y="194" width="224" height="22" rx="5" fill="#EAFAF1" stroke="#27AE60" stroke-width="0.9" filter="url(#sh)"/>
+<text font-family="Arial" font-size="10" font-weight="bold" fill="#1E8449" x="160" y="205" text-anchor="middle" dominant-baseline="central">브레이크 스위치 (우)</text>
+<line x1="272" y1="204" x2="330" y2="204" stroke="#27AE60" stroke-width="2"/>
+
+<!-- O 버튼 IO6 y=225 -->
+<rect x="48" y="215" width="224" height="22" rx="5" fill="#E8F8F5" stroke="#1ABC9C" stroke-width="0.9" filter="url(#sh)"/>
+<text font-family="Arial" font-size="10" font-weight="bold" fill="#148F77" x="160" y="226" text-anchor="middle" dominant-baseline="central">O 버튼 신호</text>
+<line x1="272" y1="225" x2="330" y2="225" stroke="#1ABC9C" stroke-width="2"/>
+
+<!-- X 버튼 IO7 y=246 -->
+<rect x="48" y="236" width="224" height="22" rx="5" fill="#FDEDEC" stroke="#E74C3C" stroke-width="0.9" filter="url(#sh)"/>
+<text font-family="Arial" font-size="10" font-weight="bold" fill="#C0392B" x="160" y="247" text-anchor="middle" dominant-baseline="central">X 버튼 신호</text>
+<line x1="272" y1="246" x2="330" y2="246" stroke="#E74C3C" stroke-width="2"/>
+
+<text font-family="Arial" font-size="8" fill="#AAB7B8" x="54" y="270" dominant-baseline="central">※ 브레이크·버튼 반대 단자 → GND / 버튼 LED 미결선</text>
+
+<!-- ICM-20948 (SDA IO11 y=456, SCL IO12 y=477) -->
+<rect x="48" y="418" width="224" height="96" rx="8" fill="#EBF5FB" stroke="#2980B9" stroke-width="1.2" filter="url(#sh)"/>
+
+<!-- ICM-20948 타이틀 배지 -->
+<rect x="58" y="424" width="204" height="20" rx="4" fill="#2980B9"/>
+<text font-family="Arial" font-size="10.5" font-weight="bold" fill="#FFF" x="160" y="434" text-anchor="middle" dominant-baseline="central">ICM-20948  9축 IMU</text>
+
+<text font-family="Arial" font-size="9" fill="#1A5276" x="160" y="454" text-anchor="middle">TDK InvenSense  |  I²C  |  3.3V</text>
+
+<!-- 핀 목록 -->
+<text font-family="Arial" font-size="8.5" fill="#2471A3" x="62" y="469">VCC → 3V3</text>
+<text font-family="Arial" font-size="8.5" fill="#2471A3" x="62" y="482">GND → GND</text>
+<text font-family="Arial" font-size="8.5" fill="#2980B9" x="160" y="469">SDA → IO11</text>
+<text font-family="Arial" font-size="8.5" fill="#7D3C98" x="160" y="482">SCL → IO12</text>
+<text font-family="Arial" font-size="8.5" fill="#7F8C8D" x="62" y="500">AD0 → GND  (주소 0x68)</text>
+<text font-family="Arial" font-size="8.5" fill="#AAB7B8" x="160" y="500">INT  미연결 (선택)</text>
+
+<!-- SDA 와이어 -->
+<line x1="272" y1="456" x2="330" y2="456" stroke="#2980B9" stroke-width="2"/>
+<!-- SCL 와이어 -->
+<line x1="272" y1="477" x2="330" y2="477" stroke="#8E44AD" stroke-width="2"/>
+<text font-family="Arial" font-size="8" fill="#2980B9" x="276" y="452">SDA</text>
+<text font-family="Arial" font-size="8" fill="#8E44AD" x="276" y="474">SCL</text>
+
+<!-- 설치 방법 안내 -->
+<rect x="48" y="522" width="224" height="32" rx="5" fill="#FEF9E7" stroke="#F39C12" stroke-width="0.8"/>
+<text font-family="Arial" font-size="9" font-weight="bold" fill="#784212" x="160" y="533" text-anchor="middle" dominant-baseline="central">⚑ 설치: 핸들바에 케이블타이 고정</text>
+<text font-family="Arial" font-size="8.5" fill="#7D6608" x="160" y="546" text-anchor="middle" dominant-baseline="central">축선상 설치 불필요 — 어디에 붙여도 동작</text>
+
+<!-- 라이브러리 안내 -->
+<rect x="48" y="562" width="224" height="22" rx="4" fill="#F0F7FF" stroke="#AED6F1" stroke-width="0.7"/>
+<text font-family="Arial" font-size="8.5" fill="#1A5276" x="160" y="573" text-anchor="middle" dominant-baseline="central">라이브러리: SparkFun 9DoF IMU Breakout + MahonyAHRS</text>
+
+<!-- ══════════════════════════════════════
+     오른쪽 컴포넌트
+════════════════════════════════════════ -->
+
+<!-- PAS 센서 (IO1 y=183) -->
+<rect x="596" y="118" width="240" height="92" rx="8" fill="#FEF9E7" stroke="#F39C12" stroke-width="1" filter="url(#sh)"/>
+<text font-family="Arial" font-size="12" font-weight="bold" fill="#784212" x="716" y="140" text-anchor="middle">PAS 페달 속도 센서</text>
+<text font-family="Arial" font-size="9.5" fill="#6E2F1A" x="716" y="158" text-anchor="middle">12자석 더블 홀 | 크랭크 케이던스</text>
+<circle cx="614" cy="175" r="5" fill="#E74C3C"/>
+<text font-family="Arial" font-size="8.5" fill="#C0392B" x="623" y="175" dominant-baseline="central">빨간선 → 3.3V</text>
+<circle cx="614" cy="191" r="5" fill="#E5C11A"/>
+<text font-family="Arial" font-size="8.5" fill="#7D6608" x="623" y="191" dominant-baseline="central">노란선 → GND</text>
+<circle cx="614" cy="207" r="5" fill="#2E86C1"/>
+<text font-family="Arial" font-size="8.5" fill="#1A5276" x="623" y="207" dominant-baseline="central">파란선 → GPIO1 (신호)</text>
+<path d="M596 207 L568 207 L568 183 L526 183" fill="none" stroke="#F39C12" stroke-width="2"/>
+<path d="M596 175 L564 175 L564 120 L538 120" fill="none" stroke="#E74C3C" stroke-width="1.5" stroke-dasharray="3 2"/>
+
+<!-- 진동 모듈 L (IO2 y=204) -->
+<rect x="596" y="240" width="240" height="66" rx="8" fill="#F5EEF8" stroke="#9B59B6" stroke-width="1" filter="url(#sh)"/>
+<text font-family="Arial" font-size="12" font-weight="bold" fill="#4A235A" x="716" y="260" text-anchor="middle">PWM 진동 모터 모듈 L</text>
+<text font-family="Arial" font-size="9" fill="#7D3C98" x="716" y="277" text-anchor="middle">핸들 좌 | 3.0~5.3V</text>
+<text font-family="Arial" font-size="8.5" fill="#7D3C98" x="716" y="296" text-anchor="middle">VCC→3V3  GND→GND  IN→IO2</text>
+<path d="M596 278 L526 278 L526 204" fill="none" stroke="#9B59B6" stroke-width="2"/>
+
+<!-- 진동 모듈 R (IO42 y=225) -->
+<rect x="596" y="324" width="240" height="66" rx="8" fill="#EDE7F6" stroke="#8E44AD" stroke-width="1" filter="url(#sh)"/>
+<text font-family="Arial" font-size="12" font-weight="bold" fill="#4A148C" x="716" y="344" text-anchor="middle">PWM 진동 모터 모듈 R</text>
+<text font-family="Arial" font-size="9" fill="#7B1FA2" x="716" y="361" text-anchor="middle">핸들 우 | 3.0~5.3V</text>
+<text font-family="Arial" font-size="8.5" fill="#7B1FA2" x="716" y="380" text-anchor="middle">VCC→3V3  GND→GND  IN→IO42</text>
+<path d="M596 356 L556 356 L556 225 L526 225" fill="none" stroke="#8E44AD" stroke-width="2"/>
+
+<!-- ICM-20948 오른쪽 상세 -->
+<rect x="596" y="408" width="240" height="184" rx="8" fill="#EBF5FB" stroke="#2980B9" stroke-width="1.2" filter="url(#sh)"/>
+<rect x="606" y="414" width="220" height="22" rx="4" fill="#2980B9"/>
+<text font-family="Arial" font-size="11" font-weight="bold" fill="#FFF" x="716" y="425" text-anchor="middle" dominant-baseline="central">ICM-20948  핸들 조향 센서</text>
+
+<text font-family="Arial" font-size="9.5" fill="#1A5276" x="716" y="451" text-anchor="middle">9축: 가속도 + 자이로 + 지자기</text>
+<text font-family="Arial" font-size="9" fill="#2471A3" x="716" y="468" text-anchor="middle">드리프트 없는 절대 방향 | Yaw = 조향각</text>
+
+<!-- 핀 테이블 -->
+<rect x="608" y="478" width="216" height="100" rx="4" fill="#F0F7FF" stroke="#AED6F1" stroke-width="0.6"/>
+<line x1="716" y1="478" x2="716" y2="578" stroke="#AED6F1" stroke-width="0.6"/>
+<line x1="608" y1="496" x2="824" y2="496" stroke="#AED6F1" stroke-width="0.6"/>
+<line x1="608" y1="514" x2="824" y2="514" stroke="#AED6F1" stroke-width="0.6"/>
+<line x1="608" y1="532" x2="824" y2="532" stroke="#AED6F1" stroke-width="0.6"/>
+<line x1="608" y1="550" x2="824" y2="550" stroke="#AED6F1" stroke-width="0.6"/>
+<line x1="608" y1="568" x2="824" y2="568" stroke="#AED6F1" stroke-width="0.6"/>
+
+<text font-family="Arial" font-size="8.5" font-weight="bold" fill="#1A5276" x="659" y="490" text-anchor="middle">ICM 핀</text>
+<text font-family="Arial" font-size="8.5" font-weight="bold" fill="#1A5276" x="771" y="490" text-anchor="middle">ESP32 연결</text>
+
+<text font-family="Arial" font-size="8.5" fill="#C0392B" x="659" y="508" text-anchor="middle">VCC</text>
+<text font-family="Arial" font-size="8.5" fill="#C0392B" x="771" y="508" text-anchor="middle">3V3 (Left Row1)</text>
+<text font-family="Arial" font-size="8.5" fill="#7F8C8D" x="659" y="526" text-anchor="middle">GND</text>
+<text font-family="Arial" font-size="8.5" fill="#7F8C8D" x="771" y="526" text-anchor="middle">GND (Left Row22)</text>
+<text font-family="Arial" font-size="8.5" fill="#2980B9" x="659" y="544" text-anchor="middle">SDA</text>
+<text font-family="Arial" font-size="8.5" fill="#2980B9" x="771" y="544" text-anchor="middle">GPIO11 (Left Row17)</text>
+<text font-family="Arial" font-size="8.5" fill="#8E44AD" x="659" y="562" text-anchor="middle">SCL</text>
+<text font-family="Arial" font-size="8.5" fill="#8E44AD" x="771" y="562" text-anchor="middle">GPIO12 (Left Row18)</text>
+<text font-family="Arial" font-size="8.5" fill="#7F8C8D" x="659" y="576" text-anchor="middle">AD0</text>
+<text font-family="Arial" font-size="8.5" fill="#7F8C8D" x="771" y="576" text-anchor="middle">GND → 주소 0x68</text>
+
+<!-- ICM-20948 → ESP32 I2C 연결선 -->
+<path d="M596 490 L330 456" fill="none" stroke="#2980B9" stroke-width="2"/>
+<path d="M596 508 L560 508 L560 477 L330 477" fill="none" stroke="#8E44AD" stroke-width="2"/>
+
+<!-- GND 공통 -->
+<text font-family="Arial" font-size="9" fill="#7F8C8D" x="586" y="566" text-anchor="end" dominant-baseline="central">⏚ 공통 접지</text>
+<line x1="588" y1="561" x2="526" y2="561" stroke="#95A5A6" stroke-width="1.5"/>
+
+<!-- USB-C -->
+<rect x="374" y="642" width="108" height="22" rx="5" fill="#D6EAF8" stroke="#2E86C1" stroke-width="0.8"/>
+<text font-family="Arial" font-size="9.5" font-weight="bold" fill="#1A5276" x="428" y="653" text-anchor="middle" dominant-baseline="central">USB-C → PC (전원+시리얼)</text>
+
+<!-- ══ 범례 ══ -->
+<rect x="48" y="293" width="224" height="112" rx="6" fill="#FDFEFE" stroke="#D5D8DC" stroke-width="0.7"/>
+<text font-family="Arial" font-size="9.5" font-weight="bold" fill="#2C3E50" x="60" y="309">배선 범례</text>
+<circle cx="64" cy="325" r="4" fill="#F39C12"/><text font-family="Arial" font-size="8.5" fill="#784212" x="74" y="328">PAS 신호 (IO1)</text>
+<circle cx="64" cy="341" r="4" fill="#9B59B6"/><text font-family="Arial" font-size="8.5" fill="#6C3483" x="74" y="344">진동 L (IO2)</text>
+<circle cx="64" cy="357" r="4" fill="#8E44AD"/><text font-family="Arial" font-size="8.5" fill="#6C3483" x="74" y="360">진동 R (IO42)</text>
+<circle cx="64" cy="373" r="4" fill="#2ECC71"/><text font-family="Arial" font-size="8.5" fill="#1E8449" x="74" y="376">GPIO48 RGB</text>
+<circle cx="160" cy="325" r="4" fill="#27AE60"/><text font-family="Arial" font-size="8.5" fill="#1E8449" x="170" y="328">브레이크 (IO4/5)</text>
+<circle cx="160" cy="341" r="4" fill="#1ABC9C"/><text font-family="Arial" font-size="8.5" fill="#148F77" x="170" y="344">O 버튼 (IO6)</text>
+<circle cx="160" cy="357" r="4" fill="#E74C3C"/><text font-family="Arial" font-size="8.5" fill="#C0392B" x="170" y="360">X 버튼 (IO7)</text>
+<circle cx="160" cy="373" r="4" fill="#2980B9"/><text font-family="Arial" font-size="8.5" fill="#1A5276" x="170" y="376">I²C SDA/SCL</text>
+<!-- AS5600 제거 표시 -->
+<rect x="56" y="383" width="208" height="16" rx="3" fill="#FDEDEC" stroke="#E74C3C" stroke-width="0.5"/>
+<text font-family="Arial" font-size="8" fill="#C0392B" x="160" y="391" text-anchor="middle" dominant-baseline="central">v4 AS5600 → v5 ICM-20948 교체</text>
+
+<!-- 하단 변경 이력 -->
+<rect x="48" y="660" width="880" height="22" rx="4" fill="#EBF5FB" stroke="#AED6F1" stroke-width="0.6"/>
+<text font-family="Arial" font-size="9" fill="#1A5276" x="488" y="671" text-anchor="middle" dominant-baseline="central">v5 변경: AS5600 (축선상 설치) 제거 → ICM-20948 9축 IMU 교체 | GPIO11/12 I²C 공유 | 핸들바 어디에나 부착 가능</text>
+
+</svg>

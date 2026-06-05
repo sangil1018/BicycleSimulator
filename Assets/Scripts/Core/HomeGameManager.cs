@@ -88,9 +88,6 @@ public class HomeGameManager : MonoBehaviour
         // UI 상태 초기화
         UpdateSelectionVisual(null);
 
-        // 하드웨어 RGB 상태 설정 (S0: 대기)
-        InputManager.Instance?.SendRgbState(0);
-
         // 비디오 재생 시작
         if (bgVideoPlayer != null)
         {

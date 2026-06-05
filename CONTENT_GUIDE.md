@@ -31,7 +31,7 @@
 `Waypoint Table` 에셋에서 각 타입에 따라 다음 필드를 정확히 입력해야 합니다.
 
 *   **`BrakeEvent`**: `Label` 필드에 경고 문구 입력 (예: "사람 등장! 브레이크!")
-*   **`OXQuiz`**: `Quiz Index` 필드에 `QuizDatabase`의 리스트 번호(0부터 시작)를 입력.
+*   **`OXQuiz`**: `Quiz Index` 필드에 퀴즈 번호(1~4)를 입력.
 *   **`DirectionHint`**: `Label` 필드에 방향 지시 문구 입력 (예: "잠시 후 우회전")
 *   **`Crosswalk`**: 별도 파라미터 없음. (하차 → 보행 → 승차 시퀀스 자동 실행)
 
@@ -52,12 +52,11 @@
 *   **필수 요소**: 
     *   `VideoPlayer` & `VideoRailController`: 영상 재생 및 속도 제어.
     *   `WaypointChecker`: 이벤트 트리거 관리.
-    *   `UIManager`: 인트로, HUD, 퀴즈, 결과 팝업 등 포함.
-    *   `IntroManager`: 레벨 시작 가이드 영상 제어.
+    *   `QuizManager` & `IntroManager`: 퀴즈 및 레벨 시작 가이드 영상 제어.
 
 ### 4.3. 영속적 매니저 (Persistent Managers)
-*   `GameManager`, `InputManager`는 씬 전환 시에도 파괴되지 않고 유지됩니다.
-*   `GameManager`는 씬 로드 시 필요한 UI 및 컨트롤러를 자동으로 찾아 재연결합니다.
+*   `GameManager`, `InputManager`, `QuizManager`는 씬 전환 시에도 파괴되지 않고 유지됩니다.
+*   `GameManager`는 씬 로드 시 필요한 컨트롤러를 자동으로 찾아 재연결합니다.
 
 ---
 

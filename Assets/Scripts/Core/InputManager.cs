@@ -7,6 +7,16 @@ using System.Threading;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+public enum VibeState
+{
+    Stop = 0,
+    Danger = 1,
+    Success = 2,
+    Correct = 3,
+    Wrong = 4,
+    Walk = 5
+}
+
 [DefaultExecutionOrder(-100)]
 public class InputManager : Singleton<InputManager>
 {
@@ -292,8 +302,7 @@ public class InputManager : Singleton<InputManager>
 
     // ── Unity → ESP32 송신 ────────────────────────────────────────────
 
-    public void SendVibrate(int pattern) { if (_serial?.IsOpen == true) _serial.WriteLine($"V{pattern}"); }
-    public void SendRgbState(int state) { if (_serial?.IsOpen == true) _serial.WriteLine($"S{state}"); }
+    public void SendVibrate(VibeState state) { if (_serial?.IsOpen == true) _serial.WriteLine($"V{(int)state}"); }
     public void SendCalibrate() { if (_serial?.IsOpen == true) _serial.WriteLine("C"); }
     public void SendMagCal() { if (_serial?.IsOpen == true) _serial.WriteLine("M"); }
 }

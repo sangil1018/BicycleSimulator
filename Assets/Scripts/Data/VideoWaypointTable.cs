@@ -21,7 +21,7 @@ public struct VideoWaypoint
 
     public WaypointType type;
 
-    [Tooltip("OXQuiz 타입일 때 QuizDatabase 인덱스 (0~3)")]
+    [Tooltip("OXQuiz 타입일 때 퀴즈 번호 (1~4)")]
     public int quizIndex;
 }
 
