@@ -11,24 +11,13 @@ public class IntroManager : MonoBehaviour
 {
     [Header("UI Panels")]
     [SerializeField] private GameObject introPanel;
+    [SerializeField] private GameObject gamePanel;
     [SerializeField] private GameObject transitionUI;
 
     [Header("Video")]
     [SerializeField] private VideoPlayer introVideoPlayer;
     [SerializeField] private float introDuration = 20f;
     [SerializeField] private float transitionStartTime = 18f;
-
-    [Header("Button Reactions (Highlight & Click)")]
-    [Tooltip("스킵(왼쪽 선택) 시 활성화될 오브젝트")]
-    [SerializeField] private GameObject skipReaction;
-    [Tooltip("홈(오른쪽 선택) 시 활성화될 오브젝트")]
-    [SerializeField] private GameObject homeReaction;
-
-    [Header("Hardware Icon Reactions")]
-    [Tooltip("하드웨어 O 버튼 아이콘 (스킵과 연동)")]
-    [SerializeField] private GameObject oButtonReaction;
-    [Tooltip("하드웨어 X 버튼 아이콘 (홈과 연동)")]
-    [SerializeField] private GameObject xButtonReaction;
 
     [Header("Audio")]
     [SerializeField] private AudioClip clickClip;
@@ -46,14 +35,8 @@ public class IntroManager : MonoBehaviour
         }
     }
 
-    void Start()
-    {
-        // 씬이 준비되면 자동으로 인트로 시작
-        StartIntro();
-    }
-
     /// <summary>
-    /// 인트로 시작
+    /// 인트로 시작 (GameManager.StartLevelIntro()에서 호출)
     /// </summary>
     public void StartIntro()
     {
@@ -69,6 +52,8 @@ public class IntroManager : MonoBehaviour
 
     private IEnumerator IntroSequence()
     {
+        // yield return new WaitForSeconds(0.5f);
+
         // 비디오 준비 대기
         if (introVideoPlayer)
         {
@@ -130,12 +115,11 @@ public class IntroManager : MonoBehaviour
         if (_isFinished && introPanel != null && !introPanel.activeSelf) return;
 
         _isFinished = true;
+        if (gamePanel) gamePanel.SetActive(true);
         if (introPanel) introPanel.SetActive(false);
-        
+
         if (GameManager.Instance != null)
-        {
             GameManager.Instance.OnIntroFinished();
-        }
     }
 
     private void PlayClickSound()

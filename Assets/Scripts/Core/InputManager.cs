@@ -21,13 +21,16 @@ public enum VibeState
 public class InputManager : Singleton<InputManager>
 {
     [Header("Serial Port")]
-    [SerializeField] string portName = "COM3";
+    [SerializeField] string portName = "COM8";
     [SerializeField] int baudRate = 115200;
     [SerializeField] bool autoConnect = true;
 
     [Header("Config")]
     public float BaseSpeedKph { get; private set; } = 15f;
     public bool ShowLogo { get; private set; } = true;
+    public float SteeringRange { get; private set; } = 45f;
+    public float YellowThreshold { get; private set; } = 20f;
+    public float RedThreshold { get; private set; } = 30f;
 
     [Header("Keyboard")]
     [SerializeField] bool keyboardEnabled = true;
@@ -65,6 +68,9 @@ public class InputManager : Singleton<InputManager>
     SerialPort _serial;
     Thread _thread;
     bool _running;
+    bool _dmpReady = false;
+    float _dmpReadyFallbackTime = -1f;
+    const float DMP_STABLE_TIMEOUT = 3f;
 
     bool? _pendingAnswer;
     InputSystem_Actions _actions;
@@ -105,9 +111,12 @@ public class InputManager : Singleton<InputManager>
                     case "BaudRate": int.TryParse(val, out baudRate); break;
                     case "BaseSpeedKph": float.TryParse(val, out float s); BaseSpeedKph = s; break;
                     case "logo": ShowLogo = !int.TryParse(val, out int logo) || logo != 0; break;
+                    case "SteeringRange": if (float.TryParse(val, out float sr)) SteeringRange = Mathf.Clamp(sr, 1f, 45f); break;
+                    case "YellowThreshold": if (float.TryParse(val, out float yt)) YellowThreshold = yt; break;
+                    case "RedThreshold": if (float.TryParse(val, out float rt)) RedThreshold = rt; break;
                 }
             }
-            Debug.Log($"[Input] 설정 로드 완료: Port={portName}, Baud={baudRate}, BaseSpeed={BaseSpeedKph}, ShowLogo={ShowLogo}");
+            Debug.Log($"[Input] 설정 로드 완료: Port={portName}, Baud={baudRate}, BaseSpeed={BaseSpeedKph}, ShowLogo={ShowLogo}, YellowThreshold={YellowThreshold}, RedThreshold={RedThreshold}");
         }
         catch (Exception e)
         {
@@ -129,6 +138,8 @@ public class InputManager : Singleton<InputManager>
             };
             _serial.Open();
             _running = true;
+            _dmpReady = false;
+            _dmpReadyFallbackTime = Time.time + DMP_STABLE_TIMEOUT;
             _thread = new Thread(ReadLoop) { IsBackground = true, Name = "BikeSerial" };
             _thread.Start();
             Debug.Log($"[Input] {portName} 연결됨");
@@ -159,15 +170,15 @@ public class InputManager : Singleton<InputManager>
                 line = line.Trim();
 
                 // 이벤트성 특수 메시지 — 메인 스레드에서 처리
-                if (line.Contains("\"error\"") ||
+                if (line.Contains("\"debug\"") ||
                     line.Contains("\"calibrated\"") ||
-                    line.Contains("\"magcal\"") ||
-                    line.Contains("\"i2c_scan\""))
+                    line.Contains("\"magcal\""))
                 {
                     lock (_lock) { _specialQueue.Enqueue(line); }
                     continue;
                 }
 
+                if (!line.StartsWith("{")) continue;
                 var d = JsonUtility.FromJson<BikeInputData>(line);
                 // 부팅 직후 깨진 첫 줄 방지: id 필드로 유효성 검사
                 if (d.id != 1) continue;
@@ -194,7 +205,13 @@ public class InputManager : Singleton<InputManager>
         foreach (var s in _specialDrain) ProcessSpecialMessage(s);
         _specialDrain.Clear();
 
-        if (hasSnap)
+        if (!_dmpReady && _dmpReadyFallbackTime > 0f && Time.time >= _dmpReadyFallbackTime)
+        {
+            _dmpReady = true;
+            Debug.Log("[Input] DMP 안정화 메시지 미수신 — 타임아웃으로 자동 활성화");
+        }
+
+        if (hasSnap && _dmpReady)
             ApplyData(snap);
         else if (!IsConnected)
             CadenceRPM = SpeedKph = SteeringAngle = 0f;  // 연결 없을 때 잔류값 초기화
@@ -248,16 +265,20 @@ public class InputManager : Singleton<InputManager>
     void ProcessSpecialMessage(string line)
     {
         Debug.Log($"[Input] {line}");
-        if (line.Contains("\"error\"")) OnErrorMessage?.Invoke(line);
-        else if (line.Contains("\"calibrated\"")) OnCalibrated?.Invoke();
+        if (line.Contains("\"calibrated\"")) OnCalibrated?.Invoke();
         else if (line.Contains("\"magcal\"")) OnMagCalMessage?.Invoke(line);
+        else if (line.Contains("\"debug\""))
+        {
+            if (line.Contains("DMP Stabilized")) _dmpReady = true;
+            OnErrorMessage?.Invoke(line);
+        }
     }
 
     void ApplyData(BikeInputData d)
     {
         CadenceRPM = Mathf.Max(0f, d.rpm);
         SpeedKph = Mathf.Max(0f, d.spd);
-        SteeringAngle = Mathf.Clamp(d.str, -45f, 45f);
+        SteeringAngle = d.str / 45f * SteeringRange;
 
         bool bL = d.brkL == 1, bR = d.brkR == 1, o = d.o == 1, x = d.x == 1;
         BrakeLeft = bL; BrakeRight = bR;

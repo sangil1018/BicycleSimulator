@@ -37,8 +37,9 @@ public class oButton : MonoBehaviour
     private void HandleExecute()
     {
         if (!gameObject.activeInHierarchy) return;
-        
-        // 실행 시 이벤트 호출
+
+        selectObject.SetActive(true);
+
         onExecute?.Invoke();
     }
 

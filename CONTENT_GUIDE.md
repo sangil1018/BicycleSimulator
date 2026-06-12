@@ -1,78 +1,115 @@
-# 🚲 자전거 시뮬레이터 콘텐츠 구성 가이드 (v1.2)
-
-본 프로젝트는 **영상 기반 레일 슈터(Video Rail Shooter)** 방식으로 작동하며, 사용자의 페달링 속도에 맞춰 영상 재생 속도가 실시간으로 동기화됩니다.
+# 자전거 시뮬레이터 콘텐츠 구성 가이드
 
 ---
 
-## 1. 하드웨어 및 시스템 설정 (config.ini)
-프로젝트 루트의 `config.ini` 파일은 프로그램 재빌드 없이 주요 동작을 변경할 수 있게 해줍니다.
+## 1. 시스템 개요
+
+자전거 페달링 속도(SpeedKph)에 따라 Unity Timeline 재생 속도가 실시간으로 동기화됩니다.  
+이벤트(퀴즈, 브레이크, 횡단보도, 방향 안내)는 Timeline Signal로 타이밍을 지정합니다.
+
+```
+[ESP32 하드웨어] → InputManager → TimelineGameController → PlayableDirector
+                                ↘ SpeedUIController (속도 UI / 네비게이션)
+                  GameSignalReceiver ← Timeline Signal Track
+                       ↓
+                  GameManager (이벤트 루틴)
+```
+
+---
+
+## 2. 하드웨어 설정 (config.ini)
 
 | 파라미터 | 기본값 | 설명 |
 | :--- | :--- | :--- |
-| `PortName` | `COM3` | 하드웨어(ESP32)가 연결된 시리얼 포트 번호. |
-| `BaudRate` | `115200` | 시리얼 통신 속도. (하드웨어 펌웨어와 일치해야 함) |
-| `BaseSpeedKph`| `15.0` | 영상이 **1.0배속**으로 재생될 기준 속도(km/h). |
-| `logo` | `1` | `1`이면 UI 로고 표시, `0`이면 로고 숨김. |
+| `PortName` | `COM8` | ESP32 시리얼 포트 |
+| `BaudRate` | `115200` | 시리얼 통신 속도 |
+| `BaseSpeedKph` | `15.0` | 1.0× 재생 기준 속도(km/h) |
+| `logo` | `1` | UI 로고 표시 여부 |
 
 ---
 
-## 2. 영상(Video) 제작 규격
-부드러운 속도 가변 재생을 위해 아래 규격을 반드시 준수하십시오.
+## 3. Timeline 이벤트 설정
 
-*   **해상도**: 1920x1080 (FHD) 권장.
-*   **프레임 레이트**: **60fps 권장** (30fps보다 속도 변화가 훨씬 부드럽습니다).
-*   **포맷**: MP4 (H.264 코덱).
-*   **특이사항**: **Keyframe Interval을 1초 이하**로 짧게 설정하여 인코딩하십시오. (속도 탐색 시 끊김 방지)
-*   **촬영 팁**: 카메라 흔들림이 적은 1인칭 주행 영상을 사용하고, 영상 시작 후 3초간은 정지 상태를 유지하십시오.
+Timeline Signal Track에 아래 Signal Asset을 배치하여 이벤트를 구성합니다.
 
----
+### 3.1 GameEventSignal
 
-## 3. 웨이포인트(Waypoint) 세부 설정
-`Waypoint Table` 에셋에서 각 타입에 따라 다음 필드를 정확히 입력해야 합니다.
+| `eventType` | 설명 |
+| :--- | :--- |
+| `BrakeEvent` | 돌발 브레이크 이벤트 (9초 판정) |
+| `OXQuiz` | OX 퀴즈 (`quizIndex` 0~3 설정) |
+| `CrosswalkStart` | 횡단보도 시퀀스 (자동진행 → 내리기 → 걷기 → 타기) |
+| `AutoPlayStart` | 자동진행 구간 시작 (입력 무시, fixedAutoSpeed로 재생) |
+| `AutoPlayEnd` | 자동진행 구간 종료 (페달 입력 재개) |
 
-*   **`BrakeEvent`**: `Label` 필드에 경고 문구 입력 (예: "사람 등장! 브레이크!")
-*   **`OXQuiz`**: `Quiz Index` 필드에 퀴즈 번호(1~4)를 입력.
-*   **`DirectionHint`**: `Label` 필드에 방향 지시 문구 입력 (예: "잠시 후 우회전")
-*   **`Crosswalk`**: 별도 파라미터 없음. (하차 → 보행 → 승차 시퀀스 자동 실행)
+### 3.2 DirectionSignal
 
----
+네비게이션 방향을 변경합니다. `direction` 값을 아래 중 하나로 설정하세요.
 
-## 4. 씬(Scene) 구조 가이드
+| `direction` 값 | 의미 |
+| :--- | :--- |
+| `normal` | 직진 |
+| `left` | 좌회전 |
+| `right` | 우회전 |
+| `right_45` | 우사선 |
 
-본 프로젝트는 각 코스(난이도)를 독립적인 씬으로 분리하여 관리합니다.
-
-### 4.1. 홈 씬 (Home Scene)
-*   **역할**: 난이도 선택 및 레벨 씬 로딩. 배경 영상 재생 및 정밀한 씬 전환 관리.
-*   **배치 필수**: `InputManager`, `GameManager` 오브젝트가 반드시 씬에 존재해야 합니다.
-*   **씬 전환 (Transition)**: 트랜지션 애니메이션에 맞춰 `Additive`(중첩) 모드로 비동기 로딩을 수행합니다. 화면이 완전히 가려지는 **1.6초(커버 포인트)** 지점에서 씬을 활성화하며, 전환 완료 1초 후 홈 씬을 해제하여 끊김 없는 연출을 제공합니다. (상세 내용은 `HOME_GUIDE.md` 참조)
-
-### 4.2. 레벨 씬 (Level Scene)
-*   **역할**: 인트로(가이드 영상) 재생 및 메인 게임 플레이.
-*   **비디오 재생 로직**: 모든 비디오(배경, 인트로)는 `Prepare()`를 호출하여 로딩을 완료한 후, `isPrepared` 상태에서 재생을 시작합니다. 이는 로딩 지연으로 인한 싱크 어긋남을 방지합니다. (상세 내용은 `INTRO_GUIDE.md` 참조)
-*   **필수 요소**: 
-    *   `VideoPlayer` & `VideoRailController`: 영상 재생 및 속도 제어.
-    *   `WaypointChecker`: 이벤트 트리거 관리.
-    *   `QuizManager` & `IntroManager`: 퀴즈 및 레벨 시작 가이드 영상 제어.
-
-### 4.3. 영속적 매니저 (Persistent Managers)
-*   `GameManager`, `InputManager`, `QuizManager`는 씬 전환 시에도 파괴되지 않고 유지됩니다.
-*   `GameManager`는 씬 로드 시 필요한 컨트롤러를 자동으로 찾아 재연결합니다.
+속도 tier에 따라 트리거에 자동으로 postfix가 붙습니다:  
+기본(`left`) → yellow 이상(`left_y`) → red 이상(`left_r`)
 
 ---
 
-## 5. 주요 설정값 (Inspector)
+## 4. 속도 UI (SpeedUIController)
+
+Inspector에서 아래 값을 조정합니다.
+
+| 항목 | 설명 |
+| :--- | :--- |
+| `Yellow Threshold` | 이 속도(km/h) 이상이면 UI 텍스트가 yellow로 변경 |
+| `Red Threshold` | 이 속도(km/h) 이상이면 red + overSpeedUI 활성화 |
+| `Fade Duration` | Show/Hide 알파 전환 시간 (기본 0.5초) |
+
+GameState에 따른 자동 동작:
+- `NormalRiding` → Show (alpha 1)
+- `OXQuiz`, `EventBrake`, `CrosswalkWalk` → Hide (alpha 0)
+
+---
+
+## 5. 씬 구조
+
+### 5.1 홈 씬 (Home)
+- `InputManager`, `GameManager` 오브젝트 필수
+- Additive 로드 후 1.6초 커버 포인트에서 레벨 씬 활성화
+
+### 5.2 레벨 씬 (Level)
+**필수 컴포넌트:**
+- `PlayableDirector` + `TimelineGameController` — 카메라 애니메이션 및 속도 제어
+- `GameSignalReceiver` — Timeline Signal 수신 (PlayableDirector와 같은 오브젝트)
+- `SpeedUIController` — 속도 UI 및 네비게이션 애니메이터
+- `IntroManager`, `QuizManager` — 인트로 및 퀴즈
+
+### 5.3 영속 매니저
+`GameManager`, `InputManager`, `QuizManager`는 ``DontDestroyOnLoad``로 씬 전환 후에도 유지됩니다.  
+씬 로드 시 `GameManager`가 `TimelineGameController`를 자동으로 탐색합니다.
+
+---
+
+## 6. Inspector 주요 설정값
 
 | 컴포넌트 | 변수명 | 설명 |
 | :--- | :--- | :--- |
-| **VideoRailController** | `Base Speed Kph` | 영상이 1.0배속으로 재생될 기준 속도 (기본 15km/h). |
-| **GameManager** | `Brake Event Sec` | 돌발 상황 브레이크 판정 시간. |
-| **HomeGameManager** | `Home Transition` | 씬 전환 시 재생될 트랜지션 UI. |
-| | `OX Button Icons` | 하드웨어 버튼 상태에 따른 UI 아이콘 (Normal/Reaction). |
+| `TimelineGameController` | `Base Speed Kph` | 1.0× 재생 기준 속도 |
+| `TimelineGameController` | `Max Rate` | 최대 재생 배속 (기본 1.5×) |
+| `TimelineGameController` | `Fixed Auto Speed` | 자동진행 구간 재생 배속 |
+| `GameManager` | `Brake Event Sec` | 브레이크 판정 시간 |
+| `GameManager` | `Quiz Duration Sec` | 퀴즈 UI 대기 시간 |
+| `SpeedUIController` | `Yellow/Red Threshold` | 속도 색상 전환 기준값 |
 
 ---
 
-## 6. 신규 코스 확장 절차
-1.  기존 `Level1` 씬을 복제하여 `Level3` 등을 생성합니다.
-2.  새로운 영상과 웨이포인트 테이블을 생성하여 `VideoRailController` 및 `WaypointChecker`에 할당합니다.
-3.  `Home` 씬의 `HomeGameManager`를 수정하거나 버튼을 추가하여 새 씬을 로드하도록 연결합니다.
-4.  **Build Settings**에 새 씬을 반드시 등록해야 합니다.
+## 7. 신규 코스 추가 절차
+
+1. 기존 레벨 씬을 복제합니다.
+2. `PlayableDirector`에 새 Timeline Asset을 연결하고 카메라 애니메이션을 제작합니다.
+3. Timeline Signal Track에 `GameEventSignal` / `DirectionSignal`을 배치합니다.
+4. `HomeGameManager`에 새 씬 로드를 연결합니다.
+5. **Build Settings**에 새 씬을 등록합니다.
