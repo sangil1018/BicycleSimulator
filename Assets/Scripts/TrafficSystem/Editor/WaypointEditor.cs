@@ -6,19 +6,21 @@ using TrafficSystem;
 public class WaypointEditor : Editor
 {
     SerializedProperty nextWaypointsProp;
-    SerializedProperty rightTurnChanceProp;
-    SerializedProperty leftTurnChanceProp;
+    SerializedProperty straightWeightProp;
+    SerializedProperty rightWeightProp;
+    SerializedProperty leftWeightProp;
 
-    static readonly Color colorStraight = new Color(1f, 0.85f, 0f, 1f);
-    static readonly Color colorRightTurn = new Color(0f, 0.9f, 1f, 1f);
-    static readonly Color colorLeftTurn = new Color(0.2f, 1f, 0.4f, 1f);
-    static readonly Color colorNone = new Color(1f, 0.3f, 0.3f, 1f);
+    static readonly Color colorStraight  = new Color(1f,  0.85f, 0f,  1f);
+    static readonly Color colorRightTurn = new Color(0f,  0.9f,  1f,  1f);
+    static readonly Color colorLeftTurn  = new Color(0.2f,1f,    0.4f,1f);
+    static readonly Color colorNone      = new Color(1f,  0.3f,  0.3f,1f);
 
     void OnEnable()
     {
-        nextWaypointsProp = serializedObject.FindProperty("nextWaypoints");
-        rightTurnChanceProp = serializedObject.FindProperty("rightTurnChance");
-        leftTurnChanceProp = serializedObject.FindProperty("leftTurnChance");
+        nextWaypointsProp   = serializedObject.FindProperty("nextWaypoints");
+        straightWeightProp  = serializedObject.FindProperty("straightWeight");
+        rightWeightProp     = serializedObject.FindProperty("rightWeight");
+        leftWeightProp      = serializedObject.FindProperty("leftWeight");
     }
 
     public override void OnInspectorGUI()
@@ -32,11 +34,10 @@ public class WaypointEditor : Editor
         EditorGUILayout.PropertyField(nextWaypointsProp,
             new GUIContent("Next Waypoints",
                 "[0] 직진  [1] 우회전  [2] 좌회전\n" +
-                "연결된 슬롯이 1개뿐이면 해당 방향 100%."), true);
+                "연결된 슬롯의 가중치를 정규화해 확률로 사용합니다.\n" +
+                "1개만 연결되면 해당 방향 100%."), true);
 
         int size = nextWaypointsProp.arraySize;
-
-        // 실제로 연결된 슬롯 파악
         bool hasS = size > 0 && nextWaypointsProp.GetArrayElementAtIndex(0).objectReferenceValue != null;
         bool hasR = size > 1 && nextWaypointsProp.GetArrayElementAtIndex(1).objectReferenceValue != null;
         bool hasL = size > 2 && nextWaypointsProp.GetArrayElementAtIndex(2).objectReferenceValue != null;
@@ -44,35 +45,42 @@ public class WaypointEditor : Editor
 
         EditorGUILayout.Space(4);
 
-        // ── 상태 표시 ───────────────────────────────────────────────────
         if (connected == 0)
         {
             DrawStatusBar(colorNone, "연결 없음 — 차량이 이 지점에서 정지합니다");
         }
         else if (connected == 1)
         {
-            string dir = hasR ? "우회전 100%" : (hasL ? "좌회전 100%" : "직진 전용");
-            DrawStatusBar(hasR ? colorRightTurn : (hasL ? colorLeftTurn : colorStraight), dir);
+            string dir = hasS ? "직진 100%" : (hasR ? "우회전 100%" : "좌회전 100%");
+            Color  col = hasS ? colorStraight : (hasR ? colorRightTurn : colorLeftTurn);
+            DrawStatusBar(col, dir);
         }
         else
         {
-            EditorGUILayout.LabelField("── 방향 확률 ────────────────────", EditorStyles.boldLabel);
-            if (hasR) EditorGUILayout.PropertyField(rightTurnChanceProp, new GUIContent("우회전 확률 (%)"));
-            if (hasL) EditorGUILayout.PropertyField(leftTurnChanceProp, new GUIContent("좌회전 확률 (%)"));
+            EditorGUILayout.LabelField("── 방향 가중치 (연결된 슬롯만 적용) ──", EditorStyles.boldLabel);
+            if (hasS) EditorGUILayout.PropertyField(straightWeightProp, new GUIContent("[0] 직진 가중치 (%)"));
+            if (hasR) EditorGUILayout.PropertyField(rightWeightProp,    new GUIContent("[1] 우회전 가중치 (%)"));
+            if (hasL) EditorGUILayout.PropertyField(leftWeightProp,     new GUIContent("[2] 좌회전 가중치 (%)"));
 
-            float r = hasR ? rightTurnChanceProp.floatValue : 0f;
-            float l = hasL ? leftTurnChanceProp.floatValue : 0f;
-            float s = hasS ? Mathf.Max(0f, 100f - r - l) : 0f;
-            DrawChanceBar(s / 100f, r / 100f, l / 100f);
+            float wS = hasS ? straightWeightProp.floatValue : 0f;
+            float wR = hasR ? rightWeightProp.floatValue    : 0f;
+            float wL = hasL ? leftWeightProp.floatValue     : 0f;
+            float total = wS + wR + wL;
+
+            float nS = total > 0f ? wS / total : 0f;
+            float nR = total > 0f ? wR / total : 0f;
+            float nL = total > 0f ? wL / total : 0f;
+
+            DrawChanceBar(nS, nR, nL);
 
             string info = "";
-            if (hasS) info += $"[0] 직진: {s:F0}%   ";
-            if (hasR) info += $"[1] 우회전: {r:F0}%   ";
-            if (hasL) info += $"[2] 좌회전: {l:F0}%";
+            if (hasS) info += $"[0] 직진: {nS * 100f:F1}%   ";
+            if (hasR) info += $"[1] 우회전: {nR * 100f:F1}%   ";
+            if (hasL) info += $"[2] 좌회전: {nL * 100f:F1}%";
             EditorGUILayout.HelpBox(info.TrimEnd(), MessageType.None);
         }
 
-        // ── 자동 방향 ───────────────────────────────────────────────────
+        // ── 도구 ────────────────────────────────────────────────────────
         EditorGUILayout.Space(6);
         EditorGUILayout.LabelField("── 도구 ────────────────────────────", EditorStyles.boldLabel);
 
@@ -90,9 +98,22 @@ public class WaypointEditor : Editor
     // ── Scene View ──────────────────────────────────────────────────────────
     void OnSceneGUI()
     {
-        var wp = (Waypoint)target;
+        var wp    = (Waypoint)target;
         var nexts = wp.NextWaypoints;
         if (nexts == null || nexts.Length == 0) return;
+
+        // 정규화된 실제 확률 계산
+        bool hasS2 = nexts.Length > 0 && nexts[0] != null;
+        bool hasR2 = nexts.Length > 1 && nexts[1] != null;
+        bool hasL2 = nexts.Length > 2 && nexts[2] != null;
+
+        float wS    = hasS2 ? wp.StraightWeight : 0f;
+        float wR    = hasR2 ? wp.RightWeight    : 0f;
+        float wL    = hasL2 ? wp.LeftWeight     : 0f;
+        float total = wS + wR + wL;
+        float nS    = total > 0f ? wS / total * 100f : 0f;
+        float nR    = total > 0f ? wR / total * 100f : 0f;
+        float nL    = total > 0f ? wL / total * 100f : 0f;
 
         Vector3 from    = wp.transform.position;
         Vector3 forward = wp.transform.forward;
@@ -107,13 +128,13 @@ public class WaypointEditor : Editor
                         :           colorLeftTurn;
             Handles.color = col;
 
-            string label = i == 0 ? "직진"
-                         : i == 1 ? $"우회전 {wp.RightTurnChance:F0}%"
-                         :           $"좌회전 {wp.LeftTurnChance:F0}%";
+            float pct   = i == 0 ? nS : (i == 1 ? nR : nL);
+            string label = i == 0 ? $"직진 {pct:F0}%"
+                         : i == 1 ? $"우회전 {pct:F0}%"
+                         :           $"좌회전 {pct:F0}%";
 
             if (i == 0)
             {
-                // 직진 — 직선 + 중점 화살표
                 Handles.DrawLine(from, to, 3f);
                 Vector3 mid = (from + to) * 0.5f;
                 Vector3 dir = to - from; dir.y = 0f;
@@ -123,22 +144,19 @@ public class WaypointEditor : Editor
             }
             else
             {
-                // 회전 — 원호
                 DrawArcHandle(from, forward, to, rightTurn: i == 1, col, label);
             }
         }
 
-        // 선택된 웨이포인트 강조
         Handles.color = new Color(1f, 0.85f, 0f, 0.4f);
         Handles.SphereHandleCap(0, from, Quaternion.identity, 0.6f, EventType.Repaint);
     }
 
-    // 원호 핸들 그리기: CarController.TryStartArc 와 동일한 원 방정식
     static void DrawArcHandle(Vector3 startPos, Vector3 startForward,
                                Vector3 endPos, bool rightTurn, Color col, string label)
     {
-        Vector3 s = startPos; s.y = 0f;
-        Vector3 e = endPos;   e.y = 0f;
+        Vector3 s   = startPos; s.y = 0f;
+        Vector3 e   = endPos;   e.y = 0f;
         Vector3 fwd = startForward; fwd.y = 0f;
         if (fwd.sqrMagnitude < 0.001f) { Handles.DrawLine(startPos, endPos, 2f); return; }
         fwd.Normalize();
@@ -157,14 +175,14 @@ public class WaypointEditor : Editor
         Vector3 center   = s + n * r;
         Vector3 startVec = (s - center).normalized;
         float   totalDeg = Vector3.SignedAngle(startVec, (e - center).normalized, Vector3.up);
-        if (rightTurn  && totalDeg < 0f) totalDeg += 360f;
+        if ( rightTurn && totalDeg < 0f) totalDeg += 360f;
         if (!rightTurn && totalDeg > 0f) totalDeg -= 360f;
         if (totalDeg >  180f) totalDeg -= 360f;
         if (totalDeg < -180f) totalDeg += 360f;
 
-        float   y    = startPos.y;
+        float   y     = startPos.y;
         int     steps = 32;
-        Vector3 prev = center + startVec * r; prev.y = y;
+        Vector3 prev  = center + startVec * r; prev.y = y;
 
         Handles.color = col;
         for (int k = 1; k <= steps; k++)
@@ -176,21 +194,19 @@ public class WaypointEditor : Editor
             prev = p;
         }
 
-        // 중점 화살표
         {
-            float   halfAngle  = totalDeg * 0.5f;
-            Vector3 midRadial  = Quaternion.AngleAxis(halfAngle, Vector3.up) * startVec;
-            Vector3 midPos     = center + midRadial * r; midPos.y = y;
-            Vector3 tangent    = totalDeg > 0f
-                ? Vector3.Cross(Vector3.up, midRadial).normalized   // CCW = 우회전
-                : Vector3.Cross(midRadial, Vector3.up).normalized;  // CW  = 좌회전
+            float   halfAngle = totalDeg * 0.5f;
+            Vector3 midRadial = Quaternion.AngleAxis(halfAngle, Vector3.up) * startVec;
+            Vector3 midPos    = center + midRadial * r; midPos.y = y;
+            Vector3 tangent   = totalDeg > 0f
+                ? Vector3.Cross(Vector3.up, midRadial).normalized
+                : Vector3.Cross(midRadial, Vector3.up).normalized;
             if (tangent.sqrMagnitude > 0.001f)
                 Handles.ArrowHandleCap(0, midPos, Quaternion.LookRotation(tangent), 3f, EventType.Repaint);
             Handles.Label(midPos + Vector3.up * 0.6f, label);
         }
     }
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
     static void DrawStatusBar(Color color, string label)
     {
         var rect = GUILayoutUtility.GetRect(0, 22, GUILayout.ExpandWidth(true));
@@ -200,7 +216,7 @@ public class WaypointEditor : Editor
         var style = new GUIStyle(EditorStyles.boldLabel)
         {
             alignment = TextAnchor.MiddleCenter,
-            normal = { textColor = Color.black }
+            normal    = { textColor = Color.black }
         };
         EditorGUI.LabelField(inner, label, style);
     }
@@ -219,23 +235,22 @@ public class WaypointEditor : Editor
         if (straightF > 0f)
         {
             float w = iW * straightF;
-            EditorGUI.DrawRect(new Rect(cursor, iY, w, iH), new Color(1f, 0.85f, 0f, 0.85f));
+            EditorGUI.DrawRect(new Rect(cursor, iY, w, iH), new Color(1f,  0.85f, 0f,  0.85f));
             cursor += w;
         }
         if (rightF > 0f)
         {
             float w = iW * rightF;
-            EditorGUI.DrawRect(new Rect(cursor, iY, w, iH), new Color(0f, 0.9f, 1f, 0.85f));
+            EditorGUI.DrawRect(new Rect(cursor, iY, w, iH), new Color(0f,  0.9f,  1f,  0.85f));
             cursor += w;
         }
         if (leftF > 0f)
         {
             float w = iW * leftF;
-            EditorGUI.DrawRect(new Rect(cursor, iY, w, iH), new Color(0.2f, 1f, 0.4f, 0.85f));
+            EditorGUI.DrawRect(new Rect(cursor, iY, w, iH), new Color(0.2f,1f,    0.4f,0.85f));
         }
     }
 
-    // ── 전체 씬 자동 방향 메뉴 ─────────────────────────────────────────────
     [MenuItem("Tools/Traffic/모든 웨이포인트 자동 방향 설정")]
     static void AutoOrientAll()
     {

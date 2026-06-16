@@ -125,10 +125,33 @@ public class TrafficSpawnerEditor : Editor
                 }
                 else
                 {
-                    int nextCount = wp.NextWaypoints != null ? wp.NextWaypoints.Length : 0;
-                    string routing = nextCount == 0 ? "❌ 다음 노드 없음" :
-                                     nextCount == 1 ? "→ 직진" :
-                                     $"→ 직진 {100f - wp.RightTurnChance:F0}% / 우회전 {wp.RightTurnChance:F0}%";
+                    var nextWps = wp.NextWaypoints;
+                    bool hasS2  = nextWps != null && nextWps.Length > 0 && nextWps[0] != null;
+                    bool hasR2  = nextWps != null && nextWps.Length > 1 && nextWps[1] != null;
+                    bool hasL2  = nextWps != null && nextWps.Length > 2 && nextWps[2] != null;
+                    int  connectedCount = (hasS2 ? 1 : 0) + (hasR2 ? 1 : 0) + (hasL2 ? 1 : 0);
+
+                    string routing;
+                    if (connectedCount == 0)
+                    {
+                        routing = "❌ 다음 노드 없음";
+                    }
+                    else
+                    {
+                        float wS = hasS2 ? wp.StraightWeight : 0f;
+                        float wR = hasR2 ? wp.RightWeight    : 0f;
+                        float wL = hasL2 ? wp.LeftWeight     : 0f;
+                        float tot = wS + wR + wL;
+                        float nS  = tot > 0f ? wS / tot * 100f : 0f;
+                        float nR  = tot > 0f ? wR / tot * 100f : 0f;
+                        float nL  = tot > 0f ? wL / tot * 100f : 0f;
+
+                        var parts = new System.Collections.Generic.List<string>(3);
+                        if (hasS2) parts.Add($"직진 {nS:F0}%");
+                        if (hasR2) parts.Add($"우회전 {nR:F0}%");
+                        if (hasL2) parts.Add($"좌회전 {nL:F0}%");
+                        routing = "→ " + string.Join(" / ", parts);
+                    }
                     sb.AppendLine($"✓ Spawn [{i}] '{wp.name}'  {routing}");
                 }
             }

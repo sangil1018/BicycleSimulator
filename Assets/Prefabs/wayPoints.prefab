@@ -115,7 +115,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.Waypoint
   nextWaypoints: []
-  rightTurnChance: 30
+  straightWeight: 50
+  rightWeight: 30
+  leftWeight: 20
 --- !u!1 &2546388273452941677
 GameObject:
   m_ObjectHideFlags: 0
@@ -163,7 +165,9 @@ MonoBehaviour:
   nextWaypoints:
   - {fileID: 468458462764803613}
   - {fileID: 2757653029272463400}
-  rightTurnChance: 30
+  straightWeight: 70
+  rightWeight: 30
+  leftWeight: 20
 --- !u!1 &3369744497841387856
 GameObject:
   m_ObjectHideFlags: 0
@@ -211,7 +215,9 @@ MonoBehaviour:
   nextWaypoints:
   - {fileID: 5656312286016399397}
   - {fileID: 4124258133719405118}
-  rightTurnChance: 30
+  straightWeight: 70
+  rightWeight: 30
+  leftWeight: 20
 --- !u!1 &4118241436311334945
 GameObject:
   m_ObjectHideFlags: 0
@@ -257,7 +263,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.Waypoint
   nextWaypoints: []
-  rightTurnChance: 30
+  straightWeight: 50
+  rightWeight: 30
+  leftWeight: 20
 --- !u!1 &4232084083122454451
 GameObject:
   m_ObjectHideFlags: 0
@@ -339,7 +347,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.Waypoint
   nextWaypoints:
   - {fileID: 450856165272360494}
-  rightTurnChance: 30
+  - {fileID: 1856616767439616626}
+  straightWeight: 70
+  rightWeight: 30
+  leftWeight: 20
 --- !u!1 &5004164668874481038
 GameObject:
   m_ObjectHideFlags: 0
@@ -385,7 +396,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.Waypoint
   nextWaypoints: []
-  rightTurnChance: 30
+  straightWeight: 50
+  rightWeight: 30
+  leftWeight: 20
 --- !u!1 &5281667562098320451
 GameObject:
   m_ObjectHideFlags: 0
@@ -431,7 +444,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.Waypoint
   nextWaypoints: []
-  rightTurnChance: 30
+  straightWeight: 50
+  rightWeight: 30
+  leftWeight: 20
 --- !u!1 &5597187890033006889
 GameObject:
   m_ObjectHideFlags: 0
@@ -478,7 +493,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.Waypoint
   nextWaypoints:
   - {fileID: 1856616767439616626}
-  rightTurnChance: 30
+  - {fileID: 5035262777244356218}
+  straightWeight: 70
+  rightWeight: 30
+  leftWeight: 20
 --- !u!1 &6065093589457055076
 GameObject:
   m_ObjectHideFlags: 0
@@ -526,7 +544,9 @@ MonoBehaviour:
   nextWaypoints:
   - {fileID: 4124258133719405118}
   - {fileID: 468458462764803613}
-  rightTurnChance: 30
+  straightWeight: 70
+  rightWeight: 30
+  leftWeight: 20
 --- !u!1 &6150911498779070466
 GameObject:
   m_ObjectHideFlags: 0
@@ -573,7 +593,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.Waypoint
   nextWaypoints:
   - {fileID: 3222179000717963054}
-  rightTurnChance: 30
+  - {fileID: 450856165272360494}
+  straightWeight: 70
+  rightWeight: 30
+  leftWeight: 20
 --- !u!1 &6528178515042557490
 GameObject:
   m_ObjectHideFlags: 0
@@ -619,7 +642,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.Waypoint
   nextWaypoints: []
-  rightTurnChance: 30
+  straightWeight: 50
+  rightWeight: 30
+  leftWeight: 20
 --- !u!1 &6570848393786734720
 GameObject:
   m_ObjectHideFlags: 0
@@ -666,7 +691,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.Waypoint
   nextWaypoints:
   - {fileID: 5035262777244356218}
-  rightTurnChance: 30
+  - {fileID: 3222179000717963054}
+  straightWeight: 70
+  rightWeight: 30
+  leftWeight: 20
 --- !u!1 &6703622243537520087
 GameObject:
   m_ObjectHideFlags: 0
@@ -712,7 +740,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.Waypoint
   nextWaypoints: []
-  rightTurnChance: 30
+  straightWeight: 50
+  rightWeight: 30
+  leftWeight: 20
 --- !u!1 &7771288117329281509
 GameObject:
   m_ObjectHideFlags: 0
@@ -758,7 +788,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.Waypoint
   nextWaypoints: []
-  rightTurnChance: 30
+  straightWeight: 50
+  rightWeight: 30
+  leftWeight: 20
 --- !u!1 &8005119274637249449
 GameObject:
   m_ObjectHideFlags: 0
@@ -841,7 +873,9 @@ MonoBehaviour:
   nextWaypoints:
   - {fileID: 2757653029272463400}
   - {fileID: 5656312286016399397}
-  rightTurnChance: 30
+  straightWeight: 70
+  rightWeight: 30
+  leftWeight: 20
 --- !u!1 &8397245440143832408
 GameObject:
   m_ObjectHideFlags: 0
@@ -922,4 +956,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.Waypoint
   nextWaypoints: []
-  rightTurnChance: 30
+  straightWeight: 50
+  rightWeight: 30
+  leftWeight: 20
