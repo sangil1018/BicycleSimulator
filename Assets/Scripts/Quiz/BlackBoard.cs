@@ -21,6 +21,9 @@ public class BlackBoard : MonoBehaviour
     [SerializeField] private Button xButton;
     [SerializeField] private AudioClip clickClip;
 
+    [Header("Timing")]
+    [SerializeField] private float countdownDuration = 10f;
+
     [Header("Answer Effect")]
     [SerializeField] private GameObject correctMark;
     [SerializeField] private GameObject wrongMark;
@@ -35,6 +38,9 @@ public class BlackBoard : MonoBehaviour
     private Image quizImage;
     private Animator oButtonAnimator;
     private Animator xButtonAnimator;
+
+    [Header("Auto Result")]
+    [SerializeField] private bool autoResult = false;
 
     private bool isAnswered = false;
 
@@ -80,7 +86,15 @@ public class BlackBoard : MonoBehaviour
             InputManager.Instance.OnBtnX -= OnBtnXClicked;
             InputManager.Instance.OnSelectionChanged -= OnSelectionChanged;
         }
-        quizImage.sprite = quizSprites[0];
+
+        // StopAllCoroutines();
+
+        // 모든 Animator 초기 상태로 리셋
+        // if (scoreAnimator != null) { scoreAnimator.Rebind(); scoreAnimator.Update(0f); }
+        // if (oButtonAnimator != null) { oButtonAnimator.Rebind(); oButtonAnimator.Update(0f); }
+        // if (xButtonAnimator != null) { xButtonAnimator.Rebind(); xButtonAnimator.Update(0f); }
+
+        // quizImage.sprite = quizSprites[0];
     }
 
     private void OnSelectionChanged(bool? isO)
@@ -187,6 +201,10 @@ public class BlackBoard : MonoBehaviour
 
         // 정답 이미지
         quizImage.sprite = answerSprites[QuizManager.Instance.CurrentQuizNumber];
+        // 스코어 현재 점수 표시
+        var triggerScoreName = $"cnt{QuizManager.Instance.CurrentQuizScore}";
+        scoreAnimator.SetTrigger(triggerScoreName);
+
 
         // 카운트다운 활성화 및 타이머 시작
         if (countDown != null)
@@ -201,12 +219,30 @@ public class BlackBoard : MonoBehaviour
     /// </summary>
     private IEnumerator EndingCountdown()
     {
-        yield return new WaitForSeconds(10f);
+        yield return new WaitForSeconds(countdownDuration);
 
         if (audioSource != null && endingBellSound != null)
             audioSource.PlayOneShot(endingBellSound);
 
-        // 퀴즈 오브젝트 비활성화
+        bool isFinalQuiz = QuizManager.Instance != null
+                        && GameManager.Instance != null
+                        && QuizManager.Instance.CurrentQuizNumber == GameManager.Instance.FinalQuizIndex + 1;
+
+        // 퀴즈 종료 후 타임라인 완료 자동 이벤트 호출 여부
+        if (isFinalQuiz && autoResult) GameManager.Instance.OnTimelineComplete();
+
+        GameManager.Instance.ChangeState(GameState.NormalRiding);
+        GameManager.Instance.TimelineController.Resume();
+
+        // 퀴즈 오브젝트 초기화
+        if (correctScore != null) correctScore.SetActive(false);
+        if (wrongScore != null) wrongScore.SetActive(false);
+        // 모든 Animator 초기 상태로 리셋
+        if (scoreAnimator != null) { scoreAnimator.Rebind(); scoreAnimator.Update(0f); }
+        if (oButtonAnimator != null) { oButtonAnimator.Rebind(); oButtonAnimator.Update(0f); }
+        if (xButtonAnimator != null) { xButtonAnimator.Rebind(); xButtonAnimator.Update(0f); }
+        quizImage.sprite = quizSprites[0];
+
         transform.parent.parent.gameObject.SetActive(false);
     }
 

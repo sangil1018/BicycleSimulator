@@ -16,6 +16,8 @@ public class QuizManager : Singleton<QuizManager>
 
     [SerializeField] private bool[] answerList = { false, false, true, true };
 
+    [SerializeField] private GameObject quizUI; // 퀴즈 UI 오브젝트
+
     /// <summary>
     /// 퀴즈 시작 시 데이터 설정
     /// </summary>
@@ -25,6 +27,10 @@ public class QuizManager : Singleton<QuizManager>
         CurrentQuizNumber = number;
         CurrentQuizAnswer = answerList[number - 1];
         Debug.Log($"[QuizManager] 퀴즈 시작: 퀴즈 {CurrentQuizNumber}, 정답: {CurrentQuizAnswer}");
+        if (quizUI != null)
+        {
+            quizUI.SetActive(true);
+        }
     }
 
     /// <summary>

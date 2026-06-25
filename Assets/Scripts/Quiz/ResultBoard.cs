@@ -31,7 +31,10 @@ public class ResultBoard : MonoBehaviour
 
     private void OnEnable()
     {
+        if (QuizManager.Instance == null) return;
         finalScore = QuizManager.Instance.CurrentQuizScore;
+        if (rankClips != null && finalScore < rankClips.Length)
+            currentClip = rankClips[finalScore];
         PlayRankSound();
     }
 

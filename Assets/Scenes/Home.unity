@@ -1380,7 +1380,7 @@ MonoBehaviour:
   baudRate: 115200
   autoConnect: 1
   keyboardEnabled: 1
-  keyboardSpeedKph: 20
+  keyboardSpeedKph: 15
 --- !u!4 &1155821414
 Transform:
   m_ObjectHideFlags: 0

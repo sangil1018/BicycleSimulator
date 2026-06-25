@@ -1,10 +1,12 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.Playables;
 
 /// <summary>
 /// Timeline 기반 카메라 애니메이션 컨트롤러.
-/// VideoRailController를 대체하며, PlayableDirector의 재생 속도를
-/// 자전거 입력(SpeedKph)에 따라 제어한다.
+/// PlayableDirector를 GameTime 모드로 구동하며,
+/// 루트 플레이어블의 Speed를 조절해 자전거 속도에 비례한 재생 속도를 구현한다.
+/// (Manual + Evaluate() 방식은 Signal Track 시그널이 발화되지 않음)
 /// </summary>
 public class TimelineGameController : MonoBehaviour
 {
@@ -21,10 +23,15 @@ public class TimelineGameController : MonoBehaviour
     [Tooltip("자동진행 구간 재생 배속 (CrosswalkWalk 등)")]
     [SerializeField] float fixedAutoSpeed = 1.0f;
 
+    [Header("Playback Control")]
+    [Tooltip("전체 재생 배속 승수. config.ini의 PlaybackMultiplier 값으로 덮어씌워짐")]
+    [SerializeField] float playbackMultiplier = 1f;
+
     bool _canMove = false;
     bool _autoPlay = false;
+    bool _completed = false;
 
-    public bool IsPlaying => director != null && director.state == PlayState.Playing;
+    public bool IsPlaying => _canMove;
     public double CurrentTime => director != null ? director.time : 0.0;
 
     void Awake()
@@ -33,23 +40,44 @@ public class TimelineGameController : MonoBehaviour
         if (director != null)
         {
             director.playOnAwake = false;
-            director.stopped += OnDirectorStopped;
+            director.timeUpdateMode = DirectorUpdateMode.GameTime;
         }
     }
 
     void Start()
     {
         if (InputManager.Instance != null)
+        {
             baseSpeedKph = InputManager.Instance.BaseSpeedKph;
+            playbackMultiplier = InputManager.Instance.PlaybackMultiplier;
+        }
+        bool hasAsset = director != null && director.playableAsset != null;
+        Debug.Log($"[TimelineGameController] Start — director:{director != null}  asset:{hasAsset}  duration:{(director != null ? director.duration : 0):F2}");
     }
 
     void Update()
     {
-        if (!_canMove) return;
-        UpdatePlaybackSpeed();
+        if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
+            Debug.Log($"[TL] Space down — canMove:{_canMove}  graphValid:{director.playableGraph.IsValid()}  SpeedKph:{(InputManager.Instance != null ? InputManager.Instance.SpeedKph : -1f):F1}");
+
+        if (!_canMove || !director.playableGraph.IsValid()) return;
+
+        var gm = GameManager.Instance;
+        if (gm != null && !gm.CanMove && !_autoPlay) return;
+
+        SetPlaybackSpeed();
+
+        if (!_completed && director.time >= director.duration)
+        {
+            _completed = true;
+            _canMove = false;
+            SetRootSpeed(0f);
+            // if (GameManager.Instance != null)
+            //     GameManager.Instance.OnTimelineComplete();
+        }
     }
 
-    void UpdatePlaybackSpeed()
+    void SetPlaybackSpeed()
     {
         float rate;
 
@@ -62,77 +90,80 @@ public class TimelineGameController : MonoBehaviour
             float spd = InputManager.Instance != null ? InputManager.Instance.SpeedKph : 0f;
             rate = spd < minSpeedKph
                 ? 0f
-                : Mathf.Clamp(spd / baseSpeedKph, 0.05f, maxRate);
+                : Mathf.Clamp(spd / baseSpeedKph * playbackMultiplier, 0.05f, maxRate);
         }
 
-        SetDirectorSpeed(rate);
+        SetRootSpeed(rate);
     }
 
-    void SetDirectorSpeed(float rate)
+    void SetRootSpeed(float speed)
     {
-        if (director == null || !director.playableGraph.IsValid()) return;
-
-        var root = director.playableGraph.GetRootPlayable(0);
-        root.SetSpeed(rate);
-
-        if (rate < 0.01f && director.state == PlayState.Playing)
-            director.playableGraph.GetRootPlayable(0).Pause();
-        else if (rate >= 0.01f && director.state != PlayState.Playing)
-            director.Resume();
-    }
-
-    void OnDirectorStopped(PlayableDirector _)
-    {
-        GameManager.Instance?.OnTimelineComplete();
+        if (!director.playableGraph.IsValid()) return;
+        director.playableGraph.GetRootPlayable(0).SetSpeed(speed);
     }
 
     // ── 외부 API ──────────────────────────────────────────────────
 
     public void Play()
     {
+        if (director == null) return;
         _canMove = true;
         _autoPlay = false;
-        if (director != null) director.Play();
+        _completed = false;
+        director.time = 0;
+        director.Play();
+        Debug.Log($"[TL] Play() called — graphValid:{director.playableGraph.IsValid()}  duration:{director.duration:F2}");
     }
 
     public void Freeze()
     {
         _canMove = false;
-        if (director != null && director.playableGraph.IsValid())
-        {
-            director.playableGraph.GetRootPlayable(0).SetSpeed(0f);
-            director.Pause();
-        }
+        SetRootSpeed(0f);
     }
 
     public void Resume()
     {
         _canMove = true;
-        if (director != null) director.Resume();
     }
 
     public void Stop()
     {
         _canMove = false;
-        if (director != null) director.Stop();
+        if (director == null) return;
+        SetRootSpeed(0f);
+        director.Stop();
     }
 
     /// <summary>자동진행 구간 전환. true이면 입력 무시하고 fixedAutoSpeed로 재생.</summary>
     public void SetAutoPlay(bool auto)
     {
         _autoPlay = auto;
-        if (auto && director != null && director.state != PlayState.Playing)
-            director.Resume();
+        if (auto) _canMove = true;
     }
 
 #if UNITY_EDITOR
+    [Header("Debug GUI")]
+    [SerializeField] int debugFontSize = 50;
+    [SerializeField] Color debugFontColor = Color.white;
+
     void OnGUI()
     {
         if (!Application.isPlaying) return;
         var im = InputManager.Instance;
-        if (im == null) return;
-        GUI.Label(new Rect(10, 10, 360, 20),
-            $"SpeedKph: {im.SpeedKph:F1}  Timeline: {(director != null ? director.time:0):F2}s  Auto:{_autoPlay}");
+        float spd = im != null ? im.SpeedKph : -1f;
+        bool valid = director != null && director.playableGraph.IsValid();
+        float rate = 0f;
+        if (!_autoPlay && spd >= minSpeedKph)
+            rate = Mathf.Clamp(spd / baseSpeedKph, 0.05f, maxRate);
+
+        var style = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = debugFontSize,
+            normal = { textColor = debugFontColor }
+        };
+        GUI.Label(new Rect(10, 10, 1000, 400),
+            $"[TL] canMove:{_canMove}  graphValid:{valid}  SpeedKph:{spd:F1}  rate:{rate:F2}  time:{(director != null ? director.time : 0):F2}/{(director != null ? director.duration : 0):F2}",
+            style);
     }
 #endif
 }

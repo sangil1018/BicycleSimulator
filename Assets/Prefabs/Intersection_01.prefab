@@ -115,7 +115,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 628022312831097857, guid: 087e9879a1aad7b4fa687728c1e40abc, type: 3}
       propertyPath: m_Name
-      value: jctTrafficLightA (3)
+      value: TrafficLightPrefab (7)
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -188,7 +188,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 628022312831097857, guid: 087e9879a1aad7b4fa687728c1e40abc, type: 3}
       propertyPath: m_Name
-      value: jctTrafficLightA (18)
+      value: TrafficLightPrefab (1)
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -261,7 +261,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 628022312831097857, guid: 087e9879a1aad7b4fa687728c1e40abc, type: 3}
       propertyPath: m_Name
-      value: jctTrafficLightA (4)
+      value: TrafficLightPrefab (5)
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -334,7 +334,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 628022312831097857, guid: 087e9879a1aad7b4fa687728c1e40abc, type: 3}
       propertyPath: m_Name
-      value: jctTrafficLightA (19)
+      value: TrafficLightPrefab (2)
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -469,7 +469,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 628022312831097857, guid: 087e9879a1aad7b4fa687728c1e40abc, type: 3}
       propertyPath: m_Name
-      value: jctTrafficLightA (10)
+      value: TrafficLightPrefab (4)
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -550,7 +550,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 628022312831097857, guid: 087e9879a1aad7b4fa687728c1e40abc, type: 3}
       propertyPath: m_Name
-      value: jctTrafficLightA (17)
+      value: TrafficLightPrefab (3)
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -623,7 +623,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 628022312831097857, guid: 087e9879a1aad7b4fa687728c1e40abc, type: 3}
       propertyPath: m_Name
-      value: jctTrafficLightA (9)
+      value: TrafficLightPrefab (8)
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -704,7 +704,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 628022312831097857, guid: 087e9879a1aad7b4fa687728c1e40abc, type: 3}
       propertyPath: m_Name
-      value: jctTrafficLightA (2)
+      value: TrafficLightPrefab (6)
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

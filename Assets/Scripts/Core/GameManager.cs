@@ -11,6 +11,8 @@ public enum GameState
     GameReady,
     NormalRiding,
     EventBrake,
+    EventWarning,
+    BicycleStop,
     OXQuiz,
     CrosswalkWalk,
     GameResult,
@@ -22,6 +24,9 @@ public enum GameState
 /// </summary>
 public class GameManager : Singleton<GameManager>
 {
+    [Header("Start Menu")]
+    [SerializeField] private GameObject start_menu;
+
     [Header("Exit Menu")]
     [SerializeField] private GameObject exit_menu;
 
@@ -31,21 +36,24 @@ public class GameManager : Singleton<GameManager>
     [SerializeField] private CanvasGroup endTransitionCanvasGroup;
 
     [Header("Timing")]
-    [SerializeField] float brakeEventSec    = 9f;
+    [SerializeField] float delayStart = 2.5f;
+    [SerializeField] float brakeEventSec = 5f;
+    [SerializeField] float warningStopSec = 3f;
     [SerializeField] float resultDisplaySec = 3f;
-    [SerializeField] float crosswalkSec     = 4f;
-    [SerializeField] float quizDurationSec  = 12f;
+    [SerializeField] float quizDurationSec = 10f;
+    [SerializeField] int finalQuizIndex = 3;    // 0-based, 4번째 퀴즈
     [SerializeField] float finalResultWaitSec = 13f;
-    [SerializeField] float totalEndWaitSec    = 15f;
+    [SerializeField] float totalEndWaitSec = 15f;
 
     // ── 공개 상태 ──────────────────────────────────────────────────
 
     public GameState CurrentState { get; private set; } = GameState.Boot;
     public int Level { get; private set; } = 1;
+    public int FinalQuizIndex => finalQuizIndex;
     public bool CanMove { get; private set; } = false;
 
     public int EventScore { get; private set; }
-    public int QuizScore  => QuizManager.Instance?.CurrentQuizScore ?? 0;
+    public int QuizScore => QuizManager.Instance?.CurrentQuizScore ?? 0;
     public int TotalScore => EventScore + QuizScore;
 
     /// <summary>GameState가 변경될 때 발행. SpeedUIController 등에서 구독.</summary>
@@ -101,7 +109,7 @@ public class GameManager : Singleton<GameManager>
     void HandleXButton()
     {
         if (CurrentState == GameState.OXQuiz ||
-            CurrentState == GameState.Home   ||
+            CurrentState == GameState.Home ||
             CurrentState == GameState.Boot) return;
 
         if (exit_menu != null) exit_menu.SetActive(true);
@@ -111,7 +119,7 @@ public class GameManager : Singleton<GameManager>
     {
         StopAllCoroutines();
         EventScore = 0;
-        QuizManager.Instance?.ResetScore();
+        if (QuizManager.Instance != null) QuizManager.Instance.ResetScore();
         ChangeState(GameState.Home);
         SceneManager.LoadScene("Home");
     }
@@ -128,21 +136,32 @@ public class GameManager : Singleton<GameManager>
         if (introManager != null)
             introManager.StartIntro();
         else
-            Debug.LogWarning("[GameManager] IntroManager를 찾을 수 없습니다.");
+        {
+            Debug.LogWarning("[GameManager] IntroManager를 찾을 수 없습니다. GameReady로 즉시 전환합니다.");
+            OnIntroFinished();
+        }
     }
 
     public void OnIntroFinished()
     {
         ChangeState(GameState.GameReady);
+        StartCoroutine(ShowStartMenuRoutine());
+    }
+
+    IEnumerator ShowStartMenuRoutine()
+    {
+        yield return new WaitForSeconds(delayStart);
+        if (start_menu != null) start_menu.SetActive(true);
     }
 
     /// <summary>시작 메뉴 UI에서 "시작(O)"을 눌렀을 때 호출</summary>
     public void StartRiding()
     {
+        Debug.Log($"[GM] StartRiding called — CurrentState:{CurrentState}  TimelineController:{TimelineController != null}");
         if (CurrentState != GameState.GameReady) return;
 
         ChangeState(GameState.NormalRiding);
-        TimelineController?.Play();
+        if (TimelineController != null) TimelineController.Play();
     }
 
     // ── 이벤트 트리거 (GameSignalReceiver에서 호출) ────────────────
@@ -152,14 +171,34 @@ public class GameManager : Singleton<GameManager>
         StartCoroutine(BrakeEventRoutine());
     }
 
+    public void TriggerWarningStop()
+    {
+        StartCoroutine(WarningStopRoutine());
+    }
+
+    public void TriggerBicycleStop()
+    {
+        ChangeState(GameState.BicycleStop);
+        if (TimelineController != null) TimelineController.Freeze();
+    }
+
     public void TriggerOXQuiz(int quizIndex)
     {
         StartCoroutine(OXQuizRoutine(quizIndex));
     }
 
-    public void TriggerCrosswalk()
+    public void TriggerAutoPlayStart()
     {
-        StartCoroutine(CrosswalkRoutine());
+        ChangeState(GameState.CrosswalkWalk);
+        if (TimelineController != null) TimelineController.SetAutoPlay(true);
+        InputManager.Instance.SendVibrate(VibeState.Walk);
+    }
+
+    public void TriggerAutoPlayEnd()
+    {
+        if (TimelineController != null) TimelineController.SetAutoPlay(false);
+        ChangeState(GameState.NormalRiding);
+        if (TimelineController != null) TimelineController.Resume();
     }
 
     public void TriggerDirectionHint(string direction)
@@ -169,10 +208,22 @@ public class GameManager : Singleton<GameManager>
 
     // ── 이벤트 루틴 ───────────────────────────────────────────────
 
+    IEnumerator WarningStopRoutine()
+    {
+        ChangeState(GameState.EventWarning);
+        if (TimelineController != null) TimelineController.Freeze();
+        InputManager.Instance.SendVibrate(VibeState.Danger);
+
+        yield return new WaitForSeconds(warningStopSec);
+
+        ChangeState(GameState.NormalRiding);
+        if (TimelineController != null) TimelineController.Resume();
+    }
+
     IEnumerator BrakeEventRoutine()
     {
         ChangeState(GameState.EventBrake);
-        TimelineController?.Freeze();
+        if (TimelineController != null) TimelineController.Freeze();
         InputManager.Instance.SendVibrate(VibeState.Danger);
 
         bool braked = false;
@@ -192,64 +243,41 @@ public class GameManager : Singleton<GameManager>
         yield return new WaitForSeconds(resultDisplaySec);
 
         ChangeState(GameState.NormalRiding);
-        TimelineController?.Resume();
+        if (TimelineController != null) TimelineController.Resume();
     }
 
     IEnumerator OXQuizRoutine(int quizIndex)
     {
         ChangeState(GameState.OXQuiz);
-        TimelineController?.Freeze();
+        if (TimelineController != null) TimelineController.Freeze();
 
-        QuizManager.Instance?.StartQuiz(quizIndex + 1);
+        if (QuizManager.Instance != null) QuizManager.Instance.StartQuiz(quizIndex + 1);
+
+        if (quizIndex == finalQuizIndex && SceneManager.GetActiveScene().name == "Level2") // Level1에서 마지막 퀴즈일 경우
+            yield break; // BlackBoard.EndingCountdown에서 OnTimelineComplete 호출
 
         yield return new WaitForSeconds(quizDurationSec);
-
-        ChangeState(GameState.NormalRiding);
-        TimelineController?.Resume();
-    }
-
-    IEnumerator CrosswalkRoutine()
-    {
-        ChangeState(GameState.CrosswalkWalk);
-        TimelineController?.SetAutoPlay(true);
-        InputManager.Instance.SendVibrate(VibeState.Walk);
-
-        yield return WaitForOButton(); // 내리기
-        yield return new WaitForSeconds(crosswalkSec); // 걷기
-        yield return WaitForOButton(); // 다시 타기
-
-        TimelineController?.SetAutoPlay(false);
-        ChangeState(GameState.NormalRiding);
-    }
-
-    IEnumerator WaitForOButton()
-    {
-        bool pressed = false;
-        Action onO = () => pressed = true;
-        InputManager.Instance.OnBtnO += onO;
-        yield return new WaitUntil(() => pressed);
-        InputManager.Instance.OnBtnO -= onO;
+        // ChangeState(GameState.NormalRiding);
+        // if (TimelineController != null) TimelineController.Resume();
     }
 
     /// <summary>Timeline 재생이 끝났을 때 TimelineGameController에서 호출</summary>
-    public void OnTimelineComplete()
+    public void OnTimelineComplete(float delay = 5f)
     {
-        StopAllCoroutines();
+        // StopAllCoroutines();
         ChangeState(GameState.GameResult);
         TimelineController?.Stop();
+
+        StartCoroutine(FinalResultRoutine(delay));
+    }
+
+    private IEnumerator FinalResultRoutine(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+
         InputManager.Instance.SendVibrate(VibeState.Success);
-
-        ShowFinalResult();
-    }
-
-    public void ShowFinalResult()
-    {
         if (resultObject != null) resultObject.SetActive(true);
-        StartCoroutine(FinalResultRoutine());
-    }
 
-    private IEnumerator FinalResultRoutine()
-    {
         yield return new WaitForSeconds(finalResultWaitSec);
 
         if (endTransitionObject != null)
@@ -258,7 +286,7 @@ public class GameManager : Singleton<GameManager>
             if (endTransitionCanvasGroup != null)
             {
                 float duration = 20f / 30f;
-                float elapsed  = 0f;
+                float elapsed = 0f;
                 endTransitionCanvasGroup.alpha = 0f;
 
                 while (elapsed < duration)

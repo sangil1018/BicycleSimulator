@@ -193,10 +193,10 @@ MonoBehaviour:
   detectionRadius: 0.4
   trafficLightLayer:
     serializedVersion: 2
-    m_Bits: 64
+    m_Bits: 0
   vehicleLayer:
     serializedVersion: 2
-    m_Bits: 128
+    m_Bits: 0
   brakeDistance: 5
   acceleration: 6
   stopCheckInterval: 4

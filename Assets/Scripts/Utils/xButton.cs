@@ -38,7 +38,7 @@ public class xButton : MonoBehaviour
     {
         if (!gameObject.activeInHierarchy) return;
 
-        selectObject.SetActive(true);
+        if (selectObject != null) selectObject.SetActive(true);
 
         onExecute?.Invoke();
     }

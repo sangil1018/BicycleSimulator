@@ -8,12 +8,12 @@ ModelImporter:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
       name: GreenLight
-    second: {fileID: 2100000, guid: f2fc0c5a67ff3054fa4b9042e963569f, type: 2}
+    second: {fileID: 2100000, guid: 89e6aef464ecba9438a21f6d41a93940, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
       name: RedLight
-    second: {fileID: 2100000, guid: 68c44eb1775e27a44b6bab48dc952e32, type: 2}
+    second: {fileID: 2100000, guid: 931a41b4b9394ec4f878a8e2e386fefa, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
@@ -121,7 +121,7 @@ ModelImporter:
     armStretch: 0.05
     legStretch: 0.05
     feetSpacing: 0
-    globalScale: 0.01
+    globalScale: 1
     rootMotionBoneName: 
     hasTranslationDoF: 0
     hasExtraRoot: 0

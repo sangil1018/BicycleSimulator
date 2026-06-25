@@ -141,7 +141,7 @@ namespace TrafficSystem
         static void SetEmission(Renderer r, bool on)
         {
             if (r == null) return;
-            var mat = r.material;
+            var mat = r.sharedMaterial;
             if (on) mat.EnableKeyword("_EMISSION");
             else mat.DisableKeyword("_EMISSION");
         }

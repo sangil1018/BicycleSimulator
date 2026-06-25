@@ -1,11 +1,9 @@
-using System;
-using System.IO;
 using UnityEngine;
 
 /// <summary>
 /// anim_rot 오브젝트에 부착.
 /// InputManager.SteeringAngle(-45~+45) → Y축 회전 1:1 반영.
-/// config.ini: CameraSteerSmoothTime
+/// smoothTime은 InputManager가 config.ini에서 로드한 CameraSteerSmoothTime 사용.
 /// </summary>
 public class CameraSteeringRotator : MonoBehaviour
 {
@@ -16,30 +14,10 @@ public class CameraSteeringRotator : MonoBehaviour
 
     void Start()
     {
-        LoadConfig();
-    }
-
-    void LoadConfig()
-    {
-        string path = Path.Combine(Application.dataPath, "../config.ini");
-        if (!File.Exists(path)) return;
-
-        try
+        if (InputManager.Instance != null)
         {
-            foreach (var line in File.ReadAllLines(path))
-            {
-                if (string.IsNullOrWhiteSpace(line) || line.TrimStart().StartsWith(";")) continue;
-                var parts = line.Split('=');
-                if (parts.Length != 2) continue;
-
-                if (parts[0].Trim() == "CameraSteerSmoothTime")
-                    if (float.TryParse(parts[1].Trim(), out float t)) smoothTime = Mathf.Max(0f, t);
-            }
+            smoothTime = InputManager.Instance.CameraSteerSmoothTime;
             Debug.Log($"[CameraSteer] SmoothTime={smoothTime}s");
-        }
-        catch (Exception e)
-        {
-            Debug.LogWarning($"[CameraSteer] config 읽기 실패: {e.Message}");
         }
     }
 
@@ -47,6 +25,6 @@ public class CameraSteeringRotator : MonoBehaviour
     {
         float target = InputManager.Instance != null ? InputManager.Instance.SteeringAngle : 0f;
         _currentAngle = Mathf.SmoothDamp(_currentAngle, target, ref _velocity, smoothTime);
-        transform.localEulerAngles = new Vector3(0f, _currentAngle, 0f);
+        transform.localEulerAngles = new Vector3(0f, -_currentAngle / 3, 0f);
     }
 }

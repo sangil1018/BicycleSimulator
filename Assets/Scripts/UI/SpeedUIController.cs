@@ -15,7 +15,7 @@ public class SpeedUIController : MonoBehaviour
     [Tooltip("노란색 속도 경고 기준값")]
     [SerializeField] float yellowThreshold = 20f;
     [Tooltip("빨간색 속도 경고 기준값")]
-    [SerializeField] float redThreshold    = 30f;
+    [SerializeField] float redThreshold = 30f;
 
     [Header("Over Speed UI")]
     [SerializeField] GameObject overSpeedUI;
@@ -24,12 +24,18 @@ public class SpeedUIController : MonoBehaviour
     [SerializeField] Animator navigationAnimator;
 
     [Header("Fade")]
-    [SerializeField] float fadeDuration = 0.5f;
+    [SerializeField] float fadeDuration = 0.3f;
+
+    [Header("Speed Fade")]
+    [Tooltip("이 속도(km/h) 이상이면 UI 페이드인")]
+    [SerializeField] float visibleSpeedThreshold = 1f;
 
     // ── 내부 상태 ──────────────────────────────────────────────────
     string _currentDirection = "normal";
-    SpeedTier _currentTier   = SpeedTier.Normal;
+    SpeedTier _currentTier = SpeedTier.Normal;
     Coroutine _fadeCoroutine;
+    bool _stateAllowsShow = false;
+    bool _isVisible = false;
 
     enum SpeedTier { Normal, Yellow, Red }
 
@@ -41,7 +47,7 @@ public class SpeedUIController : MonoBehaviour
             if (InputManager.Instance != null)
             {
                 yellowThreshold = InputManager.Instance.YellowThreshold;
-                redThreshold    = InputManager.Instance.RedThreshold;
+                redThreshold = InputManager.Instance.RedThreshold;
             }
         }
         catch (System.Exception ex)
@@ -84,11 +90,22 @@ public class SpeedUIController : MonoBehaviour
 
             float spd = InputManager.Instance.SpeedKph;
 
+            // 속도 기반 페이드인/아웃 (NormalRiding 상태일 때만)
+            if (_stateAllowsShow)
+            {
+                bool shouldBeVisible = spd >= visibleSpeedThreshold;
+                if (shouldBeVisible != _isVisible)
+                {
+                    _isVisible = shouldBeVisible;
+                    StartFade(_isVisible ? 1f : 0f);
+                }
+            }
+
             // 속도 등급(Tier) 결정
             SpeedTier tier;
-            if (spd >= redThreshold)         tier = SpeedTier.Red;
+            if (spd >= redThreshold) tier = SpeedTier.Red;
             else if (spd >= yellowThreshold) tier = SpeedTier.Yellow;
-            else                             tier = SpeedTier.Normal;
+            else tier = SpeedTier.Normal;
 
             if (tier != _currentTier)
             {
@@ -131,8 +148,8 @@ public class SpeedUIController : MonoBehaviour
             string postfix = _currentTier switch
             {
                 SpeedTier.Yellow => "_y",
-                SpeedTier.Red    => "_r",
-                _                => "",
+                SpeedTier.Red => "_r",
+                _ => "",
             };
 
             string trigger = _currentDirection + postfix;
@@ -187,7 +204,7 @@ public class SpeedUIController : MonoBehaviour
     {
         if (speedCanvasGroup == null) yield break;
 
-        float start   = speedCanvasGroup.alpha;
+        float start = speedCanvasGroup.alpha;
         float elapsed = 0f;
 
         while (elapsed < fadeDuration)
@@ -209,11 +226,16 @@ public class SpeedUIController : MonoBehaviour
             switch (state)
             {
                 case GameState.NormalRiding:
-                    Show();
+                    _stateAllowsShow = true;
+                    _isVisible = false; // Update()에서 속도 기반으로 다시 판단
                     break;
                 case GameState.OXQuiz:
                 case GameState.EventBrake:
+                case GameState.EventWarning:
+                case GameState.BicycleStop:
                 case GameState.CrosswalkWalk:
+                    _stateAllowsShow = false;
+                    _isVisible = false;
                     Hide();
                     break;
             }

@@ -31,11 +31,13 @@ public class InputManager : Singleton<InputManager>
     public float SteeringRange { get; private set; } = 45f;
     public float YellowThreshold { get; private set; } = 20f;
     public float RedThreshold { get; private set; } = 30f;
+    public float PlaybackMultiplier { get; private set; } = 1f;
+    public float CameraSteerSmoothTime { get; private set; } = 0.12f;
 
     [Header("Keyboard")]
     [SerializeField] bool keyboardEnabled = true;
     [Tooltip("Space 키를 누를 때 적용되는 가상 속도 (km/h)")]
-    [SerializeField] float keyboardSpeedKph = 20f;
+    [SerializeField] float keyboardSpeedKph = 15f;
 
     public float CadenceRPM { get; private set; }
     public float SpeedKph { get; private set; }
@@ -71,6 +73,9 @@ public class InputManager : Singleton<InputManager>
     bool _dmpReady = false;
     float _dmpReadyFallbackTime = -1f;
     const float DMP_STABLE_TIMEOUT = 3f;
+    float _yawOffset = 0f;
+    bool _yawCalibrated = false;
+    int _expectedStationID = 1; // Default value
 
     bool? _pendingAnswer;
     InputSystem_Actions _actions;
@@ -114,6 +119,9 @@ public class InputManager : Singleton<InputManager>
                     case "SteeringRange": if (float.TryParse(val, out float sr)) SteeringRange = Mathf.Clamp(sr, 1f, 45f); break;
                     case "YellowThreshold": if (float.TryParse(val, out float yt)) YellowThreshold = yt; break;
                     case "RedThreshold": if (float.TryParse(val, out float rt)) RedThreshold = rt; break;
+                    case "PlaybackMultiplier": if (float.TryParse(val, out float pm)) PlaybackMultiplier = Mathf.Max(0.01f, pm); break;
+                    case "CameraSteerSmoothTime": if (float.TryParse(val, out float ct)) CameraSteerSmoothTime = Mathf.Max(0f, ct); break;
+                    case "StationID": int.TryParse(val, out _expectedStationID); break;
                 }
             }
             Debug.Log($"[Input] 설정 로드 완료: Port={portName}, Baud={baudRate}, BaseSpeed={BaseSpeedKph}, ShowLogo={ShowLogo}, YellowThreshold={YellowThreshold}, RedThreshold={RedThreshold}");
@@ -140,6 +148,8 @@ public class InputManager : Singleton<InputManager>
             _running = true;
             _dmpReady = false;
             _dmpReadyFallbackTime = Time.time + DMP_STABLE_TIMEOUT;
+            _yawCalibrated = false;
+            _yawOffset = 0f;
             _thread = new Thread(ReadLoop) { IsBackground = true, Name = "BikeSerial" };
             _thread.Start();
             Debug.Log($"[Input] {portName} 연결됨");
@@ -181,7 +191,7 @@ public class InputManager : Singleton<InputManager>
                 if (!line.StartsWith("{")) continue;
                 var d = JsonUtility.FromJson<BikeInputData>(line);
                 // 부팅 직후 깨진 첫 줄 방지: id 필드로 유효성 검사
-                if (d.id != 1) continue;
+                if (d.id != _expectedStationID) continue;
                 lock (_lock) { _pending = d; _hasNew = true; }
             }
             catch (TimeoutException) { }
@@ -209,6 +219,7 @@ public class InputManager : Singleton<InputManager>
         {
             _dmpReady = true;
             Debug.Log("[Input] DMP 안정화 메시지 미수신 — 타임아웃으로 자동 활성화");
+            SendCalibrate();
         }
 
         if (hasSnap && _dmpReady)
@@ -269,7 +280,7 @@ public class InputManager : Singleton<InputManager>
         else if (line.Contains("\"magcal\"")) OnMagCalMessage?.Invoke(line);
         else if (line.Contains("\"debug\""))
         {
-            if (line.Contains("DMP Stabilized")) _dmpReady = true;
+            if (line.Contains("DMP Stabilized")) { _dmpReady = true; SendCalibrate(); }
             OnErrorMessage?.Invoke(line);
         }
     }
@@ -278,7 +289,24 @@ public class InputManager : Singleton<InputManager>
     {
         CadenceRPM = Mathf.Max(0f, d.rpm);
         SpeedKph = Mathf.Max(0f, d.spd);
-        SteeringAngle = d.str / 45f * SteeringRange;
+
+        // 핸들이 센터 근처일 때만 offset 캡처 — 기울어진 상태에서 보정하면 +측 범위가 압축됨
+        const float YawCalibThreshold = 5f;
+        if (!_yawCalibrated)
+        {
+            if (Mathf.Abs(d.str) <= YawCalibThreshold)
+            {
+                _yawOffset = d.str;
+                _yawCalibrated = true;
+                Debug.Log($"[Input] Yaw 보정 완료: offset={_yawOffset:F2}°");
+            }
+            else
+            {
+                Debug.Log($"[Input] Yaw 보정 대기 중 (str={d.str:F2}° > ±{YawCalibThreshold}°, 핸들을 센터로)");
+            }
+        }
+        SteeringAngle = (d.str - _yawOffset) / 45f * SteeringRange;
+        Debug.Log($"[Input] raw str={d.str:F2}  offset={_yawOffset:F2}  SteeringAngle={SteeringAngle:F2}");
 
         bool bL = d.brkL == 1, bR = d.brkR == 1, o = d.o == 1, x = d.x == 1;
         BrakeLeft = bL; BrakeRight = bR;
