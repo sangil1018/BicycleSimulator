@@ -18,6 +18,14 @@ public class QuizManager : Singleton<QuizManager>
 
     [SerializeField] private GameObject quizUI; // 퀴즈 UI 오브젝트
 
+    public void InitialQuizUI()
+    {
+        if (quizUI != null)
+        {
+            quizUI.SetActive(false);
+        }
+    }
+
     /// <summary>
     /// 퀴즈 시작 시 데이터 설정
     /// </summary>

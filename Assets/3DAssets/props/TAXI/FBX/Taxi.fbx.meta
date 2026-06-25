@@ -17,8 +17,23 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: dashboard
+    second: {fileID: 2100000, guid: 1faf20e5773851d4fa160dc07eaef7ff, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: interior
+    second: {fileID: 2100000, guid: e876e83e2e6133347a2cbb3cf782e66e, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: seat_SHD
     second: {fileID: 2100000, guid: e876e83e2e6133347a2cbb3cf782e66e, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: steering_shd
+    second: {fileID: 2100000, guid: 9d7ff09a293e2aa46bacfe54898cd809, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

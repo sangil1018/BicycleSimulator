@@ -96,6 +96,8 @@ public class GameManager : Singleton<GameManager>
             StartLevelIntro();
         else
             Debug.LogWarning("[GameManager] TimelineGameController를 찾을 수 없습니다.");
+
+        if (QuizManager.Instance != null) QuizManager.Instance.InitialQuizUI();
     }
 
     public void ChangeState(GameState next)
