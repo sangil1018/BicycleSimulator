@@ -4,7 +4,7 @@ using UnityEngine.UI;
 using TMPro;
 
 /// <summary>DebugInputPanel v4 — 케이던스 RPM 슬라이더 (0~120 RPM)
-/// 단축키: [0]=O버튼  [`]=X버튼  [B]=브레이크L  [N]=브레이크R
+/// 단축키: [0]=O버튼  [`]=X버튼  [B]=브레이크
 /// (Space/1/Esc/방향키는 InputManager 키보드 모드가 처리)</summary>
 public class DebugInputPanel : MonoBehaviour
 {
@@ -20,13 +20,13 @@ public class DebugInputPanel : MonoBehaviour
     [SerializeField] TextMeshProUGUI statusText;
 
     [Header("Buttons")]
-    [SerializeField] Button btnO, btnX, btnBrakeL, btnBrakeR;
+    [SerializeField] Button btnO, btnX, btnBrake;
 
     [Header("Calibration")]
     [Tooltip("케이던스→가상속도 계수 (기본 0.25)")]
     [SerializeField] float cadenceToKph = 0.25f;
 
-    bool _brkL, _brkR, _o, _x;
+    bool _brk, _o, _x;
 
     // 이전 프레임 값 캐시 — 값이 바뀔 때만 문자열 생성
     float      _prevRpm, _prevSpd, _prevStr;
@@ -38,10 +38,9 @@ public class DebugInputPanel : MonoBehaviour
     {
         if (cadenceSlider) { cadenceSlider.minValue = 0; cadenceSlider.maxValue = 120; }
         if (steerSlider)   { steerSlider.minValue = -45; steerSlider.maxValue = 45; }
-        btnO?.onClick.AddListener(()      => _o    = true);
-        btnX?.onClick.AddListener(()      => _x    = true);
-        btnBrakeL?.onClick.AddListener(() => _brkL = !_brkL);
-        btnBrakeR?.onClick.AddListener(() => _brkR = !_brkR);
+        btnO?.onClick.AddListener(()     => _o   = true);
+        btnX?.onClick.AddListener(()     => _x   = true);
+        btnBrake?.onClick.AddListener(() => _brk = !_brk);
     }
 
     void Update()
@@ -56,12 +55,11 @@ public class DebugInputPanel : MonoBehaviour
         {
             if (kb.digit0Key.wasPressedThisFrame) _o    = true;  // 0키 → O버튼 (1은 게임시작 예약)
             if (kb.backquoteKey.wasPressedThisFrame) _x = true;  // ` 키 → X버튼
-            _brkL = kb.bKey.isPressed;
-            _brkR = kb.nKey.isPressed;
+            _brk = kb.bKey.isPressed;
         }
 
         float spd = rpm * cadenceToKph;
-        InputManager.Instance.Simulate(rpm, str, spd, _brkL, _brkR, _o, _x);
+        InputManager.Instance.Simulate(rpm, str, spd, _brk, _o, _x);
         _o = false; _x = false;
 
         // 값이 바뀔 때만 문자열 재생성
@@ -92,7 +90,7 @@ public class DebugInputPanel : MonoBehaviour
                     $"State: {state}\n" +
                     $"Score: {score}/80\n" +
                     $"Serial: {(connected ? "연결됨" : "시뮬레이션 모드")}\n\n" +
-                    $"[0]=O  [`]=X  [B]=BrkL  [N]=BrkR\n" +
+                    $"[0]=O  [`]=X  [B]=Brk\n" +
                     $"[RPM 참고] 60={60*cadenceToKph:F0}  80={80*cadenceToKph:F0}  " +
                     $"120={120*cadenceToKph:F0} km/h";
             _prevState     = state;
