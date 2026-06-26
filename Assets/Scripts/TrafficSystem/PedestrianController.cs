@@ -1,122 +1,231 @@
+using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.AI;
 
 namespace TrafficSystem
 {
-    [RequireComponent(typeof(NavMeshAgent))]
+    public enum PedestrianType { Adult, Child }
+    public enum WalkMode { PingPong, Loop, OneShot }
+
     public class PedestrianController : MonoBehaviour
     {
-        [Header("Waypoints")]
-        [SerializeField] Transform[] waypoints;
-        [SerializeField] bool loop = true;
-
         [Header("Movement")]
-        [SerializeField] float walkSpeed = 1.4f;
-        [SerializeField] float waypointReachDistance = 0.6f;
+        [SerializeField] WalkMode walkMode = WalkMode.PingPong;
+        [Tooltip("스플라인 포인트 도달 판정 거리 (m)")]
+        [SerializeField] float reachDist   = 0.15f;
+        [Tooltip("초당 회전 각도 (낮을수록 느리게 꺽임)")]
+        [SerializeField] float turnSpeed   = 120f;
+        [Tooltip("Bezier 곡선 구간 분할 수 (높을수록 부드러움)")]
+        [SerializeField] int   splineSteps = 12;
 
-        [Header("Crosswalk — 경로 공통 fallback 신호등")]
-        [Tooltip("CrosswalkWaypoint.tLight 가 비어 있을 때 사용하는 기본 신호등")]
-        [SerializeField] TrafficLight crosswalkLight;
+        // 중심선 경로 (오프셋 미포함, 직선 + Bezier 혼합)
+        Vector3[] centerPath;
+        int   pathIdx;
+        int   pathDir    = 1;
+        float sideOffset;
+        float lateralMag;
+        float speed;
 
-        NavMeshAgent agent;
-        int  currentIndex;
-        bool waitingForSignal;
-        TrafficLight currentCrosswalkSignal; // 현재 대기 중인 신호등 캐시
+        // CrosswalkWaypoint 신호 대기: pathIdx → TrafficLight 매핑
+        Dictionary<int, TrafficLight> crosswalkGates;
+        bool waitingAtCrosswalk;
 
-        public void Init(Transform[] assignedWaypoints, TrafficLight fallbackLight, int offset = 0)
+        Animator anim;
+        static readonly int HashSpeed = Animator.StringToHash("Speed");
+
+        public void Init(Transform[] wps, Vector3 spawnPos, int nextWpIndex, bool reverse,
+                         float walkSpeed, float lateralOffset, float blendRadius)
         {
-            waypoints      = assignedWaypoints;
-            crosswalkLight = fallbackLight;
-            currentIndex   = offset % Mathf.Max(1, waypoints.Length);
-            // 재호출 시 이전 대기 상태 초기화
-            waitingForSignal       = false;
-            currentCrosswalkSignal = null;
-            if (agent != null) agent.isStopped = false;
+            speed      = walkSpeed;
+            lateralMag = lateralOffset;
+            pathDir    = reverse ? -1 : 1;
+            sideOffset = reverse ? -lateralOffset : lateralOffset;
+
+            centerPath = BakePath(wps, blendRadius, splineSteps);
+
+            // CrosswalkWaypoint가 있는 원본 웨이포인트 위치를 centerPath 인덱스에 매핑
+            crosswalkGates = new Dictionary<int, TrafficLight>();
+            foreach (var wp in wps)
+            {
+                if (wp == null || !wp.TryGetComponent(out CrosswalkWaypoint cwp)) continue;
+                crosswalkGates[NearestIdx(wp.position)] = cwp.tLight;
+            }
+
+            pathIdx            = NearestIdx(spawnPos);
+            transform.position = OffsetPos(pathIdx);
+
+            int peek = Mathf.Clamp(pathIdx + pathDir, 0, centerPath.Length - 1);
+            Vector3 initDir = centerPath[peek] - centerPath[pathIdx];
+            initDir.y = 0f;
+            if (initDir.sqrMagnitude > 0.0001f)
+                transform.rotation = Quaternion.LookRotation(initDir);
+
+            if (TryGetComponent(out anim))
+                anim.SetFloat(HashSpeed, speed);
         }
 
-        void Awake()
+        // 중간 웨이포인트만 Bezier 보간, 나머지는 직선
+        // blendRadius : 각 중간 웨이포인트 앞뒤로 보간 적용할 거리 (m)
+        public static Vector3[] BakePath(Transform[] wps, float blendRadius, int bezierSteps)
         {
-            agent = GetComponent<NavMeshAgent>();
-            agent.speed           = walkSpeed;
-            agent.angularSpeed    = 240f;
-            agent.acceleration    = 8f;
-            agent.stoppingDistance = waypointReachDistance;
+            var pts = new List<Vector3>();
+            int n   = wps.Length;
+            if (n < 2) return pts.ToArray();
+
+            pts.Add(wps[0].position);
+
+            for (int i = 1; i < n - 1; i++)
+            {
+                Vector3 prev = wps[i - 1].position;
+                Vector3 curr = wps[i].position;
+                Vector3 next = wps[i + 1].position;
+
+                Vector3 inDir  = (curr - prev).normalized;
+                Vector3 outDir = (next - curr).normalized;
+
+                float inLen    = Vector3.Distance(prev, curr);
+                float outLen   = Vector3.Distance(curr, next);
+                float actBlend = Mathf.Min(blendRadius, inLen * 0.5f, outLen * 0.5f);
+
+                Vector3 entry = curr - inDir  * actBlend; // 보간 시작점
+                Vector3 exit  = curr + outDir * actBlend; // 보간 끝점
+
+                // 직선 구간: 마지막 점 → entry
+                AddStraight(pts, pts[pts.Count - 1], entry);
+
+                // Bezier 곡선 구간: entry → exit
+                Vector3 cp1 = entry + inDir  * (actBlend * 0.55f);
+                Vector3 cp2 = exit  - outDir * (actBlend * 0.55f);
+                AddBezier(pts, entry, cp1, cp2, exit, bezierSteps);
+            }
+
+            // 마지막 직선: 마지막 점 → wps[n-1]
+            AddStraight(pts, pts[pts.Count - 1], wps[n - 1].position);
+
+            return pts.ToArray();
         }
 
-        void Start()
+        static void AddStraight(List<Vector3> pts, Vector3 from, Vector3 to)
         {
-            if (waypoints != null && waypoints.Length > 0)
-                SetDestination(waypoints[currentIndex]);
+            const float step = 0.25f;
+            float dist = Vector3.Distance(from, to);
+            if (dist < 0.001f) return;
+            int cnt = Mathf.Max(1, Mathf.RoundToInt(dist / step));
+            for (int i = 1; i <= cnt; i++)
+                pts.Add(Vector3.Lerp(from, to, (float)i / cnt));
+        }
+
+        static void AddBezier(List<Vector3> pts, Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, int steps)
+        {
+            for (int i = 1; i <= steps; i++)
+            {
+                float t  = (float)i / steps;
+                float u  = 1f - t;
+                float uu = u * u;
+                float tt = t * t;
+                pts.Add(uu * u * p0 + 3f * uu * t * p1 + 3f * u * tt * p2 + tt * t * p3);
+            }
+        }
+
+        // centerPath[idx]에 현재 sideOffset 적용한 월드 위치 반환
+        Vector3 OffsetPos(int idx)
+        {
+            if (Mathf.Approximately(sideOffset, 0f)) return centerPath[idx];
+
+            int last = centerPath.Length - 1;
+            int a    = Mathf.Max(idx - 1, 0);
+            int b    = Mathf.Min(idx + 1, last);
+            Vector3 tangent = centerPath[b] - centerPath[a];
+            tangent.y = 0f;
+            if (tangent.sqrMagnitude < 0.0001f) return centerPath[idx];
+
+            Vector3 right = Vector3.Cross(Vector3.up, tangent.normalized);
+            return centerPath[idx] + right * sideOffset;
+        }
+
+        int NearestIdx(Vector3 pos)
+        {
+            int   best    = 0;
+            float bestSqr = float.MaxValue;
+            for (int i = 0; i < centerPath.Length; i++)
+            {
+                float d = (centerPath[i] - pos).sqrMagnitude;
+                if (d < bestSqr) { bestSqr = d; best = i; }
+            }
+            return best;
         }
 
         void Update()
         {
-            if (waypoints == null || waypoints.Length == 0) return;
-            if (agent.pathPending) return;
+            if (centerPath == null || centerPath.Length == 0) return;
 
-            if (waitingForSignal)
+            // CrosswalkWaypoint 신호 대기
+            if (waitingAtCrosswalk)
             {
-                bool canCross = currentCrosswalkSignal == null
-                    || currentCrosswalkSignal.PedestrianSignal == PedestrianState.Green;
-                if (canCross)
-                {
-                    waitingForSignal = false;
-                    agent.isStopped  = false;
-                    SetDestination(waypoints[currentIndex]);
-                }
-                return;
-            }
-
-            if (!agent.hasPath) return;
-            if (agent.remainingDistance > waypointReachDistance) return;
-
-            // loop=false: 마지막 waypoint 도달 시 정지
-            if (!loop && currentIndex >= waypoints.Length - 1)
-            {
-                agent.isStopped = true;
-                return;
-            }
-
-            AdvanceWaypoint();
-        }
-
-        void AdvanceWaypoint()
-        {
-            currentIndex++;
-            if (loop)
-                currentIndex %= waypoints.Length;
-            else
-                currentIndex = Mathf.Min(currentIndex, waypoints.Length - 1);
-
-            var wp = waypoints[currentIndex];
-            if (wp == null) return;
-
-            var marker = wp.GetComponent<CrosswalkWaypoint>();
-            if (marker != null)
-            {
-                // 전용 신호등 우선, 없으면 경로 공통 fallback 사용
-                var signal = marker.tLight != null ? marker.tLight : crosswalkLight;
-                bool canCross = signal == null
-                    || signal.PedestrianSignal == PedestrianState.Green;
-
-                if (!canCross)
-                {
-                    currentCrosswalkSignal = signal;
-                    waitingForSignal       = true;
-                    agent.isStopped        = true;
-                    agent.ResetPath();
+                crosswalkGates.TryGetValue(pathIdx, out var gateLight);
+                if (gateLight == null || gateLight.PedestrianSignal == PedestrianState.Green)
+                    waitingAtCrosswalk = false;
+                else
                     return;
-                }
             }
 
-            SetDestination(wp);
+            Vector3 goal   = OffsetPos(pathIdx);
+            Vector3 toGoal = goal - transform.position;
+            toGoal.y = 0f;
+
+            if (toGoal.sqrMagnitude > 0.0001f)
+            {
+                Quaternion targetRot = Quaternion.LookRotation(toGoal);
+                transform.rotation   = Quaternion.RotateTowards(
+                    transform.rotation, targetRot, turnSpeed * Time.deltaTime);
+            }
+
+            transform.position = Vector3.MoveTowards(transform.position, goal, speed * Time.deltaTime);
+
+            if (Vector3.Distance(transform.position, goal) <= reachDist)
+                Advance();
         }
 
-        void SetDestination(Transform wp)
+        void Advance()
         {
-            if (wp == null) return;
-            agent.isStopped = false;
-            agent.SetDestination(wp.position);
+            int next = pathIdx + pathDir;
+            int last = centerPath.Length - 1;
+
+            switch (walkMode)
+            {
+                case WalkMode.PingPong:
+                    if (next < 0 || next > last)
+                    {
+                        pathDir    = -pathDir;
+                        sideOffset = -sideOffset;
+                        next       = Mathf.Clamp(pathIdx + pathDir, 0, last);
+                    }
+                    pathIdx = next;
+                    break;
+
+                case WalkMode.Loop:
+                    pathIdx = ((next % centerPath.Length) + centerPath.Length) % centerPath.Length;
+                    break;
+
+                case WalkMode.OneShot:
+                    if (next < 0 || next > last)
+                    {
+                        if (anim != null) anim.SetFloat(HashSpeed, 0f);
+                        enabled = false;
+                        return;
+                    }
+                    pathIdx = next;
+                    break;
+            }
+
+            CheckCrosswalkGate();
+        }
+
+        void CheckCrosswalkGate()
+        {
+            if (crosswalkGates == null) return;
+            if (!crosswalkGates.TryGetValue(pathIdx, out var light)) return;
+            if (light != null && light.PedestrianSignal != PedestrianState.Green)
+                waitingAtCrosswalk = true;
         }
     }
 }

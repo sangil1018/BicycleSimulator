@@ -5,11 +5,12 @@ using TrafficSystem;
 [CustomEditor(typeof(TrafficSpawner))]
 public class TrafficSpawnerEditor : Editor
 {
-    SerializedProperty carPrefabProp;
+    SerializedProperty carPrefabsProp;
     SerializedProperty carCountProp;
     SerializedProperty spawnPointsProp;
     SerializedProperty heightOffsetProp;
     SerializedProperty spawnPerFrameProp;
+    SerializedProperty maxPathStepsProp;
 
     string      validationResult = "";
     MessageType validationType   = MessageType.None;
@@ -26,22 +27,24 @@ public class TrafficSpawnerEditor : Editor
 
     void OnEnable()
     {
-        carPrefabProp    = serializedObject.FindProperty("carPrefab");
-        carCountProp     = serializedObject.FindProperty("carCount");
-        spawnPointsProp  = serializedObject.FindProperty("spawnPoints");
-        heightOffsetProp = serializedObject.FindProperty("heightOffset");
+        carPrefabsProp    = serializedObject.FindProperty("carPrefabs");
+        carCountProp      = serializedObject.FindProperty("carCount");
+        spawnPointsProp   = serializedObject.FindProperty("spawnPoints");
+        heightOffsetProp  = serializedObject.FindProperty("heightOffset");
         spawnPerFrameProp = serializedObject.FindProperty("spawnPerFrame");
+        maxPathStepsProp  = serializedObject.FindProperty("maxPathSteps");
     }
 
     public override void OnInspectorGUI()
     {
         serializedObject.Update();
 
-        EditorGUILayout.PropertyField(carPrefabProp);
+        EditorGUILayout.PropertyField(carPrefabsProp, new GUIContent("Car Prefabs (랜덤 스폰)"), true);
         EditorGUILayout.PropertyField(carCountProp);
         EditorGUILayout.PropertyField(spawnPointsProp, new GUIContent("Spawn Points (시작 웨이포인트)"), true);
         EditorGUILayout.PropertyField(heightOffsetProp);
         EditorGUILayout.PropertyField(spawnPerFrameProp);
+        EditorGUILayout.PropertyField(maxPathStepsProp, new GUIContent("Max Path Steps", "경로 탐색 최대 웨이포인트 수. 루프 도로가 길면 늘려주세요."));
 
         EditorGUILayout.Space(6);
         EditorGUILayout.LabelField("── Validation ──────────────────────", EditorStyles.boldLabel);
@@ -53,7 +56,7 @@ public class TrafficSpawnerEditor : Editor
             EditorGUILayout.HelpBox(validationResult, validationType);
 
         // 배분 표
-        if (spawnPointsProp.arraySize > 0 && carCountProp.intValue > 0)
+        if (carPrefabsProp.arraySize > 0 && spawnPointsProp.arraySize > 0 && carCountProp.intValue > 0)
         {
             EditorGUILayout.Space(4);
             EditorGUILayout.LabelField("Car Distribution per Spawn Point:", EditorStyles.miniBoldLabel);
@@ -102,13 +105,23 @@ public class TrafficSpawnerEditor : Editor
     {
         var sb = new System.Text.StringBuilder();
 
-        var prefab = carPrefabProp.objectReferenceValue as GameObject;
-        if (prefab == null)
-            sb.AppendLine("✗ Car Prefab 미할당.");
-        else if (prefab.GetComponent<CarController>() == null)
-            sb.AppendLine("✗ Car Prefab에 CarController 없음.");
+        if (carPrefabsProp.arraySize == 0)
+        {
+            sb.AppendLine("✗ Car Prefabs 미할당.");
+        }
         else
-            sb.AppendLine("✓ Car Prefab OK");
+        {
+            bool allOk = true;
+            for (int i = 0; i < carPrefabsProp.arraySize; i++)
+            {
+                var prefab = carPrefabsProp.GetArrayElementAtIndex(i).objectReferenceValue as GameObject;
+                if (prefab == null)
+                { sb.AppendLine($"✗ carPrefabs[{i}] null."); allOk = false; continue; }
+                if (prefab.GetComponent<CarController>() == null)
+                { sb.AppendLine($"✗ carPrefabs[{i}] '{prefab.name}' — CarController 없음."); allOk = false; }
+            }
+            if (allOk) sb.AppendLine($"✓ Car Prefabs OK ({carPrefabsProp.arraySize}개)");
+        }
 
         if (spawnPointsProp.arraySize == 0)
         {

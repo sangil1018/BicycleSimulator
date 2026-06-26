@@ -12,8 +12,7 @@ public struct BikeInputData
     public float rpm;   // 케이던스 RPM
     public float spd;   // 가상 속도 km/h
     public float str;   // 핸들 조향각 (-45~+45)
-    public int   brkL;
-    public int   brkR;
+    public int   brk;
     public int   o;
     public int   x;
 }

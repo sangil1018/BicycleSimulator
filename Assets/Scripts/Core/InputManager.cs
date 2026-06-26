@@ -42,15 +42,13 @@ public class InputManager : Singleton<InputManager>
     public float CadenceRPM { get; private set; }
     public float SpeedKph { get; private set; }
     public float SteeringAngle { get; private set; }
-    public bool BrakeLeft { get; private set; }
-    public bool BrakeRight { get; private set; }
-    public bool BrakeAny => BrakeLeft || BrakeRight;
+    public bool Brake { get; private set; }
+    public bool BrakeAny => Brake;
     public bool BtnOHeld { get; private set; }
     public bool BtnXHeld { get; private set; }
     public bool BtnODown { get; private set; }
     public bool BtnXDown { get; private set; }
-    public bool BrkLDown { get; private set; }
-    public bool BrkRDown { get; private set; }
+    public bool BrkDown { get; private set; }
 
     public event Action OnBtnO, OnBtnX, OnBrakeAny;
     public event Action OnCalibrated;
@@ -66,7 +64,7 @@ public class InputManager : Singleton<InputManager>
     readonly List<string> _specialDrain = new(4);   // Update()에서 재사용, 매 이벤트 배열 할당 방지
     BikeInputData _pending;
     bool _hasNew;
-    bool _prevO, _prevX, _prevBrkL, _prevBrkR;
+    bool _prevO, _prevX, _prevBrk;
     SerialPort _serial;
     Thread _thread;
     bool _running;
@@ -201,7 +199,7 @@ public class InputManager : Singleton<InputManager>
 
     void Update()
     {
-        BtnODown = BtnXDown = BrkLDown = BrkRDown = false;
+        BtnODown = BtnXDown = BrkDown = false;
 
         BikeInputData snap = default;
         bool hasSnap = false;
@@ -308,21 +306,20 @@ public class InputManager : Singleton<InputManager>
         SteeringAngle = (d.str - _yawOffset) / 45f * SteeringRange;
         Debug.Log($"[Input] raw str={d.str:F2}  offset={_yawOffset:F2}  SteeringAngle={SteeringAngle:F2}");
 
-        bool bL = d.brkL == 1, bR = d.brkR == 1, o = d.o == 1, x = d.x == 1;
-        BrakeLeft = bL; BrakeRight = bR;
+        bool brk = d.brk == 1, o = d.o == 1, x = d.x == 1;
+        Brake = brk;
         BtnOHeld = o; BtnXHeld = x;
 
         BtnODown = o && !_prevO;
         BtnXDown = x && !_prevX;
-        BrkLDown = bL && !_prevBrkL;
-        BrkRDown = bR && !_prevBrkR;
+        BrkDown = brk && !_prevBrk;
 
         if (BtnODown) OnBtnO?.Invoke();
         if (BtnXDown) OnBtnX?.Invoke();
-        if ((BrkLDown || BrkRDown) && BrakeAny) OnBrakeAny?.Invoke();
+        if (BrkDown && BrakeAny) OnBrakeAny?.Invoke();
 
         _prevO = o; _prevX = x;
-        _prevBrkL = bL; _prevBrkR = bR;
+        _prevBrk = brk;
     }
 
     void OnDestroy()
@@ -333,7 +330,7 @@ public class InputManager : Singleton<InputManager>
     }
 
     public void Simulate(float cadenceRpm, float steering, float speedKph = -1f,
-                         bool brkL = false, bool brkR = false, bool o = false, bool x = false)
+                         bool brk = false, bool o = false, bool x = false)
     {
         float spd = speedKph >= 0f ? speedKph : cadenceRpm * 0.25f;
         ApplyData(new BikeInputData
@@ -342,8 +339,7 @@ public class InputManager : Singleton<InputManager>
             rpm = cadenceRpm,
             spd = spd,
             str = steering,
-            brkL = brkL ? 1 : 0,
-            brkR = brkR ? 1 : 0,
+            brk = brk ? 1 : 0,
             o = o ? 1 : 0,
             x = x ? 1 : 0
         });

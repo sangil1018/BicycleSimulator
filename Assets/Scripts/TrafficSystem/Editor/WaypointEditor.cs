@@ -96,6 +96,49 @@ public class WaypointEditor : Editor
     }
 
     // ── Scene View ──────────────────────────────────────────────────────────
+
+    // 선택 여부와 무관하게 모든 웨이포인트 연결선 항상 표시
+    [DrawGizmo(GizmoType.NonSelected | GizmoType.Selected | GizmoType.InSelectionHierarchy)]
+    static void DrawGizmosAlways(Waypoint wp, GizmoType gizmoType)
+    {
+        var nexts = wp.NextWaypoints;
+        bool isSelected = (gizmoType & GizmoType.Selected) != 0;
+
+        // 웨이포인트 노드 구
+        Handles.color = new Color(1f, 0.85f, 0f, isSelected ? 0.5f : 0.2f);
+        Handles.SphereHandleCap(0, wp.transform.position, Quaternion.identity,
+            isSelected ? 0.6f : 0.35f, EventType.Repaint);
+
+        // TrafficLightStop 마커 표시 (빨간 정지선)
+        if (wp.TryGetComponent(out TrafficLightStop stopMarker))
+        {
+            bool red = stopMarker.trafficLight != null &&
+                       stopMarker.trafficLight.VehicleState != TrafficLightState.Green;
+            Handles.color = red ? new Color(1f, 0.1f, 0.1f, 0.9f) : new Color(0.2f, 1f, 0.3f, 0.7f);
+            Vector3 pos = wp.transform.position;
+            Handles.DrawLine(pos + wp.transform.right * 1.5f, pos - wp.transform.right * 1.5f, 3f);
+            if (isSelected && stopMarker.trafficLight != null)
+            {
+                Handles.color = new Color(1f, 0.5f, 0f, 0.8f);
+                Handles.DrawDottedLine(pos, stopMarker.trafficLight.transform.position, 4f);
+                Handles.Label(pos + Vector3.up * 0.8f, $"  STOP → {stopMarker.trafficLight.name}");
+            }
+        }
+
+        if (nexts == null || nexts.Length == 0) return;
+
+        // 비선택 시 간략한 선만, 선택 시 OnSceneGUI가 상세 표시
+        if (isSelected) return;
+
+        for (int i = 0; i < nexts.Length; i++)
+        {
+            if (nexts[i] == null) continue;
+            Color col = i == 0 ? colorStraight : (i == 1 ? colorRightTurn : colorLeftTurn);
+            Handles.color = new Color(col.r, col.g, col.b, 0.5f);
+            Handles.DrawLine(wp.transform.position, nexts[i].transform.position, 2f);
+        }
+    }
+
     void OnSceneGUI()
     {
         var wp    = (Waypoint)target;

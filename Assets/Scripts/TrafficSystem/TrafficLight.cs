@@ -31,11 +31,13 @@ namespace TrafficSystem
 
         float timer;
         bool managedExternally;
+        bool pedestrianOverridden;
         Coroutine pedestrianCoroutine;
 
         // ── Public API ────────────────────────────────────────────────────────
-        public TrafficLightState VehicleState => vehicleState;
-        public PedestrianState PedestrianSignal => pedestrianState;
+        public TrafficLightState VehicleState     => vehicleState;
+        public PedestrianState   PedestrianSignal => pedestrianState;
+        public bool              PedestrianOverridden => pedestrianOverridden;
 
         public void ForceVehicleState(TrafficLightState state)
         {
@@ -44,9 +46,11 @@ namespace TrafficSystem
             ApplyVehicleVisual();
         }
 
-        // greenCountdown > 0 이면 해당 시간 후 자동 Red 전환 (마지막 1초 깜빡임 포함)
+        // 인터섹션 사이클용 — 오버라이드 중이면 무시
         public void ForcePedestrianState(PedestrianState state, float greenCountdown = 0f)
         {
+            if (pedestrianOverridden) return;
+
             managedExternally = true;
             if (pedestrianCoroutine != null)
             {
@@ -58,6 +62,25 @@ namespace TrafficSystem
 
             if (state == PedestrianState.Green && greenCountdown > 0f)
                 pedestrianCoroutine = StartCoroutine(PedestrianGreenRoutine(greenCountdown));
+        }
+
+        // 콘텐츠 제어용 — 인터섹션 사이클과 독립적으로 보행 신호 고정
+        // ClearPedestrianOverride() 전까지 인터섹션이 보행 신호를 덮어쓰지 않음
+        public void OverridePedestrianSignal(PedestrianState state)
+        {
+            pedestrianOverridden = true;
+            if (pedestrianCoroutine != null)
+            {
+                StopCoroutine(pedestrianCoroutine);
+                pedestrianCoroutine = null;
+            }
+            pedestrianState = state;
+            ApplyPedestrianVisual();
+        }
+
+        public void ClearPedestrianOverride()
+        {
+            pedestrianOverridden = false;
         }
 
         // ── Internal ─────────────────────────────────────────────────────────
@@ -141,7 +164,8 @@ namespace TrafficSystem
         static void SetEmission(Renderer r, bool on)
         {
             if (r == null) return;
-            var mat = r.sharedMaterial;
+            // sharedMaterial은 씬의 모든 동일 머티리얼을 동시에 변경하므로 인스턴스 사용
+            var mat = r.material;
             if (on) mat.EnableKeyword("_EMISSION");
             else mat.DisableKeyword("_EMISSION");
         }

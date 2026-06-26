@@ -1,0 +1,68 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &8881471587122402786
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4113229726409863263}
+  - component: {fileID: 4834331356061875076}
+  m_Layer: 0
+  m_Name: PedestrianSpawner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4113229726409863263
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8881471587122402786}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &4834331356061875076
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8881471587122402786}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a3a8fa156eac7f447a17efccbbe47274, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.PedestrianSpawner
+  adultPrefabs:
+  - {fileID: 8119707396419480901, guid: 8a9ef618917b87b46b46317442ce1483, type: 3}
+  - {fileID: 1987456578835867836, guid: e140b0b81f1fda649982a1c67b4628bf, type: 3}
+  - {fileID: 3622004159525428882, guid: e3242440b9117a64db078f7d0e85d7e9, type: 3}
+  - {fileID: 5014619346728060600, guid: db24e4e25c02a1043a897a52e442bbeb, type: 3}
+  - {fileID: 4752262454059411896, guid: bbecf41a1083bf947bd69b994b1b2fde, type: 3}
+  - {fileID: 7353126585317730192, guid: d5cff7af9fc1b204385693e5c8a5ddd5, type: 3}
+  childPrefabs:
+  - {fileID: 6308293592908873224, guid: 0138ea5a3997a6d4c8a7952d2983fc5d, type: 3}
+  - {fileID: 4931565789412187612, guid: 73c7dbeddb9cbea40b0d140b9c2d5a80, type: 3}
+  adultWalkSpeed: 1.4
+  childWalkSpeed: 0.85
+  groups:
+  - label: 
+    waypoints: []
+    adultsForward: 4
+    adultsReverse: 4
+    childrenForward: 1
+    childrenReverse: 1
+    lateralOffset: 0.6
+    blendRadius: 3
+  spawnPerFrame: 5

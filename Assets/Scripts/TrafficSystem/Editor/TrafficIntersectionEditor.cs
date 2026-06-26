@@ -87,6 +87,52 @@ public class TrafficIntersectionEditor : Editor
                 if (GUILayout.Button("▶ Resume Timer"))
                     intersection.ResumeTimer();
             }
+
+            EditorGUILayout.Space(6);
+            EditorGUILayout.LabelField("── 보행 신호 오버라이드 (콘텐츠용) ──────", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox(
+                "고정 시 인터섹션 사이클이 계속 진행되지만 보행 신호는 변경되지 않습니다.\n" +
+                "해제하면 다음 페이즈 전환 시 자동으로 복원됩니다.", MessageType.None);
+
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                var prev = GUI.backgroundColor;
+
+                GUI.backgroundColor = new Color(1f, 0.3f, 0.3f);
+                if (GUILayout.Button("전체 빨강 고정"))
+                    intersection.OverridePedestrianAll(PedestrianState.Red);
+
+                GUI.backgroundColor = new Color(0.3f, 1f, 0.4f);
+                if (GUILayout.Button("전체 초록 고정"))
+                    intersection.OverridePedestrianAll(PedestrianState.Green);
+
+                GUI.backgroundColor = new Color(0.8f, 0.8f, 0.8f);
+                if (GUILayout.Button("전체 해제"))
+                    intersection.ClearPedestrianOverrideAll();
+
+                GUI.backgroundColor = prev;
+            }
+
+            EditorGUILayout.Space(2);
+            EditorGUILayout.LabelField("그룹별:", EditorStyles.miniBoldLabel);
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                var prev = GUI.backgroundColor;
+
+                GUI.backgroundColor = new Color(1f, 0.3f, 0.3f);
+                if (GUILayout.Button("A 빨강")) intersection.OverridePedestrianGroupA(PedestrianState.Red);
+
+                GUI.backgroundColor = new Color(0.3f, 1f, 0.4f);
+                if (GUILayout.Button("A 초록")) intersection.OverridePedestrianGroupA(PedestrianState.Green);
+
+                GUI.backgroundColor = new Color(1f, 0.3f, 0.3f);
+                if (GUILayout.Button("B 빨강")) intersection.OverridePedestrianGroupB(PedestrianState.Red);
+
+                GUI.backgroundColor = new Color(0.3f, 1f, 0.4f);
+                if (GUILayout.Button("B 초록")) intersection.OverridePedestrianGroupB(PedestrianState.Green);
+
+                GUI.backgroundColor = prev;
+            }
         }
         else
         {

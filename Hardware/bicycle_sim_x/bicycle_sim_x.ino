@@ -31,8 +31,7 @@ void setRGB(uint8_t, uint8_t, uint8_t) {}
 #define PIN_PAS 1
 #define PIN_VIBE_L 2
 #define PIN_VIBE_R 42
-#define PIN_BRK_L 4
-#define PIN_BRK_R 5
+#define PIN_BRK 4
 #define PIN_BTN_O 6
 #define PIN_BTN_X 7
 #define PIN_SDA 17
@@ -185,7 +184,7 @@ float calcCadenceRPM()
 }
 
 // ── RGB LED 제어 ─────────────────────────────────────────────────────
-void updateRGB(float spd, bool brakeAny)
+void updateRGB(float spd, bool brake)
 {
     if (!g_dmpStable)
         return; // 안정화 중에는 setup에서 파란색 유지
@@ -198,7 +197,7 @@ void updateRGB(float spd, bool brakeAny)
     blinkMs = now;
     blinkOn = !blinkOn;
 
-    if (brakeAny)
+    if (brake)
     {
         setRGB(255, 80, 0); // 주황색 (제동)
         return;
@@ -302,8 +301,7 @@ void setup()
 
     pinMode(PIN_PAS, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(PIN_PAS), onPasPulse, FALLING);
-    pinMode(PIN_BRK_L, INPUT_PULLUP);
-    pinMode(PIN_BRK_R, INPUT_PULLUP);
+    pinMode(PIN_BRK, INPUT_PULLUP);
     pinMode(PIN_BTN_O, INPUT_PULLUP);
     pinMode(PIN_BTN_X, INPUT_PULLUP);
 
@@ -369,20 +367,19 @@ void loop()
 
     float rpm = calcCadenceRPM();
     float spd = rpm * CADENCE_TO_KPH;
-    bool brkL = !digitalRead(PIN_BRK_L);
-    bool brkR = !digitalRead(PIN_BRK_R);
+    bool brk = !digitalRead(PIN_BRK);
     bool btnO = !digitalRead(PIN_BTN_O);
     bool btnX = !digitalRead(PIN_BTN_X);
 
     if (!vibeIsPlaying())
     {
-        vibeSet((brkL || brkR) ? 180 : 0);
+        vibeSet(brk ? 180 : 0);
     }
 
-    updateRGB(spd, brkL || brkR);
+    updateRGB(spd, brk);
 
     Serial.printf("{\"id\":%d,\"rpm\":%.1f,\"spd\":%.1f,\"str\":%.1f,"
-                  "\"brkL\":%d,\"brkR\":%d,\"o\":%d,\"x\":%d}\n",
+                  "\"brk\":%d,\"o\":%d,\"x\":%d}\n",
                   STATION_ID, rpm, spd, constrain(g_steerAngle, -STEER_RANGE_DEG, STEER_RANGE_DEG),
-                  brkL ? 1 : 0, brkR ? 1 : 0, btnO ? 1 : 0, btnX ? 1 : 0);
+                  brk ? 1 : 0, btnO ? 1 : 0, btnX ? 1 : 0);
 }

@@ -61,6 +61,37 @@ namespace TrafficSystem
             SetPhase(next);
         }
 
+        // ── 콘텐츠 제어용 보행 신호 오버라이드 ────────────────────────────────
+
+        // 교차로 전체 보행 신호 고정 (인터섹션 사이클은 계속 진행)
+        public void OverridePedestrianAll(PedestrianState state)
+        {
+            OverridePedestrianGroup(groupA, state);
+            OverridePedestrianGroup(groupB, state);
+        }
+
+        public void OverridePedestrianGroupA(PedestrianState state) => OverridePedestrianGroup(groupA, state);
+        public void OverridePedestrianGroupB(PedestrianState state) => OverridePedestrianGroup(groupB, state);
+
+        // 오버라이드 해제 — 이후 인터섹션 페이즈 전환 시 자동으로 신호 복원됨
+        public void ClearPedestrianOverrideAll()
+        {
+            ClearGroupOverride(groupA);
+            ClearGroupOverride(groupB);
+        }
+
+        static void OverridePedestrianGroup(TrafficLight[] group, PedestrianState state)
+        {
+            if (group == null) return;
+            foreach (var l in group) l?.OverridePedestrianSignal(state);
+        }
+
+        static void ClearGroupOverride(TrafficLight[] group)
+        {
+            if (group == null) return;
+            foreach (var l in group) l?.ClearPedestrianOverride();
+        }
+
         // ── Internal ─────────────────────────────────────────────────────────
         void SetPhase(Phase phase)
         {
