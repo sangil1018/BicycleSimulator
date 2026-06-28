@@ -25,7 +25,26 @@ namespace TrafficSystem
         public PedestrianState PedestrianSignal    => pedestrianState;
         public bool            PedestrianOverridden => pedestrianOverridden;
 
-        void Start() => ApplyPedestrianVisual();
+        static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
+        static readonly MaterialPropertyBlock _mpb = new MaterialPropertyBlock();
+
+        Color _redEmission, _greenEmission;
+
+        void Start()
+        {
+            _redEmission   = InitEmission(pedestrianRedLight);
+            _greenEmission = InitEmission(pedestrianGreenLight);
+            ApplyPedestrianVisual();
+        }
+
+        // sharedMaterial에서 Emission 색상 캐시. 미설정(black)이면 white 반환.
+        static Color InitEmission(Renderer r)
+        {
+            if (r == null || r.sharedMaterial == null) return Color.white;
+            r.sharedMaterial.EnableKeyword("_EMISSION");
+            Color c = r.sharedMaterial.GetColor(EmissionColorId);
+            return (c.r + c.g + c.b) < 0.01f ? Color.white : c;
+        }
 
         // TrafficJunction 사이클용 — 오버라이드 중이면 무시
         public void ForcePedestrianState(PedestrianState state, float greenCountdown = 0f)
@@ -60,8 +79,8 @@ namespace TrafficSystem
 
         void ApplyPedestrianVisual()
         {
-            SetEmission(pedestrianRedLight,   pedestrianState == PedestrianState.Red);
-            SetEmission(pedestrianGreenLight, pedestrianState == PedestrianState.Green);
+            SetEmission(pedestrianRedLight,   _redEmission,   pedestrianState == PedestrianState.Red);
+            SetEmission(pedestrianGreenLight, _greenEmission, pedestrianState == PedestrianState.Green);
         }
 
         IEnumerator PedestrianGreenRoutine(float duration)
@@ -75,8 +94,8 @@ namespace TrafficSystem
             while (elapsed < blinkDuration)
             {
                 bool on = (Mathf.FloorToInt(elapsed / blinkInterval) % 2 == 0);
-                SetEmission(pedestrianGreenLight, on);
-                SetEmission(pedestrianRedLight, false);
+                SetEmission(pedestrianGreenLight, _greenEmission, on);
+                SetEmission(pedestrianRedLight,   _redEmission,   false);
                 yield return new WaitForSeconds(blinkInterval);
                 elapsed += blinkInterval;
             }
@@ -86,12 +105,12 @@ namespace TrafficSystem
             pedestrianCoroutine = null;
         }
 
-        static void SetEmission(Renderer r, bool on)
+        static void SetEmission(Renderer r, Color emColor, bool on)
         {
             if (r == null) return;
-            var mat = r.material;
-            if (on) mat.EnableKeyword("_EMISSION");
-            else    mat.DisableKeyword("_EMISSION");
+            r.GetPropertyBlock(_mpb);
+            _mpb.SetColor(EmissionColorId, on ? emColor : Color.black);
+            r.SetPropertyBlock(_mpb);
         }
     }
 }

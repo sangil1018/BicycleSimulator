@@ -69,6 +69,12 @@ public class TrafficSystemWindow : EditorWindow
         _lights      = Object.FindObjectsByType<TrafficLight>               (FindObjectsSortMode.None).ToList();
         _controllers = Object.FindObjectsByType<PedestrianSignalController>(FindObjectsSortMode.None).ToList();
         _manager     = Object.FindFirstObjectByType<TrafficManager>();
+
+        // 삭제된 교차로 인덱스의 Foldout 상태 제거
+        var validCount = _junctions.Count;
+        foreach (var key in _junctionFold.Keys.Where(k => k >= validCount).ToList())
+            _junctionFold.Remove(key);
+
         Repaint();
     }
 
@@ -222,9 +228,16 @@ public class TrafficSystemWindow : EditorWindow
         WritePhase(phases, 1, "동서 직진", new[] { sigs[2], sigs[3] }, null, _wizardGreenDur);
         so.ApplyModifiedProperties();
 
-        Selection.activeGameObject = parent;
-        EditorGUIUtility.PingObject(parent);
         Refresh();
+        var capturedParent = parent;
+        EditorApplication.delayCall += () =>
+        {
+            if (capturedParent)
+            {
+                Selection.activeGameObject = capturedParent;
+                EditorGUIUtility.PingObject(capturedParent);
+            }
+        };
         Debug.Log($"[교통시스템] {_wizardLabel} 4방향 교차로 생성 완료. 각 신호기를 TrafficNode.StopSignal에 연결하세요.");
     }
 
@@ -259,14 +272,23 @@ public class TrafficSystemWindow : EditorWindow
         phases.arraySize = phaseCount;
         for (int p = 0; p < phaseCount; p++)
         {
-            var phaseSigs = sigs.Skip(p * perPhase).Take(perPhase).ToArray();
+            int start     = p * perPhase;
+            int count     = (p == phaseCount - 1) ? sigs.Length - start : perPhase;
+            var phaseSigs = sigs.Skip(start).Take(count).ToArray();
             WritePhase(phases, p, $"페이즈 {p}", phaseSigs, null, _wizardGreenDur);
         }
         so.ApplyModifiedProperties();
 
-        Selection.activeGameObject = jGo;
-        EditorGUIUtility.PingObject(jGo);
         Refresh();
+        var capturedJGo = jGo;
+        EditorApplication.delayCall += () =>
+        {
+            if (capturedJGo)
+            {
+                Selection.activeGameObject = capturedJGo;
+                EditorGUIUtility.PingObject(capturedJGo);
+            }
+        };
         Debug.Log($"[교통시스템] {_wizardLabel} 교차로 생성 완료. ({phaseCount}페이즈, 신호기 {sigs.Length}개)");
     }
 
@@ -390,8 +412,9 @@ public class TrafficSystemWindow : EditorWindow
         go.transform.position = pos;
         var node = go.AddComponent<TrafficNode>();
         Undo.RegisterCreatedObjectUndo(go, "Create TrafficNode");
-        Selection.activeGameObject = go;
         Refresh();
+        var capturedGo = go;
+        EditorApplication.delayCall += () => { if (capturedGo) Selection.activeGameObject = capturedGo; };
         return node;
     }
 
@@ -717,7 +740,6 @@ public class TrafficSystemWindow : EditorWindow
                     EditorGUIUtility.PingObject(tl);
             }
         }
-    }
 
         // ── Timeline 제어 컨트롤러 ────────────────────────────────────────
         Header($"타임라인 신호 제어 — PedestrianSignalController  ({_controllers.Count}개)");
@@ -892,12 +914,6 @@ public class TrafficSystemWindow : EditorWindow
         if (!_validDone) return;
 
         EditorGUILayout.Space(4);
-        if (_validResults.Count == 0)
-        {
-            EditorGUILayout.HelpBox("모든 검사를 통과했습니다! ✓", MessageType.None);
-            return;
-        }
-
         foreach (var (type, msg) in _validResults)
             EditorGUILayout.HelpBox(msg, type);
     }
@@ -1086,7 +1102,7 @@ public class TrafficSystemWindow : EditorWindow
                 Ray   r2  = HandleUtility.GUIPointToWorldRay(e.mousePosition);
                 Vector3 mp = Physics.Raycast(r2, out RaycastHit h2) ? h2.point : r2.GetPoint(10f);
                 Handles.color = new Color(0.3f, 1f, 1f, 0.6f);
-                Handles.DrawDashedLine(_connectSource.transform.position, mp, 5f);
+                Handles.DrawDottedLine(_connectSource.transform.position, mp, 5f);
                 Handles.Label(_connectSource.transform.position + Vector3.up * 0.9f,
                     "출발", EditorStyles.boldLabel);
             }

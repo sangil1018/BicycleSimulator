@@ -47,7 +47,8 @@ namespace TrafficSystem
             foreach (var wp in wps)
             {
                 if (wp == null || !wp.TryGetComponent(out CrosswalkWaypoint cwp)) continue;
-                crosswalkGates[NearestIdx(wp.position)] = cwp.tLight;
+                if (cwp.tLight != null)
+                    crosswalkGates[NearestIdx(wp.position)] = cwp.tLight;
             }
 
             pathIdx            = NearestIdx(spawnPos);

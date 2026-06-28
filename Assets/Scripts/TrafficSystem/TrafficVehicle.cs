@@ -110,7 +110,13 @@ namespace TrafficSystem
             // 경로 끝 → 리스폰 요청
             if (pendingNode == null)
             {
-                TrafficManager.Instance?.OnVehicleNeedsRespawn(this);
+                if (TrafficManager.Instance != null)
+                    TrafficManager.Instance.OnVehicleNeedsRespawn(this);
+                else
+                {
+                    Debug.LogWarning($"[TrafficVehicle] {name}: 경로 끝 도달 시 TrafficManager 없음. 차량 비활성화.", this);
+                    enabled = false;
+                }
                 return;
             }
 

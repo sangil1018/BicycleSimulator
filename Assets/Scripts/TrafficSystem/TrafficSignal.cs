@@ -17,7 +17,27 @@ namespace TrafficSystem
         public SignalState State => state;
         public bool CanPass => state == SignalState.Green;
 
-        void Start() => ApplyVisual();
+        static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
+        static readonly MaterialPropertyBlock _mpb = new MaterialPropertyBlock();
+
+        Color _redEmission, _yellowEmission, _greenEmission;
+
+        void Start()
+        {
+            _redEmission    = InitEmission(redRenderer);
+            _yellowEmission = InitEmission(yellowRenderer);
+            _greenEmission  = InitEmission(greenRenderer);
+            ApplyVisual();
+        }
+
+        // sharedMaterial에서 Emission 색상 캐시. 미설정(black)이면 white 반환.
+        static Color InitEmission(Renderer r)
+        {
+            if (r == null || r.sharedMaterial == null) return Color.white;
+            r.sharedMaterial.EnableKeyword("_EMISSION");
+            Color c = r.sharedMaterial.GetColor(EmissionColorId);
+            return (c.r + c.g + c.b) < 0.01f ? Color.white : c;
+        }
 
         // TrafficJunction에서만 호출
         public void SetState(SignalState newState)
@@ -28,17 +48,17 @@ namespace TrafficSystem
 
         void ApplyVisual()
         {
-            SetEmission(redRenderer,    state == SignalState.Red);
-            SetEmission(yellowRenderer, state == SignalState.Yellow);
-            SetEmission(greenRenderer,  state == SignalState.Green);
+            SetEmission(redRenderer,    _redEmission,    state == SignalState.Red);
+            SetEmission(yellowRenderer, _yellowEmission, state == SignalState.Yellow);
+            SetEmission(greenRenderer,  _greenEmission,  state == SignalState.Green);
         }
 
-        static void SetEmission(Renderer r, bool on)
+        static void SetEmission(Renderer r, Color emColor, bool on)
         {
             if (r == null) return;
-            var mat = r.material;
-            if (on) mat.EnableKeyword("_EMISSION");
-            else    mat.DisableKeyword("_EMISSION");
+            r.GetPropertyBlock(_mpb);
+            _mpb.SetColor(EmissionColorId, on ? emColor : Color.black);
+            r.SetPropertyBlock(_mpb);
         }
 
 #if UNITY_EDITOR

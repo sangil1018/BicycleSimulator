@@ -65,6 +65,7 @@ public class TrafficManagerEditor : Editor
     [DrawGizmo(GizmoType.NonSelected | GizmoType.Selected | GizmoType.InSelectionHierarchy)]
     static void DrawGizmosAlways(TrafficManager mgr, GizmoType gizmoType)
     {
+        if (!mgr) return;
         var so = new SerializedObject(mgr);
         var sp = so.FindProperty("spawnNodes");
         if (sp == null) return;

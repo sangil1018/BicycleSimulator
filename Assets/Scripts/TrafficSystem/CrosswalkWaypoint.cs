@@ -3,10 +3,9 @@ using UnityEngine;
 namespace TrafficSystem
 {
     /// <summary>
-    /// Marker component — attach to a waypoint Transform that sits at a crosswalk entrance.
-    /// PedestrianController checks this component before proceeding.
-    /// Assign <tLight> for per-crosswalk signal control.
-    /// If <tLight> is null, PedestrianController falls back to the route-level crosswalkLight.
+    /// 횡단보도 입구 웨이포인트에 부착하는 마커 컴포넌트.
+    /// PedestrianController가 이 컴포넌트를 감지하면 tLight 신호를 확인 후 통과합니다.
+    /// tLight가 null이면 신호 대기 없이 자유 통과합니다.
     /// </summary>
     public class CrosswalkWaypoint : MonoBehaviour
     {

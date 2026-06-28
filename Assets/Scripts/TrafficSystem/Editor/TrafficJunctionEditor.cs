@@ -53,11 +53,12 @@ public class TrafficJunctionEditor : Editor
         EditorGUILayout.EndHorizontal();
 
         if (GUI.changed) EditorUtility.SetDirty(target);
-        Repaint();
+        if (Application.isPlaying) Repaint();
     }
 
     void OnSceneGUI()
     {
+        if (!target) return;
         var junction = (TrafficJunction)target;
         var so       = new SerializedObject(junction);
         var phasesProp = so.FindProperty("phases");

@@ -14,12 +14,19 @@ public class TrafficNodeEditor : Editor
 
     void OnEnable()
     {
+        if (!target) return;
         exitsProp      = serializedObject.FindProperty("exits");
         stopSignalProp = serializedObject.FindProperty("stopSignal");
     }
 
     public override void OnInspectorGUI()
     {
+        if (!target) { DrawDefaultInspector(); return; }
+        if (exitsProp == null || stopSignalProp == null)
+        {
+            exitsProp      = serializedObject.FindProperty("exits");
+            stopSignalProp = serializedObject.FindProperty("stopSignal");
+        }
         serializedObject.Update();
 
         var node = (TrafficNode)target;
@@ -33,7 +40,7 @@ public class TrafficNodeEditor : Editor
         if (exitsProp.arraySize > 0)
         {
             EditorGUILayout.Space(4);
-            DrawWeightBar(node);
+            DrawWeightBar(exitsProp);
         }
         else
         {
@@ -63,6 +70,7 @@ public class TrafficNodeEditor : Editor
     [DrawGizmo(GizmoType.NonSelected | GizmoType.Selected | GizmoType.InSelectionHierarchy)]
     static void DrawGizmosAlways(TrafficNode node, GizmoType gizmoType)
     {
+        if (!node) return;
         bool isSelected = (gizmoType & GizmoType.Selected) != 0;
         float sphereSize = isSelected ? 0.55f : 0.35f;
 
@@ -100,6 +108,7 @@ public class TrafficNodeEditor : Editor
 
     void OnSceneGUI()
     {
+        if (!target) return;
         var node = (TrafficNode)target;
         var so   = new SerializedObject(node);
         var ep   = so.FindProperty("exits");
@@ -143,11 +152,8 @@ public class TrafficNodeEditor : Editor
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    void DrawWeightBar(TrafficNode node)
+    void DrawWeightBar(SerializedProperty ep)
     {
-        var so = new SerializedObject(node);
-        var ep = so.FindProperty("exits");
-
         int total = 0;
         for (int i = 0; i < ep.arraySize; i++)
         {

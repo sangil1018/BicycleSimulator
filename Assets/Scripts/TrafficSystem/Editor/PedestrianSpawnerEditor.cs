@@ -28,6 +28,7 @@ public class PedestrianSpawnerEditor : Editor
 
     void OnEnable()
     {
+        if (!target) return;
         adultPrefabsProp  = serializedObject.FindProperty("adultPrefabs");
         childPrefabsProp  = serializedObject.FindProperty("childPrefabs");
         adultSpeedProp    = serializedObject.FindProperty("adultWalkSpeed");
@@ -101,6 +102,7 @@ public class PedestrianSpawnerEditor : Editor
     [DrawGizmo(GizmoType.NonSelected | GizmoType.Selected | GizmoType.InSelectionHierarchy)]
     static void DrawGizmosAlways(PedestrianSpawner spawner, GizmoType gizmoType)
     {
+        if (!spawner) return;
         var so         = new SerializedObject(spawner);
         var groupsProp = so.FindProperty("groups");
         if (groupsProp == null) return;
@@ -110,6 +112,7 @@ public class PedestrianSpawnerEditor : Editor
 
     void OnSceneGUI()
     {
+        if (!target) return;
         serializedObject.Update();
         DrawGroupGizmos(groupsProp);
     }
