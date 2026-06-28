@@ -1,36 +1,55 @@
+using System.Collections;
 using UnityEngine;
 
 namespace TrafficSystem
 {
     public enum SignalState { Red, Yellow, Green }
+    public enum PedestrianState { Red, Green }
 
     public class TrafficSignal : MonoBehaviour
     {
-        [Header("렌더러 (빨 / 노 / 녹)")]
+        [Header("차량 신호 렌더러 (빨 / 노 / 녹)")]
         [SerializeField] Renderer redRenderer;
         [SerializeField] Renderer yellowRenderer;
         [SerializeField] Renderer greenRenderer;
 
-        [Header("State (read-only in Play)")]
+        [Header("보행자 신호 렌더러 (빨 / 녹)")]
+        [SerializeField] Renderer pedestrianRedLight;
+        [SerializeField] Renderer pedestrianGreenLight;
+
+        [Header("차량 신호 상태 (read-only in Play)")]
         [SerializeField] SignalState state = SignalState.Red;
 
-        public SignalState State => state;
-        public bool CanPass => state == SignalState.Green;
+        [Header("보행자 신호")]
+        [SerializeField] float blinkInterval = 0.2f;
+        [SerializeField] PedestrianState pedestrianState = PedestrianState.Red;
+
+        bool pedestrianOverridden;
+        Coroutine pedestrianCoroutine;
+
+        public SignalState     State                => state;
+        public bool            CanPass              => state == SignalState.Green;
+        public PedestrianState PedestrianSignal     => pedestrianState;
+        public bool            PedestrianOverridden => pedestrianOverridden;
 
         static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
-        static readonly MaterialPropertyBlock _mpb = new MaterialPropertyBlock();
+        MaterialPropertyBlock _mpb;
 
         Color _redEmission, _yellowEmission, _greenEmission;
+        Color _pedRedEmission, _pedGreenEmission;
 
         void Start()
         {
-            _redEmission    = InitEmission(redRenderer);
-            _yellowEmission = InitEmission(yellowRenderer);
-            _greenEmission  = InitEmission(greenRenderer);
-            ApplyVisual();
+            _mpb = new MaterialPropertyBlock();
+            _redEmission      = InitEmission(redRenderer);
+            _yellowEmission   = InitEmission(yellowRenderer);
+            _greenEmission    = InitEmission(greenRenderer);
+            _pedRedEmission   = InitEmission(pedestrianRedLight);
+            _pedGreenEmission = InitEmission(pedestrianGreenLight);
+            ApplyVehicleVisual();
+            ApplyPedestrianVisual();
         }
 
-        // sharedMaterial에서 Emission 색상 캐시. 미설정(black)이면 white 반환.
         static Color InitEmission(Renderer r)
         {
             if (r == null || r.sharedMaterial == null) return Color.white;
@@ -43,17 +62,74 @@ namespace TrafficSystem
         public void SetState(SignalState newState)
         {
             state = newState;
-            ApplyVisual();
+            ApplyVehicleVisual();
         }
 
-        void ApplyVisual()
+        void ApplyVehicleVisual()
         {
             SetEmission(redRenderer,    _redEmission,    state == SignalState.Red);
             SetEmission(yellowRenderer, _yellowEmission, state == SignalState.Yellow);
             SetEmission(greenRenderer,  _greenEmission,  state == SignalState.Green);
         }
 
-        static void SetEmission(Renderer r, Color emColor, bool on)
+        // TrafficJunction 사이클용 — 오버라이드 중이면 무시
+        public void ForcePedestrianState(PedestrianState newState, float greenCountdown = 0f)
+        {
+            if (pedestrianOverridden) return;
+            StopBlink();
+            pedestrianState = newState;
+            ApplyPedestrianVisual();
+            if (newState == PedestrianState.Green && greenCountdown > 0f)
+                pedestrianCoroutine = StartCoroutine(PedestrianGreenRoutine(greenCountdown));
+        }
+
+        // 콘텐츠 제어용 — ClearPedestrianOverride() 전까지 Junction이 덮어쓰지 않음
+        public void OverridePedestrianSignal(PedestrianState newState)
+        {
+            pedestrianOverridden = true;
+            StopBlink();
+            pedestrianState = newState;
+            ApplyPedestrianVisual();
+        }
+
+        public void ClearPedestrianOverride() => pedestrianOverridden = false;
+
+        void StopBlink()
+        {
+            if (pedestrianCoroutine == null) return;
+            StopCoroutine(pedestrianCoroutine);
+            pedestrianCoroutine = null;
+        }
+
+        void ApplyPedestrianVisual()
+        {
+            SetEmission(pedestrianRedLight,   _pedRedEmission,   pedestrianState == PedestrianState.Red);
+            SetEmission(pedestrianGreenLight, _pedGreenEmission, pedestrianState == PedestrianState.Green);
+        }
+
+        IEnumerator PedestrianGreenRoutine(float duration)
+        {
+            float waitBeforeBlink = Mathf.Max(0f, duration - 1f);
+            if (waitBeforeBlink > 0f)
+                yield return new WaitForSeconds(waitBeforeBlink);
+
+            float elapsed     = 0f;
+            float blinkDuration = Mathf.Min(1f, duration);
+            while (elapsed < blinkDuration)
+            {
+                bool on = (Mathf.FloorToInt(elapsed / blinkInterval) % 2 == 0);
+                SetEmission(pedestrianGreenLight, _pedGreenEmission, on);
+                SetEmission(pedestrianRedLight,   _pedRedEmission,   false);
+                yield return new WaitForSeconds(blinkInterval);
+                elapsed += blinkInterval;
+            }
+
+            pedestrianState = PedestrianState.Red;
+            ApplyPedestrianVisual();
+            pedestrianCoroutine = null;
+        }
+
+        void SetEmission(Renderer r, Color emColor, bool on)
         {
             if (r == null) return;
             r.GetPropertyBlock(_mpb);
@@ -64,7 +140,7 @@ namespace TrafficSystem
 #if UNITY_EDITOR
         void OnDrawGizmosSelected()
         {
-            Gizmos.color = state == SignalState.Green ? Color.green
+            Gizmos.color = state == SignalState.Green  ? Color.green
                          : state == SignalState.Yellow ? Color.yellow
                          : Color.red;
             Gizmos.DrawWireSphere(transform.position, 0.4f);

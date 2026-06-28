@@ -11,7 +11,7 @@ namespace TrafficSystem
         [SerializeField] TrafficJunction junction;
 
         [Tooltip("개별 보행 신호등을 직접 제어합니다. (선택)")]
-        [SerializeField] TrafficLight[] lights;
+        [SerializeField] TrafficSignal[] lights;
 
         // ── Timeline Signal / UnityEvent 콜백 ────────────────────────────────
         // 파라미터가 없어야 Signal Receiver의 Dynamic → Static 모드로 연결됩니다.

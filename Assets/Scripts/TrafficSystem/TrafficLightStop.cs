@@ -8,6 +8,6 @@ namespace TrafficSystem
     public class TrafficLightStop : MonoBehaviour
     {
         [Tooltip("레거시 필드. TrafficNode.stopSignal 사용 권장.")]
-        public TrafficLight trafficLight;
+        public TrafficSignal trafficLight;
     }
 }

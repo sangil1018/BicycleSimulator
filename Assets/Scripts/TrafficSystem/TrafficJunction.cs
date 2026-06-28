@@ -12,7 +12,7 @@ namespace TrafficSystem
         [Tooltip("이 페이즈에서 초록이 되는 차량 신호들")]
         public TrafficSignal[] vehicleGreen;
         [Tooltip("이 페이즈에서 보행 초록이 되는 신호등들 (선택)")]
-        public TrafficLight[] pedestrianGreen;
+        public TrafficSignal[] pedestrianGreen;
         [Tooltip("초록 지속 시간 (초)")]
         public float greenDuration = 20f;
         [Tooltip("보행 신호 깜빡임 카운트다운 시간 (초). 0이면 깜빡임 없음.")]
@@ -26,7 +26,7 @@ namespace TrafficSystem
 
         // 모든 페이즈의 합집합 (Start에서 수집)
         TrafficSignal[] allSignals;
-        TrafficLight[]  allLights;
+        TrafficSignal[] allPedSignals;
 
         int   currentIdx;
         bool  inYellow;
@@ -69,14 +69,14 @@ namespace TrafficSystem
 
         public void OverridePedestrianAll(PedestrianState state)
         {
-            if (allLights == null) return;
-            foreach (var l in allLights) l?.OverridePedestrianSignal(state);
+            if (allPedSignals == null) return;
+            foreach (var l in allPedSignals) l?.OverridePedestrianSignal(state);
         }
 
         public void ClearPedestrianOverrideAll()
         {
-            if (allLights == null) return;
-            foreach (var l in allLights) l?.ClearPedestrianOverride();
+            if (allPedSignals == null) return;
+            foreach (var l in allPedSignals) l?.ClearPedestrianOverride();
         }
 
         // ── Internal ─────────────────────────────────────────────────────────
@@ -109,8 +109,8 @@ namespace TrafficSystem
                 foreach (var s in allSignals) s?.SetState(SignalState.Red);
 
             // 모든 보행 신호 → 적색
-            if (allLights != null)
-                foreach (var l in allLights) l?.ForcePedestrianState(PedestrianState.Red);
+            if (allPedSignals != null)
+                foreach (var l in allPedSignals) l?.ForcePedestrianState(PedestrianState.Red);
 
             var phase = phases[idx];
 
@@ -130,7 +130,7 @@ namespace TrafficSystem
         void CollectAll()
         {
             var sigSet   = new HashSet<TrafficSignal>();
-            var lightSet = new HashSet<TrafficLight>();
+            var lightSet = new HashSet<TrafficSignal>();
 
             foreach (var phase in phases)
             {
@@ -145,8 +145,8 @@ namespace TrafficSystem
 
             allSignals = new TrafficSignal[sigSet.Count];
             sigSet.CopyTo(allSignals);
-            allLights = new TrafficLight[lightSet.Count];
-            lightSet.CopyTo(allLights);
+            allPedSignals = new TrafficSignal[lightSet.Count];
+            lightSet.CopyTo(allPedSignals);
         }
     }
 }

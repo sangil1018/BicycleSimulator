@@ -101,7 +101,7 @@ GameObject:
   - component: {fileID: 4994609403749712081}
   - component: {fileID: 1876056294345996311}
   - component: {fileID: 5575691097670013366}
-  - component: {fileID: 5155609259410513896}
+  - component: {fileID: -7395413138889249517}
   m_Layer: 8
   m_Name: CarPrefab 0
   m_TagString: Untagged
@@ -167,13 +167,13 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
   m_Size: {x: 2, y: 2, z: 4}
   m_Center: {x: 0, y: 1, z: 0}
---- !u!114 &5155609259410513896
+--- !u!114 &-7395413138889249517
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -182,24 +182,18 @@ MonoBehaviour:
   m_GameObject: {fileID: 3336702234273400016}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 72814a71c5241d14dbf6ea55e2acd3ca, type: 3}
+  m_Script: {fileID: 11500000, guid: 998dbc4cacad1f440ab41ac82022b782, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.CarController
-  startWaypoint: {fileID: 0}
-  speed: 8
+  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficVehicle
+  cruiseSpeed: 8
   turnSpeed: 5
-  waypointReachDistance: 1.5
-  lightDetectionDistance: 8
-  lightDetectionRadius: 2
-  trafficLightLayer:
-    serializedVersion: 2
-    m_Bits: 128
-  intersectionCooldown: 6
+  reachDistance: 1.5
+  signalCheckDist: 6
+  brakeDistance: 8
+  minFollowDist: 2.5
+  acceleration: 6
   detectionRadius: 0.4
   vehicleLayer:
     serializedVersion: 2
     m_Bits: 256
-  brakeDistance: 6
-  minFollowDist: 4
-  acceleration: 6
-  stopCheckInterval: 2
+  speedCalcInterval: 4

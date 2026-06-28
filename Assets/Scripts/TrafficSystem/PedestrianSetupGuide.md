@@ -1,5 +1,9 @@
 # 보행자 시스템 구성 가이드
 
+> **설계 원칙**
+> - 보행자는 **도로/인도 위 웨이포인트만 따라 이동**합니다. 횡단보도 횡단 기능은 없습니다.
+> - 보행자는 **신호에 반응하지 않습니다.** 보행자 신호등은 시각 연출 전용입니다.
+
 ---
 
 ## 구조 요약
@@ -31,21 +35,24 @@ PedestrianSpawner (씬 오브젝트)
 2. Prefab에 **PedestrianController** 컴포넌트를 추가합니다.
 3. Animator가 있고 `Speed` float 파라미터가 존재하면 자동으로 연동됩니다.
    - 없어도 동작에는 문제 없습니다.
-5. **어른용**, **아이용** 프리팹을 각각 별도로 만들어 두세요.
+4. **어른용**, **아이용** 프리팹을 각각 별도로 만들어 두세요.
    - 같은 타입에 여러 종류의 프리팹을 준비하면 스폰 시 랜덤 선택됩니다.
 
 > **PedestrianController Inspector 옵션**
 > | 항목 | 설명 | 기본값 |
 > |---|---|---|
 > | Walk Mode | PingPong(왕복) / Loop(순환) / OneShot(1회) | PingPong |
-> | Waypoint Reach Dist | 웨이포인트 도달 판정 거리 (m) | 0.35 |
+> | Waypoint Reach Dist | 웨이포인트 도달 판정 거리 (m) | 0.15 |
+> | Turn Speed | 초당 회전 각도 (낮을수록 자연스럽게 꺾임) | 120 |
 
 ---
 
 ## STEP 2 — 웨이포인트 배치
 
+보행자는 **도로 또는 인도 위**에만 배치합니다. 차도 횡단 경로는 만들지 않습니다.
+
 1. **Hierarchy**에서 빈 GameObject를 생성하고 이름을 `WP_보행로이름` 형식으로 지정합니다.
-   - 예: `WP_SideWalk_North`, `WP_CrossWalk_A`
+   - 예: `WP_SideWalk_North`, `WP_SideWalk_South`
 2. 해당 오브젝트의 **자식**으로 빈 GameObject를 순서대로 생성합니다.
    - 이름 예: `WP_00`, `WP_01`, `WP_02` …
 3. **보행로 중심선** 위에 웨이포인트를 배치합니다.
@@ -89,7 +96,7 @@ PedestrianSpawner (씬 오브젝트)
 
 | 항목 | 설명 | 예시 |
 |---|---|---|
-| **Label** | 그룹 식별 이름 (에디터 정리용) | "북쪽 인도", "횡단보도 A" |
+| **Label** | 그룹 식별 이름 (에디터 정리용) | "북쪽 인도", "남쪽 인도" |
 | **Waypoints** | STEP 2에서 만든 웨이포인트 Transform 배열 | WP_00 ~ WP_03 |
 | **Adults Forward** | 우측(정방향) 어른 스폰 수 | 2 |
 | **Adults Reverse** | 좌측(역방향) 어른 스폰 수 | 2 |
@@ -132,7 +139,7 @@ Lateral Offset  : 0.8
 Walk Mode       : PingPong
 ```
 
-### 횡단보도 (1회 통과)
+### 단방향 통행 (1회만 이동)
 ```
 Adults Forward  : 3   Adults Reverse  : 0
 Children Forward: 1   Children Reverse: 0
@@ -142,8 +149,20 @@ Walk Mode       : OneShot  ← PedestrianController Inspector에서 변경
 
 ---
 
+## 보행자 신호등 (시각 연출 전용)
+
+보행자 신호등(`TrafficSignal`의 PR/PG 라이트)은 **시각 연출 전용**입니다.
+
+- 보행자 AI는 신호 상태와 무관하게 항상 웨이포인트를 따라 이동합니다.
+- 신호등 라이트는 `TrafficJunction`의 자동 사이클로 작동합니다.
+- 시나리오에서 특정 타이밍에 신호등 라이트를 강제 전환하려면 `PedestrianSignalController`를 사용하세요.
+  → **신호기 탭** → "보행 신호등 시각 제어" 섹션의 타임라인 설정 가이드 참조
+
+---
+
 ## 주의사항
 
 - 웨이포인트가 **2개 미만**이면 해당 그룹은 무시됩니다.
 - 같은 씬에 `PedestrianSpawner`를 **여러 개** 배치해도 됩니다. (구역별 관리 가능)
 - 보행자 수가 많을 때는 `Spawn Per Frame`을 `5` 이하로 설정해 스폰 부하를 분산하세요.
+- 보행자가 차도 위에 있어도 차량 시스템과 충돌 감지는 없습니다. 경로는 인도 범위 내로 배치하세요.

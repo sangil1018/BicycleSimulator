@@ -21,7 +21,6 @@ public class TrafficSystemWindow : EditorWindow
     List<TrafficNode>                  _nodes       = new();
     List<TrafficJunction>              _junctions   = new();
     List<TrafficSignal>                _signals     = new();
-    List<TrafficLight>                 _lights      = new();
     List<PedestrianSignalController>   _controllers = new();
     TrafficManager                     _manager;
 
@@ -66,7 +65,6 @@ public class TrafficSystemWindow : EditorWindow
         _nodes       = Object.FindObjectsByType<TrafficNode>                (FindObjectsSortMode.None).OrderBy(n => n.name).ToList();
         _junctions   = Object.FindObjectsByType<TrafficJunction>            (FindObjectsSortMode.None).OrderBy(j => j.name).ToList();
         _signals     = Object.FindObjectsByType<TrafficSignal>              (FindObjectsSortMode.None).ToList();
-        _lights      = Object.FindObjectsByType<TrafficLight>               (FindObjectsSortMode.None).ToList();
         _controllers = Object.FindObjectsByType<PedestrianSignalController>(FindObjectsSortMode.None).ToList();
         _manager     = Object.FindFirstObjectByType<TrafficManager>();
 
@@ -119,7 +117,7 @@ public class TrafficSystemWindow : EditorWindow
     {
         EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
         GUILayout.Label(
-            $"노드 {_nodes.Count}   교차로 {_junctions.Count}   차량신호 {_signals.Count}   보행신호 {_lights.Count}",
+            $"노드 {_nodes.Count}   교차로 {_junctions.Count}   신호기 {_signals.Count}",
             EditorStyles.miniLabel);
         GUILayout.FlexibleSpace();
 
@@ -150,8 +148,7 @@ public class TrafficSystemWindow : EditorWindow
         DrawStat("TrafficManager",      _manager ? "✓ 있음" : "✗ 없음",  _manager ? Color.green : Color.red);
         DrawStat("TrafficNode (노드)",   _nodes.Count.ToString(),          Color.white);
         DrawStat("TrafficJunction (교차로)", _junctions.Count.ToString(), Color.white);
-        DrawStat("TrafficSignal (차량)",  _signals.Count.ToString(),       Color.white);
-        DrawStat("TrafficLight (보행자)", _lights.Count.ToString(),        Color.white);
+        DrawStat("TrafficSignal (신호기)", _signals.Count.ToString(),       Color.white);
 
         // ── 교차로 마법사 ──────────────────────────────────────────────────
         Header("교차로 마법사");
@@ -293,7 +290,7 @@ public class TrafficSystemWindow : EditorWindow
     }
 
     static void WritePhase(SerializedProperty phases, int idx, string label,
-        TrafficSignal[] vehicleGreen, TrafficLight[] pedestrianGreen, float greenDur)
+        TrafficSignal[] vehicleGreen, TrafficSignal[] pedestrianGreen, float greenDur)
     {
         var ph = phases.GetArrayElementAtIndex(idx);
         ph.FindPropertyRelative("label").stringValue = label;
@@ -545,14 +542,14 @@ public class TrafficSystemWindow : EditorWindow
                         var pg = ph.FindPropertyRelative("pedestrianGreen");
                         for (int li = 0; li < pg.arraySize; li++)
                         {
-                            var tl = pg.GetArrayElementAtIndex(li).objectReferenceValue as TrafficLight;
-                            if (!tl) continue;
+                            var pedSig = pg.GetArrayElementAtIndex(li).objectReferenceValue as TrafficSignal;
+                            if (!pedSig) continue;
                             using (new EditorGUILayout.HorizontalScope())
                             {
                                 GUILayout.Space(24);
-                                GUILayout.Label($"보행신호: {tl.name}", GUILayout.MinWidth(160));
+                                GUILayout.Label($"보행신호: {pedSig.name}", GUILayout.MinWidth(160));
                                 if (GUILayout.Button("선택", EditorStyles.miniButton, GUILayout.Width(36)))
-                                    Selection.activeObject = tl;
+                                    Selection.activeObject = pedSig;
                             }
                         }
 
@@ -572,8 +569,7 @@ public class TrafficSystemWindow : EditorWindow
     void DrawSignals()
     {
         // 교차로 → 신호기 역방향 조회 테이블 빌드
-        var sigJunction  = new Dictionary<TrafficSignal, string>();
-        var lightJunction = new Dictionary<TrafficLight, string>();
+        var sigJunction = new Dictionary<TrafficSignal, string>();
         foreach (var jct in _junctions)
         {
             if (!jct) continue;
@@ -590,13 +586,6 @@ public class TrafficSystemWindow : EditorWindow
                     var sig = vg.GetArrayElementAtIndex(si).objectReferenceValue as TrafficSignal;
                     if (sig) sigJunction[sig] = $"{jct.name}  [{pi}: {l}]";
                 }
-
-                var pg = ph.FindPropertyRelative("pedestrianGreen");
-                for (int li = 0; li < pg.arraySize; li++)
-                {
-                    var tl = pg.GetArrayElementAtIndex(li).objectReferenceValue as TrafficLight;
-                    if (tl) lightJunction[tl] = $"{jct.name}  [{pi}: {l}]";
-                }
             }
         }
 
@@ -609,7 +598,7 @@ public class TrafficSystemWindow : EditorWindow
         var selectedNode = Selection.activeGameObject?.GetComponent<TrafficNode>();
 
         // ── 차량 신호기 ───────────────────────────────────────────────────
-        Header($"차량 신호기 — TrafficSignal  ({_signals.Count}개)");
+        Header($"신호기 — TrafficSignal  ({_signals.Count}개)");
 
         using (new EditorGUILayout.HorizontalScope())
         {
@@ -636,10 +625,12 @@ public class TrafficSystemWindow : EditorWindow
         {
             if (!sig) continue;
             var  so        = new SerializedObject(sig);
-            bool hasRed    = so.FindProperty("redRenderer").objectReferenceValue;
-            bool hasYellow = so.FindProperty("yellowRenderer").objectReferenceValue;
-            bool hasGreen  = so.FindProperty("greenRenderer").objectReferenceValue;
-            bool renderOk  = hasRed && hasYellow && hasGreen;
+            bool hasRed      = so.FindProperty("redRenderer").objectReferenceValue;
+            bool hasYellow   = so.FindProperty("yellowRenderer").objectReferenceValue;
+            bool hasGreen    = so.FindProperty("greenRenderer").objectReferenceValue;
+            bool hasPedRed   = so.FindProperty("pedestrianRedLight").objectReferenceValue;
+            bool hasPedGreen = so.FindProperty("pedestrianGreenLight").objectReferenceValue;
+            bool renderOk    = hasRed && hasYellow && hasGreen && hasPedRed && hasPedGreen;
 
             string jctInfo  = sigJunction.TryGetValue(sig, out var jn) ? jn : "교차로 미등록";
             string nodeInfo = sigNode.TryGetValue(sig, out var nd)      ? nd : "";
@@ -655,9 +646,11 @@ public class TrafficSystemWindow : EditorWindow
                 GUILayout.Label(sig.name, GUILayout.MinWidth(110));
 
                 // 렌더러 칩 (R / Y / G)
-                RendererChip("R", hasRed,    new Color(1f,   0.3f, 0.3f));
-                RendererChip("Y", hasYellow, new Color(1f,   0.85f,0.1f));
-                RendererChip("G", hasGreen,  new Color(0.2f, 0.9f, 0.3f));
+                RendererChip("R",  hasRed,      new Color(1f,   0.3f, 0.3f));
+                RendererChip("Y",  hasYellow,   new Color(1f,   0.85f,0.1f));
+                RendererChip("G",  hasGreen,    new Color(0.2f, 0.9f, 0.3f));
+                RendererChip("PR", hasPedRed,   new Color(1f,   0.3f, 0.3f));
+                RendererChip("PG", hasPedGreen, new Color(0.2f, 0.9f, 0.3f));
 
                 // 교차로 및 노드 정보
                 GUI.color = new Color(0.65f, 0.65f, 0.65f);
@@ -695,54 +688,8 @@ public class TrafficSystemWindow : EditorWindow
             }
         }
 
-        // ── 보행자 신호기 ─────────────────────────────────────────────────
-        Header($"보행자 신호기 — TrafficLight  ({_lights.Count}개)");
-
-        if (GUILayout.Button("새 TrafficLight 생성", GUILayout.Height(26)))
-        {
-            var go = new GameObject($"TrafficLight_{_lights.Count:D2}");
-            go.AddComponent<TrafficLight>();
-            Undo.RegisterCreatedObjectUndo(go, "Create TrafficLight");
-            Selection.activeGameObject = go;
-            Refresh();
-        }
-
-        HRule();
-
-        foreach (var tl in _lights)
-        {
-            if (!tl) continue;
-            var  so       = new SerializedObject(tl);
-            bool hasRed   = so.FindProperty("pedestrianRedLight").objectReferenceValue;
-            bool hasGreen = so.FindProperty("pedestrianGreenLight").objectReferenceValue;
-            bool renderOk = hasRed && hasGreen;
-
-            string jctInfo = lightJunction.TryGetValue(tl, out var jn) ? jn : "교차로 미등록";
-
-            using (new EditorGUILayout.HorizontalScope("box"))
-            {
-                GUI.color = renderOk ? Color.green : new Color(1f, 0.4f, 0.3f);
-                GUILayout.Label("●", GUILayout.Width(16));
-                GUI.color = Color.white;
-
-                GUILayout.Label(tl.name, GUILayout.MinWidth(130));
-
-                RendererChip("R", hasRed,   new Color(1f,   0.3f, 0.3f));
-                RendererChip("G", hasGreen, new Color(0.2f, 0.9f, 0.3f));
-
-                GUI.color = new Color(0.65f, 0.65f, 0.65f);
-                GUILayout.Label(jctInfo, GUILayout.MinWidth(160));
-                GUI.color = Color.white;
-
-                if (GUILayout.Button("선택", EditorStyles.miniButton, GUILayout.Width(36)))
-                    Selection.activeObject = tl;
-                if (GUILayout.Button("핑", EditorStyles.miniButton, GUILayout.Width(28)))
-                    EditorGUIUtility.PingObject(tl);
-            }
-        }
-
         // ── Timeline 제어 컨트롤러 ────────────────────────────────────────
-        Header($"타임라인 신호 제어 — PedestrianSignalController  ({_controllers.Count}개)");
+        Header($"보행 신호등 시각 제어 — PedestrianSignalController  ({_controllers.Count}개)");
 
         using (new EditorGUILayout.HorizontalScope())
         {
@@ -786,17 +733,24 @@ public class TrafficSystemWindow : EditorWindow
 
         // ── 타임라인 설정 가이드 ─────────────────────────────────────────
         EditorGUILayout.Space(8);
-        _guideOpen = EditorGUILayout.Foldout(_guideOpen, "  타임라인 설정 방법  ▸", true, EditorStyles.foldoutHeader);
+        _guideOpen = EditorGUILayout.Foldout(_guideOpen, "  타임라인 보행 신호등 제어 방법  ▸", true, EditorStyles.foldoutHeader);
 
         if (_guideOpen)
         {
             using (new EditorGUILayout.VerticalScope("box"))
             {
+                EditorGUILayout.HelpBox(
+                    "보행자 신호등은 시각 연출 전용입니다.\n" +
+                    "보행자 AI는 신호에 반응하지 않으며, 항상 웨이포인트만 따라 이동합니다.\n" +
+                    "아래 설정은 시나리오(Timeline)에서 신호등 라이트 색상을 제어하기 위한 것입니다.",
+                    MessageType.Info);
+
+                EditorGUILayout.Space(4);
                 EditorGUILayout.LabelField("① 씬 준비", EditorStyles.boldLabel);
                 EditorGUILayout.HelpBox(
                     "1. 빈 오브젝트 생성\n" +
                     "2. PedestrianSignalController 컴포넌트 추가\n" +
-                    "3. Junction 슬롯에 교차로 드래그 (또는 Lights 슬롯에 개별 신호등)\n" +
+                    "3. Junction 슬롯에 교차로 드래그 (또는 Lights 슬롯에 개별 신호기)\n" +
                     "4. 같은 오브젝트에 Signal Receiver 컴포넌트 추가",
                     MessageType.None);
 
@@ -823,8 +777,9 @@ public class TrafficSystemWindow : EditorWindow
                 EditorGUILayout.Space(4);
                 EditorGUILayout.LabelField("④ 동작 설명", EditorStyles.boldLabel);
                 EditorGUILayout.HelpBox(
-                    "SetGreen / SetRed  →  Junction 자동 사이클을 무시하고 신호를 고정합니다.\n" +
-                    "ClearOverride      →  고정을 해제하고 Junction 자동 사이클을 복원합니다.",
+                    "SetGreen / SetRed  →  Junction 자동 사이클을 무시하고 신호등 라이트를 고정합니다.\n" +
+                    "ClearOverride      →  고정을 해제하고 Junction 자동 사이클을 복원합니다.\n\n" +
+                    "※ 보행자 AI는 이 설정에 반응하지 않습니다. 라이트 시각 연출 전용입니다.",
                     MessageType.None);
             }
         }
@@ -975,31 +930,20 @@ public class TrafficSystemWindow : EditorWindow
             }
         }
 
-        // ── TrafficSignal 렌더러 ──────────────────────────────────────────
+        // ── TrafficSignal 렌더러 (차량 + 보행자) ─────────────────────────
         foreach (var sig in _signals)
         {
             if (!sig) continue;
-            var so = new SerializedObject(sig);
-            bool r_ = so.FindProperty("redRenderer").objectReferenceValue;
-            bool y_ = so.FindProperty("yellowRenderer").objectReferenceValue;
-            bool g_ = so.FindProperty("greenRenderer").objectReferenceValue;
-            if (!r_ || !y_ || !g_)
+            var so  = new SerializedObject(sig);
+            bool r_  = so.FindProperty("redRenderer").objectReferenceValue;
+            bool y_  = so.FindProperty("yellowRenderer").objectReferenceValue;
+            bool g_  = so.FindProperty("greenRenderer").objectReferenceValue;
+            bool pr_ = so.FindProperty("pedestrianRedLight").objectReferenceValue;
+            bool pg_ = so.FindProperty("pedestrianGreenLight").objectReferenceValue;
+            if (!r_ || !y_ || !g_ || !pr_ || !pg_)
                 r.Add((MessageType.Warning,
-                    $"차량신호 [{sig.name}]: 렌더러 미할당  " +
-                    $"(R:{(r_?"✓":"✗")}  Y:{(y_?"✓":"✗")}  G:{(g_?"✓":"✗")})"));
-        }
-
-        // ── TrafficLight 렌더러 ───────────────────────────────────────────
-        foreach (var tl in _lights)
-        {
-            if (!tl) continue;
-            var so = new SerializedObject(tl);
-            bool r_ = so.FindProperty("pedestrianRedLight").objectReferenceValue;
-            bool g_ = so.FindProperty("pedestrianGreenLight").objectReferenceValue;
-            if (!r_ || !g_)
-                r.Add((MessageType.Warning,
-                    $"보행신호 [{tl.name}]: 렌더러 미할당  " +
-                    $"(R:{(r_?"✓":"✗")}  G:{(g_?"✓":"✗")})"));
+                    $"신호기 [{sig.name}]: 렌더러 미할당  " +
+                    $"(R:{(r_?"✓":"✗")}  Y:{(y_?"✓":"✗")}  G:{(g_?"✓":"✗")}  PR:{(pr_?"✓":"✗")}  PG:{(pg_?"✓":"✗")})"));
         }
 
         // ── 어느 교차로에도 등록되지 않은 신호기 ────────────────────────

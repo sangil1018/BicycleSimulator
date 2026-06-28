@@ -135,9 +135,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 4d984534cbf2feb4985ed3aeb8344124, type: 3}
       insertIndex: -1
       addedObject: {fileID: 6133934051808857810}
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 4d984534cbf2feb4985ed3aeb8344124, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 7096465324082175828}
   m_SourcePrefab: {fileID: 100100000, guid: 4d984534cbf2feb4985ed3aeb8344124, type: 3}
 --- !u!1 &628022312831097857 stripped
 GameObject:
@@ -165,51 +162,3 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 10.911228, y: 6.5596724, z: 2.5082896}
   m_Center: {x: -4.9556127, y: 3.2798362, z: 0.43533906}
---- !u!114 &7096465324082175828
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 628022312831097857}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fa1820debdd298944b5e8d549e710f41, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficLight
-  vehicleRedLight: {fileID: 8715920604567523074}
-  vehicleYellowLight: {fileID: 5521255271742832943}
-  vehicleGreenLight: {fileID: 2341986865064251598}
-  pedestrianRedLight: {fileID: 7421257816133913230}
-  pedestrianGreenLight: {fileID: 4601291446940864494}
-  greenDuration: 20
-  yellowDuration: 4
-  redDuration: 20
-  blinkInterval: 0.2
-  vehicleState: 0
-  pedestrianState: 1
---- !u!23 &2341986865064251598 stripped
-MeshRenderer:
-  m_CorrespondingSourceObject: {fileID: -6560003565122408034, guid: 4d984534cbf2feb4985ed3aeb8344124, type: 3}
-  m_PrefabInstance: {fileID: 321522655014166864}
-  m_PrefabAsset: {fileID: 0}
---- !u!23 &4601291446940864494 stripped
-MeshRenderer:
-  m_CorrespondingSourceObject: {fileID: -4923185257996865858, guid: 4d984534cbf2feb4985ed3aeb8344124, type: 3}
-  m_PrefabInstance: {fileID: 321522655014166864}
-  m_PrefabAsset: {fileID: 0}
---- !u!23 &5521255271742832943 stripped
-MeshRenderer:
-  m_CorrespondingSourceObject: {fileID: -3969580796907347841, guid: 4d984534cbf2feb4985ed3aeb8344124, type: 3}
-  m_PrefabInstance: {fileID: 321522655014166864}
-  m_PrefabAsset: {fileID: 0}
---- !u!23 &7421257816133913230 stripped
-MeshRenderer:
-  m_CorrespondingSourceObject: {fileID: 7101012833967336414, guid: 4d984534cbf2feb4985ed3aeb8344124, type: 3}
-  m_PrefabInstance: {fileID: 321522655014166864}
-  m_PrefabAsset: {fileID: 0}
---- !u!23 &8715920604567523074 stripped
-MeshRenderer:
-  m_CorrespondingSourceObject: {fileID: -251237604549366190, guid: 4d984534cbf2feb4985ed3aeb8344124, type: 3}
-  m_PrefabInstance: {fileID: 321522655014166864}
-  m_PrefabAsset: {fileID: 0}

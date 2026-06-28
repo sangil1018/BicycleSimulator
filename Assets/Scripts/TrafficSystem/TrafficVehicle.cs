@@ -61,15 +61,17 @@ namespace TrafficSystem
         {
             if (currentNode == null) return;
 
-            // N 프레임마다 목표 속도 계산
+            // 차량 감지(비싼 연산): N 프레임마다 계산
             frameCounter++;
             if (frameCounter >= speedCalcInterval)
             {
                 frameCounter = 0;
-                targetSpeed  = CalcTargetSpeed();
+                targetSpeed  = CalcFollowSpeed();
             }
 
-            currentSpeed = Mathf.MoveTowards(currentSpeed, targetSpeed, acceleration * Time.fixedDeltaTime);
+            // 신호 감지(저렴한 연산): 매 프레임 실행 — 빨간불에 즉시 반응
+            float effective = Mathf.Min(targetSpeed, CalcSignalSpeed());
+            currentSpeed = Mathf.MoveTowards(currentSpeed, effective, acceleration * Time.fixedDeltaTime);
 
             Steer();
             Move();
@@ -126,25 +128,28 @@ namespace TrafficSystem
 
         // ── Speed Calculation ────────────────────────────────────────────────
 
-        float CalcTargetSpeed()
+        // 신호 제한 속도 — 매 프레임 실행 (빨간불 즉시 반응)
+        float CalcSignalSpeed()
         {
-            // ① 신호 룩어헤드 — 목표 노드에 stopSignal이 있고 빨간불이면 서행 후 정지
-            if (currentNode.StopSignal != null && !currentNode.StopSignal.CanPass)
-            {
-                float dist = PlanarDist(rb.position, currentNode.transform.position);
-                if (dist <= signalCheckDist) return 0f;
-            }
+            if (currentNode.StopSignal == null || currentNode.StopSignal.CanPass)
+                return cruiseSpeed;
+            float dist = PlanarDist(rb.position, currentNode.transform.position);
+            return dist <= signalCheckDist ? 0f : cruiseSpeed;
+        }
 
+        // 전방 차량 추종 속도 — N 프레임마다 실행 (SphereCast 비용 분산)
+        float CalcFollowSpeed()
+        {
             var origin = rb.position + Vector3.up * 0.5f;
 
-            // ② 근거리 차량 겹침 (SphereCast가 놓치는 이미 겹친 경우)
+            // ① 근거리 차량 겹침 (SphereCast가 놓치는 이미 겹친 경우)
             var frontCenter = origin + transform.forward * minFollowDist;
             int cnt = Physics.OverlapSphereNonAlloc(frontCenter, detectionRadius,
                           overlapBuffer, vehicleLayer, QueryTriggerInteraction.Ignore);
             for (int i = 0; i < cnt; i++)
                 if (overlapBuffer[i].gameObject != gameObject) return 0f;
 
-            // ③ 전방 차량 SphereCast — sqrt 곡선 감속
+            // ② 전방 차량 SphereCast — sqrt 곡선 감속
             if (Physics.SphereCast(origin, detectionRadius, transform.forward,
                     out var hit, brakeDistance, vehicleLayer, QueryTriggerInteraction.Ignore))
             {

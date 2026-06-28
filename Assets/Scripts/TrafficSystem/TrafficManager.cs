@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -23,6 +24,8 @@ namespace TrafficSystem
 
         [Header("Collision Check")]
         [SerializeField] LayerMask vehicleLayer;
+        [Tooltip("같은 노드에 여러 차량 스폰 시 뒤로 띄우는 간격 (m)")]
+        [SerializeField] float spawnSpacing = 6f;
 
         void Awake()
         {
@@ -41,7 +44,10 @@ namespace TrafficSystem
                 yield break;
             }
 
+            // 노드별 스폰 횟수 추적 — 같은 노드에 겹쳐 스폰되는 것 방지
+            var nodeUseCount = new Dictionary<TrafficNode, int>();
             int spawned = 0;
+
             for (int i = 0; i < vehicleCount; i++)
             {
                 var node   = spawnNodes[i % spawnNodes.Length];
@@ -50,7 +56,16 @@ namespace TrafficSystem
                 var prefab = vehiclePrefabs[Random.Range(0, vehiclePrefabs.Length)];
                 if (prefab == null) continue;
 
-                var spawnPos = node.transform.position + Vector3.up * heightOffset;
+                if (!nodeUseCount.TryGetValue(node, out int useCount))
+                    useCount = 0;
+                nodeUseCount[node] = useCount + 1;
+
+                // 같은 노드에 여러 번 스폰될 때 뒤로 간격을 두어 겹침 방지
+                Vector3 backDir  = -(node.transform.forward);
+                var spawnPos = node.transform.position
+                               + Vector3.up  * heightOffset
+                               + backDir * (useCount * spawnSpacing);
+
                 var go = Instantiate(prefab, spawnPos, node.transform.rotation, transform);
                 go.name = $"Vehicle_{i:D2}";
 

@@ -82,13 +82,12 @@ public class PedestrianSpawnerEditor : Editor
                 var    cfProp     = groupProp.FindPropertyRelative("childrenForward");
                 var    crProp     = groupProp.FindPropertyRelative("childrenReverse");
 
-                int cwCount = CountCrosswalkWaypoints(wpsProp);
-                int total   = afProp.intValue + arProp.intValue + cfProp.intValue + crProp.intValue;
+                int total = afProp.intValue + arProp.intValue + cfProp.intValue + crProp.intValue;
 
                 Rect r = GUILayoutUtility.GetRect(0, 18, GUILayout.ExpandWidth(true));
                 EditorGUI.DrawRect(r, routeColors[i % routeColors.Length] * 0.4f);
                 EditorGUI.LabelField(r,
-                    $"  Group [{i}] \"{labelProp.stringValue}\"  WPs: {wpsProp.arraySize}  Peds: {total}  Crosswalks: {cwCount}",
+                    $"  Group [{i}] \"{labelProp.stringValue}\"  WPs: {wpsProp.arraySize}  Peds: {total}",
                     EditorStyles.miniLabel);
             }
         }
@@ -137,26 +136,12 @@ public class PedestrianSpawnerEditor : Editor
                 wps.Add(t); // null 포함 (인덱스 맞춤)
             }
 
-            // 웨이포인트 핸들 및 크로스워크 표시
+            // 웨이포인트 핸들 표시
             Handles.color = c;
             for (int wi = 0; wi < wps.Count; wi++)
             {
                 if (wps[wi] == null) continue;
-                Vector3 pos = wps[wi].position;
-                wps[wi].TryGetComponent(out CrosswalkWaypoint marker);
-
-                if (marker != null)
-                {
-                    string lightLabel = marker.tLight != null ? marker.tLight.name : "fallback";
-                    Handles.color = new Color(1f, 0.2f, 0.2f, 1f);
-                    DrawDiamond(pos, 0.4f);
-                    Handles.Label(pos + Vector3.up * 0.7f, $"  ✖ Crosswalk [{lightLabel}]");
-                    Handles.color = c;
-                }
-                else
-                {
-                    Handles.DotHandleCap(0, pos, Quaternion.identity, 0.2f, EventType.Repaint);
-                }
+                Handles.DotHandleCap(0, wps[wi].position, Quaternion.identity, 0.2f, EventType.Repaint);
             }
 
             // 실제 이동 경로 시각화 (직선 + 중간 웨이포인트 Bezier 보간)
@@ -318,35 +303,11 @@ public class PedestrianSpawnerEditor : Editor
                     continue;
                 }
 
-                int cwCount = CountCrosswalkWaypoints(wpsProp);
-                sb.AppendLine($"✓ Group [{i}] \"{lbl}\" — {wpsProp.arraySize} waypoints, {cwCount} crosswalks");
-
-                for (int wi = 0; wi < wpsProp.arraySize; wi++)
-                {
-                    var wpRef = wpsProp.GetArrayElementAtIndex(wi).objectReferenceValue as Transform;
-                    if (wpRef == null) continue;
-                    if (!wpRef.TryGetComponent(out CrosswalkWaypoint marker)) continue;
-
-                    if (marker.tLight != null)
-                        sb.AppendLine($"  ✓ CrosswalkWaypoint '{wpRef.name}' → {marker.tLight.name}");
-                    else
-                        sb.AppendLine($"  ⚠ CrosswalkWaypoint '{wpRef.name}' — 신호등 미지정 (신호 대기 없이 통과)");
-                }
+                sb.AppendLine($"✓ Group [{i}] \"{lbl}\" — {wpsProp.arraySize} waypoints");
             }
         }
 
         validationResult = sb.ToString().TrimEnd();
         validationType   = validationResult.Contains("✗") ? MessageType.Error : MessageType.Info;
-    }
-
-    static int CountCrosswalkWaypoints(SerializedProperty wpsProp)
-    {
-        int count = 0;
-        for (int i = 0; i < wpsProp.arraySize; i++)
-        {
-            var t = wpsProp.GetArrayElementAtIndex(i).objectReferenceValue as Transform;
-            if (t != null && t.TryGetComponent(out CrosswalkWaypoint _)) count++;
-        }
-        return count;
     }
 }

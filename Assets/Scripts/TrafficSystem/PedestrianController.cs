@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+
 namespace TrafficSystem
 {
     public enum PedestrianType { Adult, Child }
@@ -25,10 +26,6 @@ namespace TrafficSystem
         float lateralMag;
         float speed;
 
-        // CrosswalkWaypoint 신호 대기: pathIdx → TrafficLight 매핑
-        Dictionary<int, TrafficLight> crosswalkGates;
-        bool waitingAtCrosswalk;
-
         Animator anim;
         static readonly int HashSpeed = Animator.StringToHash("Speed");
 
@@ -41,15 +38,6 @@ namespace TrafficSystem
             sideOffset = reverse ? -lateralOffset : lateralOffset;
 
             centerPath = BakePath(wps, blendRadius, splineSteps);
-
-            // CrosswalkWaypoint가 있는 원본 웨이포인트 위치를 centerPath 인덱스에 매핑
-            crosswalkGates = new Dictionary<int, TrafficLight>();
-            foreach (var wp in wps)
-            {
-                if (wp == null || !wp.TryGetComponent(out CrosswalkWaypoint cwp)) continue;
-                if (cwp.tLight != null)
-                    crosswalkGates[NearestIdx(wp.position)] = cwp.tLight;
-            }
 
             pathIdx            = NearestIdx(spawnPos);
             transform.position = OffsetPos(pathIdx);
@@ -159,16 +147,6 @@ namespace TrafficSystem
         {
             if (centerPath == null || centerPath.Length == 0) return;
 
-            // CrosswalkWaypoint 신호 대기
-            if (waitingAtCrosswalk)
-            {
-                crosswalkGates.TryGetValue(pathIdx, out var gateLight);
-                if (gateLight == null || gateLight.PedestrianSignal == PedestrianState.Green)
-                    waitingAtCrosswalk = false;
-                else
-                    return;
-            }
-
             Vector3 goal   = OffsetPos(pathIdx);
             Vector3 toGoal = goal - transform.position;
             toGoal.y = 0f;
@@ -217,16 +195,6 @@ namespace TrafficSystem
                     pathIdx = next;
                     break;
             }
-
-            CheckCrosswalkGate();
-        }
-
-        void CheckCrosswalkGate()
-        {
-            if (crosswalkGates == null) return;
-            if (!crosswalkGates.TryGetValue(pathIdx, out var light)) return;
-            if (light != null && light.PedestrianSignal != PedestrianState.Green)
-                waitingAtCrosswalk = true;
         }
     }
 }
