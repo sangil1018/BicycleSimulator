@@ -2,14 +2,12 @@ using UnityEngine;
 
 namespace TrafficSystem
 {
-    /// <summary>
-    /// 차량 정지선 웨이포인트에 추가하는 마커.
-    /// (현재 미사용 — CarController는 trafficLightLayer SphereCast로 직접 감지)
-    /// 씬 뷰 시각화는 WaypointEditor.DrawGizmosAlways 에서 처리.
-    /// </summary>
+    // 레거시 컴포넌트 — 사용하지 마세요.
+    // 차량 신호 정지선 개념은 TrafficNode.stopSignal(TrafficSignal)로 대체되었습니다.
+    [System.Obsolete("Use TrafficNode.stopSignal instead.")]
     public class TrafficLightStop : MonoBehaviour
     {
-        [Tooltip("이 정지선을 제어하는 신호등 (참조용)")]
+        [Tooltip("레거시 필드. TrafficNode.stopSignal 사용 권장.")]
         public TrafficLight trafficLight;
     }
 }

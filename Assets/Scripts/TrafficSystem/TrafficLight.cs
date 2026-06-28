@@ -3,60 +3,36 @@ using UnityEngine;
 
 namespace TrafficSystem
 {
-    public enum TrafficLightState { Red, Yellow, Green }
+    // PedestrianState는 CrosswalkWaypoint가 직접 참조하므로 이 파일에 유지
     public enum PedestrianState { Red, Green }
 
+    // 보행자 신호 전용. 차량 신호는 TrafficSignal 사용.
+    // TrafficJunction이 ForcePedestrianState()로 구동.
     public class TrafficLight : MonoBehaviour
     {
-        [Header("차량 신호 렌더러 (빨 / 노 / 녹)")]
-        [SerializeField] Renderer vehicleRedLight;
-        [SerializeField] Renderer vehicleYellowLight;
-        [SerializeField] Renderer vehicleGreenLight;
-
         [Header("보행 신호 렌더러 (빨 / 녹)")]
         [SerializeField] Renderer pedestrianRedLight;
         [SerializeField] Renderer pedestrianGreenLight;
 
-        [Header("Timing — standalone 모드 전용 (seconds)")]
-        [SerializeField] float greenDuration = 20f;
-        [SerializeField] float yellowDuration = 4f;
-        [SerializeField] float redDuration = 20f;
-
         [Header("보행 신호 깜빡임 간격 (seconds)")]
         [SerializeField] float blinkInterval = 0.2f;
 
-        [Header("State (read-only in Play)")]
-        [SerializeField] TrafficLightState vehicleState = TrafficLightState.Red;
         [SerializeField] PedestrianState pedestrianState = PedestrianState.Red;
 
-        float timer;
-        bool managedExternally;
         bool pedestrianOverridden;
         Coroutine pedestrianCoroutine;
 
-        // ── Public API ────────────────────────────────────────────────────────
-        public TrafficLightState VehicleState     => vehicleState;
-        public PedestrianState   PedestrianSignal => pedestrianState;
-        public bool              PedestrianOverridden => pedestrianOverridden;
+        public PedestrianState PedestrianSignal    => pedestrianState;
+        public bool            PedestrianOverridden => pedestrianOverridden;
 
-        public void ForceVehicleState(TrafficLightState state)
-        {
-            managedExternally = true;
-            vehicleState = state;
-            ApplyVehicleVisual();
-        }
+        void Start() => ApplyPedestrianVisual();
 
-        // 인터섹션 사이클용 — 오버라이드 중이면 무시
+        // TrafficJunction 사이클용 — 오버라이드 중이면 무시
         public void ForcePedestrianState(PedestrianState state, float greenCountdown = 0f)
         {
             if (pedestrianOverridden) return;
 
-            managedExternally = true;
-            if (pedestrianCoroutine != null)
-            {
-                StopCoroutine(pedestrianCoroutine);
-                pedestrianCoroutine = null;
-            }
+            StopBlink();
             pedestrianState = state;
             ApplyPedestrianVisual();
 
@@ -64,77 +40,27 @@ namespace TrafficSystem
                 pedestrianCoroutine = StartCoroutine(PedestrianGreenRoutine(greenCountdown));
         }
 
-        // 콘텐츠 제어용 — 인터섹션 사이클과 독립적으로 보행 신호 고정
-        // ClearPedestrianOverride() 전까지 인터섹션이 보행 신호를 덮어쓰지 않음
+        // 콘텐츠 제어용 — ClearPedestrianOverride() 전까지 Junction이 덮어쓰지 않음
         public void OverridePedestrianSignal(PedestrianState state)
         {
             pedestrianOverridden = true;
-            if (pedestrianCoroutine != null)
-            {
-                StopCoroutine(pedestrianCoroutine);
-                pedestrianCoroutine = null;
-            }
+            StopBlink();
             pedestrianState = state;
             ApplyPedestrianVisual();
         }
 
-        public void ClearPedestrianOverride()
-        {
-            pedestrianOverridden = false;
-        }
+        public void ClearPedestrianOverride() => pedestrianOverridden = false;
 
-        // ── Internal ─────────────────────────────────────────────────────────
-        void Start()
+        void StopBlink()
         {
-            timer = DurationOf(vehicleState);
-            ApplyVehicleVisual();
-            ApplyPedestrianVisual();
-        }
-
-        void Update()
-        {
-            if (managedExternally) return;
-            timer -= Time.deltaTime;
-            if (timer <= 0f) AdvanceState();
-        }
-
-        void AdvanceState()
-        {
-            vehicleState = vehicleState switch
-            {
-                TrafficLightState.Green => TrafficLightState.Yellow,
-                TrafficLightState.Yellow => TrafficLightState.Red,
-                TrafficLightState.Red => TrafficLightState.Green,
-                _ => TrafficLightState.Red
-            };
-            // standalone: 차량 빨강일 때만 보행 초록
-            pedestrianState = vehicleState == TrafficLightState.Red
-                ? PedestrianState.Green
-                : PedestrianState.Red;
-
-            timer = DurationOf(vehicleState);
-            ApplyVehicleVisual();
-            ApplyPedestrianVisual();
-        }
-
-        float DurationOf(TrafficLightState state) => state switch
-        {
-            TrafficLightState.Green => greenDuration,
-            TrafficLightState.Yellow => yellowDuration,
-            TrafficLightState.Red => redDuration,
-            _ => redDuration
-        };
-
-        void ApplyVehicleVisual()
-        {
-            SetEmission(vehicleRedLight, vehicleState == TrafficLightState.Red);
-            SetEmission(vehicleYellowLight, vehicleState == TrafficLightState.Yellow);
-            SetEmission(vehicleGreenLight, vehicleState == TrafficLightState.Green);
+            if (pedestrianCoroutine == null) return;
+            StopCoroutine(pedestrianCoroutine);
+            pedestrianCoroutine = null;
         }
 
         void ApplyPedestrianVisual()
         {
-            SetEmission(pedestrianRedLight,  pedestrianState == PedestrianState.Red);
+            SetEmission(pedestrianRedLight,   pedestrianState == PedestrianState.Red);
             SetEmission(pedestrianGreenLight, pedestrianState == PedestrianState.Green);
         }
 
@@ -144,9 +70,8 @@ namespace TrafficSystem
             if (waitBeforeBlink > 0f)
                 yield return new WaitForSeconds(waitBeforeBlink);
 
-            // 적색 전환 1초 전부터 초록 렌더러 깜빡임
-            float blinkDuration = Mathf.Min(1f, duration);
             float elapsed = 0f;
+            float blinkDuration = Mathf.Min(1f, duration);
             while (elapsed < blinkDuration)
             {
                 bool on = (Mathf.FloorToInt(elapsed / blinkInterval) % 2 == 0);
@@ -164,10 +89,9 @@ namespace TrafficSystem
         static void SetEmission(Renderer r, bool on)
         {
             if (r == null) return;
-            // sharedMaterial은 씬의 모든 동일 머티리얼을 동시에 변경하므로 인스턴스 사용
             var mat = r.material;
             if (on) mat.EnableKeyword("_EMISSION");
-            else mat.DisableKeyword("_EMISSION");
+            else    mat.DisableKeyword("_EMISSION");
         }
     }
 }

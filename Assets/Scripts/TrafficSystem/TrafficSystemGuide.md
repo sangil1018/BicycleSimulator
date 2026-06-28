@@ -1,249 +1,318 @@
 # 차량 교통 시스템 구성 가이드
 
-> 보행자 시스템은 별도 문서를 참조하세요.
+> 보행자 시스템은 `PedestrianSetupGuide.md`를 참조하세요.
 
 ---
 
-## 1. 아키텍처
+## 아키텍처 한눈에 보기
 
 ```
-Waypoint ──────────────────────────────────┐
-  (경로 그래프)                              │
-                                            ▼
-TrafficSpawner ──► CarController (차량 AI)
+TrafficNode ──── exits[] ────► TrafficNode ──── exits[] ────► ...
+     │                              │
+     │ stopSignal (직접 참조)        │ stopSignal
+     ▼                              ▼
+TrafficSignal             TrafficSignal
+     ▲                              ▲
+     └──────── TrafficJunction ─────┘
+               (페이즈별 신호 제어)
+
+TrafficManager ──► TrafficVehicle (차량 AI)
                         │
-                        │ SphereCast
+                        │ currentNode.StopSignal.CanPass 직접 체크
                         ▼
-                   TrafficLight ◄── TrafficIntersection
-                   (신호등 상태)     (4-페이즈 사이클)
+                   TrafficNode (정지선)
 ```
 
 | 컴포넌트 | 역할 |
 |---|---|
-| **Waypoint** | 경로 노드. 직진/우회전/좌회전 연결 및 가중치 |
-| **TrafficSpawner** | 게임 시작 시 차량 인스턴스화, 경로 분산 배치 |
-| **CarController** | 웨이포인트 추종, 신호등/차량 감지, 감속/정차 |
-| **TrafficLight** | 신호등 상태 관리 (Red/Yellow/Green + 보행 신호) |
-| **TrafficIntersection** | 교차로 4-페이즈 사이클 자동 진행 |
+| **TrafficNode** | 경로 노드. exits[] 배열로 다음 노드 연결, 가중치 선택 |
+| **TrafficSignal** | 차량 전용 신호 (Red/Yellow/Green). TrafficJunction이 구동 |
+| **TrafficJunction** | 교차로 신호 사이클. JunctionPhase 배열로 구성 |
+| **TrafficVehicle** | 차량 AI. 노드 추종, 직접 신호 확인, 차간 거리 유지 |
+| **TrafficManager** | 차량 스폰 및 리스폰 관리 (씬에 1개) |
+| **TrafficLight** | 보행자 전용 신호 (PedestrianController/CrosswalkWaypoint 전용) |
 
 ---
 
-## 2. Waypoint 설정
+## Step 1 — 경로 노드 배치 (TrafficNode)
 
-### 경로 연결 규칙
+### 배치 원칙
+
+차로 중앙선을 따라 노드를 배치합니다.
+
 ```
-nextWaypoints[0] = 직진 (Straight)
-nextWaypoints[1] = 우회전 (Right)
-nextWaypoints[2] = 좌회전 (Left)
+[노드] ──────── [노드] ──────── [노드] ──────── [노드]
+   3~10m 간격         교차로 직전 노드에          교차로 직후 노드
+                      stopSignal 연결
 ```
-- 연결이 1개뿐이면 가중치 무시, 100% 그 방향
-- 연결이 2개 이상이면 **가중치(%)** 로 확률 결정 (합계 기준 정규화)
-- 연결이 없는 슬롯은 자동 무시
 
-### 교차로 노드 (Junction Node)
-`nextWaypoints` 중 2개 이상이 연결된 웨이포인트 = 교차로 분기점.  
-TrafficSpawner가 이 노드를 인식해 **교차로 내부에는 스폰하지 않음**.
+**노드 간격 권장값**
+- 직선 구간: 8~15m
+- 곡선 구간: 3~6m (차량이 Slerp로 조향하므로 촘촘할수록 자연스러움)
+- 교차로 진입 직전: 1개의 노드에 `stopSignal` 연결
 
-### Inspector 도구
-- **Auto Orient** 버튼: 첫 번째 연결 방향으로 트랜스폼 자동 회전
-- **Tools > Traffic > 모든 웨이포인트 자동 방향 설정**: 씬 전체 일괄 처리
-- **씬 뷰**: 비선택 상태에서도 연결선 항상 표시 (노랑=직진, 청록=우회전, 연두=좌회전)
+### Inspector 설정
 
----
+```
+TrafficNode 컴포넌트
+├── Exits            ← 다음 노드 목록 (개수 제한 없음)
+│   ├── [0] node: 직진 노드   weight: 70
+│   ├── [1] node: 우회전 노드  weight: 20
+│   └── [2] node: 좌회전 노드  weight: 10
+└── Stop Signal      ← null이면 자유 통과 / TrafficSignal 연결 시 신호 대기
+```
 
-## 3. TrafficSpawner 설정
+- `weight`는 상대 비율입니다. 합계가 100이 아니어도 됩니다.
+- 출구가 1개뿐이면 weight 무관하게 100% 그 방향으로 이동합니다.
+- **Exits 비어있음** = 경로 끝 → 차량이 TrafficManager에게 리스폰 요청
 
-| 필드 | 설명 | 권장값 |
-|---|---|---|
-| Car Prefabs | 랜덤 선택할 차량 프리팹 목록 | 1개 이상 |
-| Car Count | 총 스폰 차량 수 | 경로 수 × 2~4 |
-| Spawn Points | 각 경로의 **시작 웨이포인트** | 경로당 1개 |
-| Height Offset | 스폰 높이 오프셋 | 차량 반높이 |
-| Spawn Per Frame | 프레임당 최대 스폰 수 | 3~5 |
-| Max Path Steps | 경로 탐색 최대 노드 수 | 60 |
+### 씬 뷰 시각화
 
-### 배치 방식
-- 각 스폰 포인트에서 `nextWaypoints[0]`(직진)을 따라 교차로 직전까지 경로 수집
-- 경로 **전반부 50%** 구간에 층화 샘플링으로 균등 분산
-- 교차로 내부(분기 노드 이후)에는 배치 안 함
+- **노란 구** = stopSignal 없는 노드 (자유 통과)
+- **빨간 구** = stopSignal 있는 노드 (정지선)
+- **노란 선** = exits 연결
+- 노드 선택 시 화살표 + 확률(%) 표시
 
-### 유효성 검사
-Inspector 하단 **✓ Validate Setup** 버튼으로 프리팹·스폰 포인트 문제 사전 확인.
+### 도구
 
----
-
-## 4. TrafficLight 설정
-
-### Inspector 필드
-| 필드 | 설명 |
+| 버튼 | 동작 |
 |---|---|
-| Vehicle Red/Yellow/Green Light | 차량 신호 렌더러 (머티리얼 _EMISSION 제어) |
-| Pedestrian Red/Green Light | 보행 신호 렌더러 |
-| Green/Yellow/Red Duration | 독립 모드용 각 상태 지속 시간 (초) |
-
-### 콜라이더 필수 조건 ⚠️
-CarController의 SphereCast로 감지되려면:
-
-1. **Is Trigger = ON** — 차량이 물리적으로 통과할 수 있어야 함
-2. **레이어 = trafficLightLayer** — CarController Inspector의 `trafficLightLayer`와 동일 레이어
-3. **`TrafficLight` 컴포넌트가 같은 오브젝트 또는 부모에 존재** — `GetComponentInParent<TrafficLight>()` 로 조회
-
-> 신호등 기둥(폴)에 solid 콜라이더가 있어도 무방. 감지용 트리거 콜라이더만 조건을 충족하면 됨.
-
-### 동작 모드
-- **Standalone**: `TrafficIntersection` 없을 때 단독 사이클 (Red→Green→Yellow→Red)
-- **Managed**: `TrafficIntersection.ForceVehicleState()` 호출 시 외부 제어로 전환, 자체 사이클 정지
+| `↺ 자동 방향 설정` | exits[0] 방향으로 Transform 회전 |
+| `Tools > Traffic > 모든 TrafficNode 자동 방향 설정` | 씬 전체 일괄 처리 |
 
 ---
 
-## 5. TrafficIntersection 설정
+## Step 2 — 신호등 배치 (TrafficSignal)
 
-### 그룹 할당
+교차로 신호등 프리팹에 `TrafficSignal` 컴포넌트를 추가합니다.
+
 ```
-Group A = N-S 방향 신호등 4개
-Group B = E-W 방향 신호등 4개
+신호등 GameObject
+├── TrafficSignal 컴포넌트
+│   ├── Red Renderer    ← 빨간 불 Renderer
+│   ├── Yellow Renderer ← 노란 불 Renderer
+│   └── Green Renderer  ← 초록 불 Renderer
+└── (Collider 불필요 — SphereCast 사용 안 함)
 ```
 
-### 4-페이즈 사이클
+> **콜라이더 레이어 설정 불필요.** 이전 시스템과 달리 SphereCast로 감지하지 않습니다.  
+> TrafficNode.stopSignal 에 직접 연결하는 방식입니다.
 
-| 페이즈 | Group A 차량 | Group B 차량 | Group A 보행 | Group B 보행 |
-|---|---|---|---|---|
-| **AGreen** | 초록 | 빨강 | 빨강 | 초록 (카운트다운) |
-| **AYellow** | 노랑 | 빨강 | 빨강 | 초록 (유지) |
-| **BGreen** | 빨강 | 초록 | 초록 (카운트다운) | 빨강 |
-| **BYellow** | 빨강 | 노랑 | 초록 (유지) | 빨강 |
+### 신호 렌더러 연결
 
-| 필드 | 설명 |
-|---|---|
-| Green Duration | 초록 지속 시간 (초). 보행 초록 카운트다운 = 이 값의 절반 |
-| Yellow Duration | 노랑 지속 시간 (초) |
-
-### Play mode 에디터 컨트롤
-- **A/B Green/Yellow 버튼**: 페이즈 즉시 강제 전환 + 타이머 고정
-- **▶ Next Phase**: 다음 페이즈로 수동 전환
-- **▶ Resume Timer**: 강제 고정 해제, 자동 사이클 재개
+각 렌더러의 Material에 `_EMISSION` 키워드가 있어야 켜집니다.  
+(Standard Shader: `Emission` 항목 활성화 → 색상 지정)
 
 ---
 
-## 6. CarController 설정
+## Step 3 — 교차로 구성 (TrafficJunction)
 
-### 신호등 감지 파라미터
-| 필드 | 설명 | 기본값 |
-|---|---|---|
-| Light Detection Distance | SphereCast 거리. `brakeDistance`보다 크게 | 12m |
-| Light Detection Radius | SphereCast 반경. 차선 폭 절반 이상 | 2m |
-| Traffic Light Layer | 신호등 콜라이더 레이어 | — |
-| Intersection Cooldown | 교차로 통과 후 신호등 재감지 억제 시간 | 4s |
+교차로 GameObject에 `TrafficJunction` 컴포넌트를 추가합니다.
 
-### 차량 감지 파라미터
-| 필드 | 설명 | 기본값 |
-|---|---|---|
-| Detection Radius | 차량 SphereCast 반경 | 0.4m |
-| Vehicle Layer | 차량 콜라이더 레이어 | — |
-| Brake Distance | 앞차 감지 시 감속 시작 거리 | 8m |
-| Min Follow Dist | 완전 정차 유지 최소 차간 거리 | 2.5m |
-| Acceleration | 가/감속도 (m/s²) | 6 |
-| Stop Check Interval | 속도 계산 주기 (물리 프레임) | 4 |
+### 2방향 교차로 예시 (가장 흔한 경우)
 
-### 우회전 신호 동작
-`nextWaypoints[1]`(우회전) 방향을 선택한 차량은 **빨간불에도 통과**.  
-직진(`[0]`)·좌회전(`[2]`)은 초록불일 때만 통과.
+```
+TrafficJunction 컴포넌트
+├── Phases
+│   ├── Phase [0]  label: "NS_Green"
+│   │   ├── Vehicle Green: [NS_Signal_1, NS_Signal_2]   ← N-S 방향 신호등
+│   │   ├── Pedestrian Green: [EW_Light_1, EW_Light_2] ← E-W 보행자 (선택)
+│   │   ├── Green Duration: 20
+│   │   └── Pedestrian Countdown: 10
+│   └── Phase [1]  label: "EW_Green"
+│       ├── Vehicle Green: [EW_Signal_1, EW_Signal_2]   ← E-W 방향 신호등
+│       ├── Pedestrian Green: [NS_Light_1, NS_Light_2] ← N-S 보행자 (선택)
+│       ├── Green Duration: 20
+│       └── Pedestrian Countdown: 10
+└── Yellow Duration: 4
+```
 
-### 교차로 쿨다운 동작
-신호등 감지 후 통과 허가 시 `intersectionCooldown` 타이머 시작.  
-타이머 동안 신호등 감지를 건너뜀 → 교차로 내부에서 멈추지 않음.
+### 사이클 타이밍
+
+```
+Phase 0 Green (20s)  →  Phase 0 Yellow (4s)
+       →  Phase 1 Green (20s)  →  Phase 1 Yellow (4s)  →  반복
+```
+
+- 황색 전환 시 현재 페이즈 신호만 Yellow로 전환 (다른 신호는 Red 유지)
+- 보행자 신호는 황색 구간에 건드리지 않음 (카운트다운 자연 진행)
+
+### 3방향/복잡 교차로
+
+Phases 배열에 원하는 만큼 페이즈를 추가하면 됩니다.
 
 ---
 
-## 7. Content Control API
+## Step 4 — 정지선 연결
 
-### 차량 신호 강제 (런타임)
+교차로 진입 직전 TrafficNode의 `Stop Signal` 필드에 해당 방향의 `TrafficSignal`을 연결합니다.
+
+```
+예시: N-S 방향 도로 진입 직전 노드
+  TrafficNode (정지선 노드)
+    └── Stop Signal → NS_Signal_1  (TrafficJunction Phase 0에서 제어)
+```
+
+### 우회전 빨간불 통과 (Right-Turn-on-Red)
+
+우회전 전용 exit 노드에는 `Stop Signal`을 연결하지 마세요.  
+`stopSignal = null`이면 신호 무관하게 자유 통과됩니다.
+
+```
+[정지선 노드] ── exits[0] 직진 → [다음 노드]     ← stopSignal 있음 (신호 대기)
+              ── exits[1] 우회전 → [우회전 노드]  ← stopSignal 없음 (자유 통과)
+```
+
+---
+
+## Step 5 — 차량 스폰 (TrafficManager)
+
+씬에 빈 GameObject를 만들고 `TrafficManager` 컴포넌트를 추가합니다.  
+**(씬에 1개만 존재해야 합니다.)**
+
+```
+TrafficManager 컴포넌트
+├── Vehicle Prefabs   ← 차량 프리팹 목록 (TrafficVehicle 포함 확인)
+├── Vehicle Count     ← 총 활성 차량 수
+├── Spawn Nodes       ← 스폰/리스폰 기준 TrafficNode 목록
+├── Height Offset     ← 스폰 높이 (차량 반높이, 보통 0.3~0.5)
+├── Spawn Per Frame   ← 프레임당 최대 스폰 수 (3~5 권장)
+└── Vehicle Layer     ← 차량 콜라이더 레이어 (리스폰 충돌 체크용)
+```
+
+### 스폰 노드 선택 기준
+- 교차로에서 충분히 떨어진 직선 구간 노드 사용
+- 차량 수 ÷ 스폰 노드 수 = 노드당 차량 수가 2~4대 정도가 적당
+- `✔ Validate` 버튼으로 설정 이상 유무 사전 확인
+
+---
+
+## Step 6 — 차량 프리팹 설정 (TrafficVehicle)
+
+차량 프리팹에 `TrafficVehicle` 컴포넌트를 추가합니다.
+
+```
+TrafficVehicle 컴포넌트
+├── Movement
+│   ├── Cruise Speed: 8          ← 최대 속도 (m/s)
+│   ├── Turn Speed: 5            ← 조향 속도 (Slerp 강도)
+│   └── Reach Distance: 1.5      ← 노드 도달 판정 거리 (m)
+├── 신호 정지
+│   └── Signal Check Dist: 6     ← 정지선 노드에서 이 거리부터 신호 확인 (m)
+├── 차량 감지
+│   ├── Brake Distance: 8        ← 앞차 감지 시 감속 시작 거리 (m)
+│   ├── Min Follow Dist: 2.5     ← 완전 정차 최소 차간 거리 (m)
+│   ├── Acceleration: 6          ← 가/감속도 (m/s²)
+│   ├── Detection Radius: 0.4    ← 차량 SphereCast 반경 (m)
+│   └── Vehicle Layer            ← 차량 콜라이더 레이어
+└── Performance
+    └── Speed Calc Interval: 4   ← N 물리프레임마다 속도 계산 (4 권장)
+```
+
+**차량 콜라이더**: Is Trigger = **OFF** (solid)
+
+> `Signal Check Dist`는 정지선 노드에 차량이 도달하기 전 감속을 시작하는 거리입니다.  
+> Reach Distance(1.5m)보다 충분히 크게 설정하세요 (기본 6m 권장).
+
+---
+
+## 씬 구성 체크리스트
+
+### ① 경로
+- [ ] 차로마다 `TrafficNode` 배치 및 `exits[]` 연결 완료
+- [ ] 교차로 진입 직전 노드에 `Stop Signal` 연결
+- [ ] 경로 끝 노드(리스폰 지점)는 `exits` 비워두거나 `TrafficManager.spawnNodes`에 등록
+- [ ] 모든 노드 **Auto Orient** 적용
+
+### ② 신호등
+- [ ] 신호등 프리팹에 `TrafficSignal` 추가, 렌더러 슬롯 연결
+- [ ] 렌더러 Material에 `_EMISSION` 활성화 확인
+- [ ] *(콜라이더/레이어 설정 불필요)*
+
+### ③ 교차로
+- [ ] `TrafficJunction` 생성
+- [ ] `Phases` 배열 구성 (방향별 vehicleGreen 연결)
+- [ ] 보행자 연동 시 `pedestrianGreen` 연결
+
+### ④ 스폰
+- [ ] `TrafficManager` 생성 (씬에 1개)
+- [ ] `vehiclePrefabs` 등록 (`TrafficVehicle` 포함 확인)
+- [ ] `spawnNodes` 지정
+- [ ] **✔ Validate** 클릭 → 이상 없음 확인
+
+### ⑤ 차량 프리팹
+- [ ] `TrafficVehicle` 컴포넌트 있음
+- [ ] `vehicleLayer` 마스크 설정
+- [ ] 차량 콜라이더 **Is Trigger = OFF**
+
+---
+
+## Content Control API (런타임 스크립팅)
+
+### 신호 강제 전환
+
 ```csharp
-// 특정 신호등 직접 제어
-trafficLight.ForceVehicleState(TrafficLightState.Red);
-trafficLight.ForceVehicleState(TrafficLightState.Green);
+// 개별 신호 직접 제어
+trafficSignal.SetState(SignalState.Red);
+trafficSignal.SetState(SignalState.Green);
 
-// 교차로 페이즈 강제 전환
-intersection.ForcePhaseAGreen();
-intersection.ForcePhaseBGreen();
-intersection.AdvancePhase();    // 다음 페이즈
-intersection.ResumeTimer();     // 자동 사이클 재개
+// 교차로 페이즈 강제 전환 (타이머 자동 고정)
+junction.ForcePhase(0);   // Phase 0으로 강제
+junction.ForcePhase(1);   // Phase 1으로 강제
+junction.Pause();         // 타이머 정지
+junction.Resume();        // 타이머 재개
 ```
 
-### 보행 신호 오버라이드
+### 보행자 신호 오버라이드
+
 ```csharp
-// 교차로 사이클과 무관하게 보행 신호 고정 (ClearOverride 전까지 유지)
-intersection.OverridePedestrianAll(PedestrianState.Red);
-intersection.OverridePedestrianAll(PedestrianState.Green);
-intersection.OverridePedestrianGroupA(PedestrianState.Red);
-intersection.OverridePedestrianGroupB(PedestrianState.Green);
-
-// 오버라이드 해제 → 다음 페이즈 전환 시 자동 복원
-intersection.ClearPedestrianOverrideAll();
+// 교차로 사이클과 무관하게 고정 (ClearOverride 전까지 유지)
+junction.OverridePedestrianAll(PedestrianState.Red);
+junction.OverridePedestrianAll(PedestrianState.Green);
+junction.ClearPedestrianOverrideAll();
 ```
 
----
-
-## 8. 씬 구성 체크리스트
-
-### ① 경로 구성
-- [ ] 차로마다 웨이포인트 오브젝트 배치
-- [ ] `Waypoint` 컴포넌트 → `nextWaypoints` 연결
-- [ ] 교차로 분기점: 해당 웨이포인트에 2개 이상 연결
-- [ ] 직진 가중치 기본 설정 후 필요 시 우/좌 가중치 조정
-- [ ] 모든 웨이포인트 **Auto Orient** 적용
-
-### ② 신호등 배치
-- [ ] 신호등 프리팹 설치 → 렌더러 슬롯 연결
-- [ ] 감지용 Box Collider 추가 → **Is Trigger = ON**
-- [ ] 감지용 콜라이더 레이어 → `trafficLightLayer` 레이어 지정
-- [ ] `TrafficLight` 컴포넌트가 같은/부모 오브젝트에 있는지 확인
-
-### ③ 교차로 설정
-- [ ] `TrafficIntersection` 컴포넌트 생성
-- [ ] Group A → N-S 방향 신호등 4개 할당
-- [ ] Group B → E-W 방향 신호등 4개 할당
-- [ ] `greenDuration`, `yellowDuration` 조정
-
-### ④ 차량 스폰
-- [ ] `TrafficSpawner` 컴포넌트 생성
-- [ ] Car Prefabs 등록 (CarController 포함 확인)
-- [ ] Spawn Points → 각 차로 시작 웨이포인트 연결
-- [ ] Car Count, Height Offset 설정
-- [ ] **✓ Validate Setup** 클릭 → 이상 없음 확인
-
-### ⑤ CarController 프리팹 확인
-- [ ] `trafficLightLayer` 마스크 → 신호등 콜라이더와 동일 레이어
-- [ ] `vehicleLayer` 마스크 → 차량 콜라이더 레이어
-- [ ] 차량 콜라이더 **Is Trigger = OFF** (solid)
-- [ ] `intersectionCooldown` >= 교차로 통과 시간 (보통 3~6초)
+### Inspector Play mode 버튼
+- **TrafficSignalEditor**: Red / Yellow / Green 강제 버튼
+- **TrafficJunctionEditor**: Phase 0, 1, 2… 강제 버튼 + Pause/Resume
 
 ---
 
-## 9. 트러블슈팅
+## 트러블슈팅
 
 ### 차가 빨간불에 멈추지 않아요
-1. CarController의 `trafficLightLayer` 필드 설정 여부 확인
-2. 신호등 콜라이더가 해당 레이어에 있는지 확인
-3. 신호등 콜라이더 **Is Trigger = ON** 확인
-4. `lightDetectionRadius`를 키워서 차선 옆 콜라이더도 포착되는지 확인
-5. `lightDetectionDistance`가 `brakeDistance`보다 큰지 확인
+
+1. 정지선 TrafficNode의 `Stop Signal` 필드가 연결되었는지 확인
+2. 해당 `TrafficSignal`이 `TrafficJunction.Phases`의 `vehicleGreen`에 포함되어 있는지 확인
+3. `Signal Check Dist`가 너무 작지 않은지 확인 (Reach Distance보다 크게, 기본 6m)
+4. Play 중 `TrafficSignalEditor`에서 현재 상태가 Red인지 직접 확인
 
 ### 교차로 안에서 멈춰요
-- `intersectionCooldown`을 늘려주세요
-- 필요 시간 계산: 교차로 폭(m) / 차량 speed(m/s) + 여유 1~2초
-- 예: 폭 20m, speed 8 → 2.5초 + 여유 = 5초
+
+- 교차로 내부 노드에 `Stop Signal`이 연결되어 있지 않은지 확인
+- 정지선 노드 위치가 교차로 진입 **직전**인지 확인 (교차로 중앙 X)
+- `Reach Distance`를 줄여보세요 (너무 크면 교차로 내부에서 노드 도달 판정)
 
 ### 차량끼리 겹쳐요
+
 1. 차량 콜라이더 **Is Trigger = OFF** 확인
-2. `vehicleLayer` 마스크가 차량에 올바르게 적용됐는지 확인
-3. `brakeDistance` 증가 또는 `minFollowDist` 증가
-4. `stopCheckInterval`을 줄여 감지 빈도 높이기 (1~2)
+2. `Vehicle Layer` 마스크가 차량에 올바르게 적용됐는지 확인
+3. `Brake Distance` 증가 또는 `Min Follow Dist` 증가
+4. `Speed Calc Interval`을 줄여 감지 빈도 높이기 (1~2)
+
+### 코너에서 차가 벽에 부딪혀요
+
+- 커브 구간 노드 간격을 줄이세요 (3~5m)
+- 노드가 촘촘할수록 `Slerp` 조향이 자연스러운 곡선을 만듭니다
+- `Turn Speed`를 높이면 더 빠르게 방향을 전환합니다
+
+### 차량이 리스폰 후 즉시 다시 리스폰해요
+
+- `Spawn Nodes`가 실제 경로와 연결되어 있는지 확인
+- 스폰 노드 위치가 다른 차량 근처가 아닌지 확인
+- `Height Offset`이 지면에 차량이 겹치지 않는 값인지 확인
 
 ### 우회전이 빨간불에 멈춰요
-- `nextWaypoints[1]`에 우회전 웨이포인트가 연결되어 있는지 확인
-- 인덱스가 맞는지 확인: [0]=직진, [1]=우회전, [2]=좌회전
 
-### 차량이 스폰 직후 바로 텔레포트해요
-- Spawn Point 이후 경로가 너무 짧음
-- `maxPathSteps` 증가 또는 경로에 웨이포인트 추가
+- 우회전 경로의 분기 exit 노드에 `Stop Signal`이 연결되어 있으면 제거하세요
+- `Stop Signal = null`이면 신호 무관하게 통과합니다
