@@ -38,9 +38,13 @@ namespace TrafficSystem
         Color _redEmission, _yellowEmission, _greenEmission;
         Color _pedRedEmission, _pedGreenEmission;
 
-        void Start()
+        void Awake()
         {
             _mpb = new MaterialPropertyBlock();
+        }
+
+        void Start()
+        {
             _redEmission      = InitEmission(redRenderer);
             _yellowEmission   = InitEmission(yellowRenderer);
             _greenEmission    = InitEmission(greenRenderer);

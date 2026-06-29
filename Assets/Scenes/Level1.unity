@@ -1418,11 +1418,11 @@ Transform:
   m_GameObject: {fileID: 41427954}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: -40.1161, y: 0, z: 28.6}
+  m_LocalPosition: {x: 80.1, y: 0, z: 26.48}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1378714243}
+  m_Father: {fileID: 86136621}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &41427956
 MonoBehaviour:
@@ -1445,6 +1445,112 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 8550080790440890841, guid: 3b26ba9c38f15fb4fac3d4f3bd4cac71, type: 3}
   m_PrefabInstance: {fileID: 1365362705}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &76296884
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 76296885}
+  - component: {fileID: 76296886}
+  m_Layer: 0
+  m_Name: "\uAD50\uCC28\uB85C1_Junction"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &76296885
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 76296884}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &76296886
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 76296884}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d10195dd08ec9d240b038f934a9040dc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficJunction
+  phases:
+  - label: "\uD398\uC774\uC988 0"
+    vehicleGreen:
+    - {fileID: 1243032499}
+    pedestrianGreen:
+    - {fileID: 8721396}
+    - {fileID: 1298517645}
+    greenDuration: 25
+    pedestrianCountdown: 10
+  - label: "\uD398\uC774\uC988 1"
+    vehicleGreen:
+    - {fileID: 8721396}
+    - {fileID: 1298517645}
+    pedestrianGreen:
+    - {fileID: 1243032499}
+    greenDuration: 25
+    pedestrianCountdown: 10
+  yellowDuration: 4
+--- !u!1 &86136620
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 86136621}
+  m_Layer: 0
+  m_Name: grp1
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &86136621
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 86136620}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 2039520603}
+  - {fileID: 559325854}
+  - {fileID: 1651665555}
+  - {fileID: 440521458}
+  - {fileID: 2067035481}
+  - {fileID: 41427955}
+  - {fileID: 361609420}
+  - {fileID: 1555543140}
+  - {fileID: 925483927}
+  - {fileID: 1551459188}
+  - {fileID: 1616196827}
+  - {fileID: 1180017685}
+  - {fileID: 1557579317}
+  m_Father: {fileID: 1378714243}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &95707204
 GameObject:
   m_ObjectHideFlags: 0
@@ -1663,11 +1769,11 @@ Transform:
   m_GameObject: {fileID: 114461361}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 459.82266, y: 0, z: 29.24}
+  m_LocalPosition: {x: 340.83966, y: 0, z: 31.39}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1378714243}
+  m_Father: {fileID: 1202552008}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &116348545
 GameObject:
@@ -2125,8 +2231,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 144185952}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0.40123245, z: -0, w: 0.9159763}
-  m_LocalPosition: {x: 214.484, y: 0, z: 174.02}
+  m_LocalRotation: {x: -0, y: -0.43241015, z: -0, w: 0.9016771}
+  m_LocalPosition: {x: 217.284, y: 0, z: 174.02}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2279,54 +2385,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 481231841}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &154943738
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 154943739}
-  - component: {fileID: 154943740}
-  m_Layer: 0
-  m_Name: TrafficNode_012
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &154943739
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 154943738}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 29.887722, y: 0, z: 28.6}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &154943740
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 154943738}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 1146031082}
-    weight: 10
-  stopSignal: {fileID: 0}
 --- !u!1 &155026023
 GameObject:
   m_ObjectHideFlags: 0
@@ -3160,54 +3218,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 2390bf93843ffdd4ba31463f53933c52, type: 3}
---- !u!1 &205435873
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 205435874}
-  - component: {fileID: 205435875}
-  m_Layer: 0
-  m_Name: TrafficNode_027
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &205435874
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 205435873}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 179.91747, y: 0, z: 28.6}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &205435875
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 205435873}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 2086993103}
-    weight: 10
-  stopSignal: {fileID: 0}
 --- !u!1 &208100717
 GameObject:
   m_ObjectHideFlags: 0
@@ -3465,54 +3475,6 @@ PlayableDirector:
     value: {fileID: 1780278307}
   m_ExposedReferences:
     m_References: []
---- !u!1 &245297007
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 245297008}
-  - component: {fileID: 245297009}
-  m_Layer: 0
-  m_Name: TrafficNode_017
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &245297008
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 245297007}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 79.798386, y: 0, z: 28.6}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &245297009
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 245297007}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 650121720}
-    weight: 10
-  stopSignal: {fileID: 0}
 --- !u!1 &252428257
 GameObject:
   m_ObjectHideFlags: 0
@@ -3611,54 +3573,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 252428257}
   m_CullTransparentMesh: 1
---- !u!1 &257225821
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 257225822}
-  - component: {fileID: 257225823}
-  m_Layer: 0
-  m_Name: TrafficNode_021
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &257225822
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 257225821}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 119.92837, y: 0, z: 28.6}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &257225823
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 257225821}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 972368779}
-    weight: 10
-  stopSignal: {fileID: 0}
 --- !u!1 &259449183
 GameObject:
   m_ObjectHideFlags: 0
@@ -4555,54 +4469,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 309968726}
   m_CullTransparentMesh: 1
---- !u!1 &311797452
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 311797454}
-  - component: {fileID: 311797453}
-  m_Layer: 0
-  m_Name: TrafficNode_034
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &311797453
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 311797452}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 1684080936}
-    weight: 10
-  stopSignal: {fileID: 0}
---- !u!4 &311797454
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 311797452}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 269.84796, y: 0, z: 29.24}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &320119666
 GameObject:
   m_ObjectHideFlags: 0
@@ -4645,11 +4511,11 @@ Transform:
   m_GameObject: {fileID: 320119666}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 399.93787, y: 0, z: 29.24}
+  m_LocalPosition: {x: 7.554878, y: 0, z: 30.72}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1378714243}
+  m_Father: {fileID: 1202552008}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &322405066
 PrefabInstance:
@@ -4925,102 +4791,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 324883776}
   m_CullTransparentMesh: 1
---- !u!1 &326860216
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 326860218}
-  - component: {fileID: 326860217}
-  m_Layer: 0
-  m_Name: TrafficNode_038
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &326860217
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 326860216}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 744951103}
-    weight: 10
-  stopSignal: {fileID: 0}
---- !u!4 &326860218
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 326860216}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 309.83908, y: 0, z: 29.24}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &327847983
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 327847985}
-  - component: {fileID: 327847984}
-  m_Layer: 0
-  m_Name: TrafficNode_039
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &327847984
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 327847983}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 326860217}
-    weight: 10
-  stopSignal: {fileID: 0}
---- !u!4 &327847985
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 327847983}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 319.7395, y: 0, z: 29.24}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &329321674
 GameObject:
   m_ObjectHideFlags: 0
@@ -5217,54 +4987,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 351685184}
   m_Mesh: {fileID: -7512519252069407155, guid: f57ecba04fec30841b2721cc56aad4fe, type: 3}
---- !u!1 &352497254
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 352497256}
-  - component: {fileID: 352497255}
-  m_Layer: 0
-  m_Name: TrafficNode_035
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &352497255
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 352497254}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 311797453}
-    weight: 10
-  stopSignal: {fileID: 0}
---- !u!4 &352497256
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 352497254}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 280.06915, y: 0, z: 29.24}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &357170136
 GameObject:
   m_ObjectHideFlags: 0
@@ -5323,11 +5045,11 @@ Transform:
   m_GameObject: {fileID: 361609419}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: -30.105095, y: 0, z: 28.6}
+  m_LocalPosition: {x: 113.1, y: 0, z: 26.48}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1378714243}
+  m_Father: {fileID: 86136621}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &361609421
 MonoBehaviour:
@@ -5388,56 +5110,6 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 1, z: -0, w: 0}
   m_LocalPosition: {x: 214.5, y: 0, z: 370.1479}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &369885654
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 369885656}
-  - component: {fileID: 369885655}
-  m_Layer: 0
-  m_Name: TrafficNode_030
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &369885655
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 369885654}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 1852925106}
-    weight: 7
-  - node: {fileID: 1726549608}
-    weight: 3
-  stopSignal: {fileID: 1298517645}
---- !u!4 &369885656
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 369885654}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: -0.7167618, z: -0, w: 0.69731814}
-  m_LocalPosition: {x: 227.58298, y: 0, z: 29.24}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -5616,54 +5288,6 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 1, z: -0, w: 0}
   m_LocalPosition: {x: 214.5, y: 0, z: 310.04068}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &391444171
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 391444173}
-  - component: {fileID: 391444172}
-  m_Layer: 0
-  m_Name: TrafficNode_042
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &391444172
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 391444171}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 1594545712}
-    weight: 10
-  stopSignal: {fileID: 1534567877}
---- !u!4 &391444173
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 391444171}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 373.66925, y: 0, z: 29.24}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -6406,7 +6030,7 @@ Transform:
   m_GameObject: {fileID: 426964572}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 214.484, y: 0, z: 121.48}
+  m_LocalPosition: {x: 217.284, y: 0, z: 121.48}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -6528,12 +6152,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 440521457}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: -59.95714, y: 0, z: 28.6}
+  m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+  m_LocalPosition: {x: 137.7, y: 0, z: 26.48}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1378714243}
+  m_Father: {fileID: 86136621}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &440521459
 MonoBehaviour:
@@ -6576,8 +6200,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 445448748}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 0.032024555, z: -0, w: 0.9994871}
-  m_LocalPosition: {x: 212.7, y: 0, z: 99.99}
+  m_LocalRotation: {x: -0, y: 0.06921856, z: -0, w: 0.99760157}
+  m_LocalPosition: {x: 214.7, y: 0, z: 99.99}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -6631,8 +6255,6 @@ MonoBehaviour:
   exits:
   - node: {fileID: 1352140775}
     weight: 10
-  - node: {fileID: 391444172}
-    weight: 10
   stopSignal: {fileID: 0}
 --- !u!4 &447133097
 Transform:
@@ -6643,60 +6265,12 @@ Transform:
   m_GameObject: {fileID: 447133095}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 389.93848, y: 0, z: 29.24}
+  m_LocalPosition: {x: -44.14451, y: 0, z: 30.72}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1378714243}
+  m_Father: {fileID: 1202552008}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &465208218
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 465208219}
-  - component: {fileID: 465208220}
-  m_Layer: 0
-  m_Name: TrafficNode_015
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &465208219
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 465208218}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 59.877335, y: 0, z: 28.6}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &465208220
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 465208218}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 1674956136}
-    weight: 10
-  stopSignal: {fileID: 0}
 --- !u!1 &473508896
 GameObject:
   m_ObjectHideFlags: 0
@@ -6854,11 +6428,11 @@ Transform:
   m_GameObject: {fileID: 483781000}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 429.93243, y: 0, z: 29.24}
+  m_LocalPosition: {x: 202.04945, y: 0, z: 30.72}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1378714243}
+  m_Father: {fileID: 1202552008}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &490493720
 GameObject:
@@ -6886,7 +6460,7 @@ Transform:
   m_GameObject: {fileID: 490493720}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 214.484, y: 0, z: 140.15573}
+  m_LocalPosition: {x: 217.284, y: 0, z: 140.15573}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -6906,54 +6480,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
   exits:
   - node: {fileID: 599517313}
-    weight: 10
-  stopSignal: {fileID: 0}
---- !u!1 &511146457
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 511146458}
-  - component: {fileID: 511146459}
-  m_Layer: 0
-  m_Name: TrafficNode_024
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &511146458
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 511146457}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 149.2853, y: 0, z: 28.6}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &511146459
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 511146457}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 1169061687}
     weight: 10
   stopSignal: {fileID: 0}
 --- !u!1 &517661238
@@ -6982,7 +6508,7 @@ Transform:
   m_GameObject: {fileID: 517661238}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 212.7, y: 0, z: 60.028004}
+  m_LocalPosition: {x: 214.7, y: 0, z: 60.028004}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -7422,54 +6948,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 537576019}
   m_CullTransparentMesh: 1
---- !u!1 &547345266
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 547345267}
-  - component: {fileID: 547345268}
-  m_Layer: 0
-  m_Name: TrafficNode_026
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &547345267
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 547345266}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 169.90665, y: 0, z: 28.6}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &547345268
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 547345266}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 205435875}
-    weight: 10
-  stopSignal: {fileID: 0}
 --- !u!4 &551226879 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 1206216613112893457, guid: 15ba4d3a8192cc445a838a928b3ad2ed, type: 3}
@@ -7826,11 +7304,11 @@ Transform:
   m_GameObject: {fileID: 559325853}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: -80.09976, y: 0, z: 28.6}
+  m_LocalPosition: {x: -2.9, y: 0, z: 26.48}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1378714243}
+  m_Father: {fileID: 86136621}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &559325855
 MonoBehaviour:
@@ -8338,7 +7816,7 @@ Transform:
   m_GameObject: {fileID: 599517311}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 214.484, y: 0, z: 150.156}
+  m_LocalPosition: {x: 217.284, y: 0, z: 150.156}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -8402,11 +7880,11 @@ Transform:
   m_GameObject: {fileID: 600239477}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 409.97873, y: 0, z: 29.24}
+  m_LocalPosition: {x: 74.49571, y: 0, z: 30.72}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1378714243}
+  m_Father: {fileID: 1202552008}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &613758295
 GameObject:
@@ -8465,7 +7943,7 @@ Transform:
   m_GameObject: {fileID: 616376685}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 212.7, y: 0, z: 53.082203}
+  m_LocalPosition: {x: 214.7, y: 0, z: 53.082203}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -8786,54 +8264,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 647971101}
   m_CullTransparentMesh: 1
---- !u!1 &650121718
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 650121719}
-  - component: {fileID: 650121720}
-  m_Layer: 0
-  m_Name: TrafficNode_018
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &650121719
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 650121718}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 89.79492, y: 0, z: 28.6}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &650121720
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 650121718}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 913952213}
-    weight: 10
-  stopSignal: {fileID: 0}
 --- !u!1 &652071996
 GameObject:
   m_ObjectHideFlags: 0
@@ -9334,7 +8764,9 @@ MonoBehaviour:
   exits:
   - node: {fileID: 483781001}
     weight: 10
-  stopSignal: {fileID: 0}
+  - node: {fileID: 1726549608}
+    weight: 10
+  stopSignal: {fileID: 1298517645}
 --- !u!4 &711771733
 Transform:
   m_ObjectHideFlags: 0
@@ -9343,12 +8775,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 711771731}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 439.7372, y: 0, z: 29.24}
+  m_LocalRotation: {x: -0, y: -0.7157315, z: -0, w: 0.6983756}
+  m_LocalPosition: {x: 229.34, y: 0, z: 31.39}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1378714243}
+  m_Father: {fileID: 1202552008}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &712789518
 GameObject:
@@ -9653,54 +9085,6 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
---- !u!1 &717815263
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 717815264}
-  - component: {fileID: 717815265}
-  m_Layer: 0
-  m_Name: TrafficNode_020
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &717815264
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 717815263}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 109.85992, y: 0, z: 28.6}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &717815265
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 717815263}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 257225823}
-    weight: 10
-  stopSignal: {fileID: 0}
 --- !u!1 &717987887
 GameObject:
   m_ObjectHideFlags: 0
@@ -10004,54 +9388,6 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 481231841}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &744951102
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 744951104}
-  - component: {fileID: 744951103}
-  m_Layer: 0
-  m_Name: TrafficNode_037
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &744951103
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 744951102}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 1084431421}
-    weight: 10
-  stopSignal: {fileID: 0}
---- !u!4 &744951104
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 744951102}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 300.0762, y: 0, z: 29.24}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &758976297
 GameObject:
@@ -11059,11 +10395,11 @@ Transform:
   m_GameObject: {fileID: 871463388}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 419.93732, y: 0, z: 29.24}
+  m_LocalPosition: {x: 150.65433, y: 0, z: 30.72}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1378714243}
+  m_Father: {fileID: 1202552008}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &873177160
 GameObject:
@@ -11507,7 +10843,7 @@ MonoBehaviour:
   exits:
   - node: {fileID: 114461362}
     weight: 10
-  stopSignal: {fileID: 0}
+  stopSignal: {fileID: 1534567877}
 --- !u!4 &897104460
 Transform:
   m_ObjectHideFlags: 0
@@ -11517,11 +10853,11 @@ Transform:
   m_GameObject: {fileID: 897104458}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 469.8178, y: 0, z: 29.24}
+  m_LocalPosition: {x: 374.73483, y: 0, z: 31.39}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1378714243}
+  m_Father: {fileID: 1202552008}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &904893547
 GameObject:
@@ -11600,54 +10936,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
   exits:
   - node: {fileID: 936988162}
-    weight: 10
-  stopSignal: {fileID: 0}
---- !u!1 &913952211
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 913952212}
-  - component: {fileID: 913952213}
-  m_Layer: 0
-  m_Name: TrafficNode_019
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &913952212
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 913952211}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 99.935295, y: 0, z: 28.6}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &913952213
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 913952211}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 717815265}
     weight: 10
   stopSignal: {fileID: 0}
 --- !u!1 &917369358
@@ -11806,11 +11094,11 @@ Transform:
   m_GameObject: {fileID: 925483926}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: -10.083086, y: 0, z: 28.6}
+  m_LocalPosition: {x: 229.86, y: 0, z: 27.3}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1378714243}
+  m_Father: {fileID: 86136621}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &925483928
 MonoBehaviour:
@@ -11854,7 +11142,7 @@ Transform:
   m_GameObject: {fileID: 926006677}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 212.7, y: 0, z: 90.36354}
+  m_LocalPosition: {x: 214.7, y: 0, z: 90.36354}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -12635,54 +11923,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 960475280}
   m_Mesh: {fileID: 8733429697405204941, guid: 586444d4d88712b49bb0d250de4dc3ff, type: 3}
---- !u!1 &972368777
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 972368778}
-  - component: {fileID: 972368779}
-  m_Layer: 0
-  m_Name: TrafficNode_022
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &972368778
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 972368777}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 129.85298, y: 0, z: 28.6}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &972368779
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 972368777}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 1739550799}
-    weight: 10
-  stopSignal: {fileID: 0}
 --- !u!1 &973040953
 GameObject:
   m_ObjectHideFlags: 0
@@ -12709,7 +11949,7 @@ Transform:
   m_GameObject: {fileID: 973040953}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 212.7, y: 0, z: 80.02854}
+  m_LocalPosition: {x: 214.7, y: 0, z: 80.02854}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -13367,54 +12607,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1017321607}
   m_CullTransparentMesh: 1
---- !u!1 &1028878010
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1028878011}
-  - component: {fileID: 1028878012}
-  m_Layer: 0
-  m_Name: TrafficNode_014
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1028878011
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1028878010}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 49.8808, y: 0, z: 28.6}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1028878012
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1028878010}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 465208220}
-    weight: 10
-  stopSignal: {fileID: 0}
 --- !u!1 &1042102623
 GameObject:
   m_ObjectHideFlags: 0
@@ -13786,11 +12978,11 @@ Transform:
   m_GameObject: {fileID: 1054157614}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 449.8275, y: 0, z: 29.24}
+  m_LocalPosition: {x: 284.34454, y: 0, z: 31.39}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1378714243}
+  m_Father: {fileID: 1202552008}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1055556585
 GameObject:
@@ -13830,54 +13022,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!1 &1061620450
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1061620452}
-  - component: {fileID: 1061620451}
-  m_Layer: 0
-  m_Name: TrafficNode_031
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1061620451
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1061620450}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 369885655}
-    weight: 10
-  stopSignal: {fileID: 0}
---- !u!4 &1061620452
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1061620450}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 237.79517, y: 0, z: 29.24}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1074845140
 GameObject:
   m_ObjectHideFlags: 0
@@ -14210,54 +13354,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1082419360}
   m_Mesh: {fileID: -7512519252069407155, guid: f57ecba04fec30841b2721cc56aad4fe, type: 3}
---- !u!1 &1084431420
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1084431422}
-  - component: {fileID: 1084431421}
-  m_Layer: 0
-  m_Name: TrafficNode_036
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1084431421
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1084431420}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 352497255}
-    weight: 10
-  stopSignal: {fileID: 0}
---- !u!4 &1084431422
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1084431420}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 289.9008, y: 0, z: 29.24}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1103015989
 GameObject:
   m_ObjectHideFlags: 0
@@ -14835,54 +13931,6 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
---- !u!1 &1146031080
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1146031081}
-  - component: {fileID: 1146031082}
-  m_Layer: 0
-  m_Name: TrafficNode_013
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1146031081
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1146031080}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 39.740425, y: 0, z: 28.6}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1146031082
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1146031080}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 1028878012}
-    weight: 10
-  stopSignal: {fileID: 0}
 --- !u!4 &1146966195 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 1206216613112893457, guid: 2390bf93843ffdd4ba31463f53933c52, type: 3}
@@ -14899,54 +13947,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 082a60693ebf03c4293a4a841e637233, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficSignal
---- !u!1 &1169061685
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1169061686}
-  - component: {fileID: 1169061687}
-  m_Layer: 0
-  m_Name: TrafficNode_025
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1169061686
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1169061685}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 159.94196, y: 0, z: 28.6}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1169061687
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1169061685}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 547345268}
-    weight: 10
-  stopSignal: {fileID: 0}
 --- !u!1 &1170364011
 GameObject:
   m_ObjectHideFlags: 0
@@ -15037,11 +14037,11 @@ Transform:
   m_GameObject: {fileID: 1180017684}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 19.963104, y: 0, z: 28.6}
+  m_LocalPosition: {x: 375.9, y: 0, z: 27.3}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1378714243}
+  m_Father: {fileID: 86136621}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1180017686
 MonoBehaviour:
@@ -15056,7 +14056,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
   exits:
-  - node: {fileID: 154943740}
+  - node: {fileID: 1557579318}
     weight: 10
   stopSignal: {fileID: 0}
 --- !u!1 &1184003791
@@ -15534,6 +14534,49 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 0}
+--- !u!1 &1202552007
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1202552008}
+  m_Layer: 0
+  m_Name: grp2
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1202552008
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1202552007}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1352140776}
+  - {fileID: 447133097}
+  - {fileID: 320119668}
+  - {fileID: 600239479}
+  - {fileID: 871463390}
+  - {fileID: 483781002}
+  - {fileID: 711771733}
+  - {fileID: 1054157616}
+  - {fileID: 114461363}
+  - {fileID: 897104460}
+  - {fileID: 2037038314}
+  - {fileID: 1589133834}
+  m_Father: {fileID: 1378714243}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1208273120
 GameObject:
   m_ObjectHideFlags: 0
@@ -16057,6 +15100,17 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 1206216613112893457, guid: 2390bf93843ffdd4ba31463f53933c52, type: 3}
   m_PrefabInstance: {fileID: 534440102}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1243032499 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 2292967634132964802, guid: 2390bf93843ffdd4ba31463f53933c52, type: 3}
+  m_PrefabInstance: {fileID: 1193746892}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 082a60693ebf03c4293a4a841e637233, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficSignal
 --- !u!1001 &1243571004
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -16217,54 +15271,6 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
---- !u!1 &1267743902
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1267743904}
-  - component: {fileID: 1267743903}
-  m_Layer: 0
-  m_Name: TrafficNode_040
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1267743903
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1267743902}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 327847984}
-    weight: 10
-  stopSignal: {fileID: 0}
---- !u!4 &1267743904
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1267743902}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 329.98364, y: 0, z: 29.24}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1270680368
 GameObject:
   m_ObjectHideFlags: 0
@@ -17444,11 +16450,11 @@ Transform:
   m_GameObject: {fileID: 1352140774}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 382.47003, y: 0, z: 29.24}
+  m_LocalPosition: {x: -93.11295, y: 0, z: 30.72}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1378714243}
+  m_Father: {fileID: 1202552008}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1355918411
 GameObject:
@@ -17843,61 +16849,8 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 2039520603}
-  - {fileID: 559325854}
-  - {fileID: 1651665555}
-  - {fileID: 440521458}
-  - {fileID: 2067035481}
-  - {fileID: 41427955}
-  - {fileID: 361609420}
-  - {fileID: 1555543140}
-  - {fileID: 925483927}
-  - {fileID: 1551459188}
-  - {fileID: 1616196827}
-  - {fileID: 1180017685}
-  - {fileID: 154943739}
-  - {fileID: 1146031081}
-  - {fileID: 1028878011}
-  - {fileID: 465208219}
-  - {fileID: 1674956135}
-  - {fileID: 245297008}
-  - {fileID: 650121719}
-  - {fileID: 913952212}
-  - {fileID: 717815264}
-  - {fileID: 257225822}
-  - {fileID: 972368778}
-  - {fileID: 1739550798}
-  - {fileID: 511146458}
-  - {fileID: 1169061686}
-  - {fileID: 547345267}
-  - {fileID: 205435874}
-  - {fileID: 2086993102}
-  - {fileID: 1852925105}
-  - {fileID: 369885656}
-  - {fileID: 1061620452}
-  - {fileID: 2018878512}
-  - {fileID: 1684080937}
-  - {fileID: 311797454}
-  - {fileID: 352497256}
-  - {fileID: 1084431422}
-  - {fileID: 744951104}
-  - {fileID: 326860218}
-  - {fileID: 327847985}
-  - {fileID: 1267743904}
-  - {fileID: 1594545713}
-  - {fileID: 391444173}
-  - {fileID: 1352140776}
-  - {fileID: 447133097}
-  - {fileID: 320119668}
-  - {fileID: 600239479}
-  - {fileID: 871463390}
-  - {fileID: 483781002}
-  - {fileID: 711771733}
-  - {fileID: 1054157616}
-  - {fileID: 114461363}
-  - {fileID: 897104460}
-  - {fileID: 2037038314}
-  - {fileID: 1589133834}
+  - {fileID: 86136621}
+  - {fileID: 1202552008}
   - {fileID: 2125933641}
   - {fileID: 1497238415}
   - {fileID: 652071997}
@@ -18421,7 +17374,7 @@ Transform:
   m_GameObject: {fileID: 1438582213}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 214.484, y: 0, z: 130.15546}
+  m_LocalPosition: {x: 217.284, y: 0, z: 130.15546}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -18517,7 +17470,7 @@ Transform:
   m_GameObject: {fileID: 1447254086}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 214.484, y: 0, z: 162.71}
+  m_LocalPosition: {x: 217.284, y: 0, z: 162.71}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -19991,11 +18944,11 @@ Transform:
   m_GameObject: {fileID: 1551459187}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: -0.10188866, y: 0, z: 28.6}
+  m_LocalPosition: {x: 273, y: 0, z: 27.3}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1378714243}
+  m_Father: {fileID: 86136621}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1551459189
 MonoBehaviour:
@@ -20070,12 +19023,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1555543139}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: -20.09409, y: 0, z: 28.6}
+  m_LocalRotation: {x: -0, y: 0.6965474, z: -0, w: 0.7175108}
+  m_LocalPosition: {x: 202.21, y: 0, z: 26.48}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1378714243}
+  m_Father: {fileID: 86136621}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1555543141
 MonoBehaviour:
@@ -20092,6 +19045,52 @@ MonoBehaviour:
   exits:
   - node: {fileID: 925483928}
     weight: 10
+  stopSignal: {fileID: 8721396}
+--- !u!1 &1557579316
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1557579317}
+  - component: {fileID: 1557579318}
+  m_Layer: 0
+  m_Name: TrafficNode_012
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1557579317
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1557579316}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
+  m_LocalPosition: {x: 489.7, y: 0, z: 27.3}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 86136621}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1557579318
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1557579316}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
+  exits: []
   stopSignal: {fileID: 0}
 --- !u!1 &1563267667
 GameObject:
@@ -20471,12 +19470,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1589133833}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 489.80807, y: 0, z: 29.24}
+  m_LocalRotation: {x: -0, y: -0.7073457, z: -0, w: 0.70686775}
+  m_LocalPosition: {x: 489.80807, y: 0, z: 31.429998}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1378714243}
+  m_Father: {fileID: 1202552008}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1589133835
 MonoBehaviour:
@@ -20585,54 +19584,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1594063779}
   m_Mesh: {fileID: -7512519252069407155, guid: f57ecba04fec30841b2721cc56aad4fe, type: 3}
---- !u!1 &1594545711
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1594545713}
-  - component: {fileID: 1594545712}
-  m_Layer: 0
-  m_Name: TrafficNode_041
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1594545712
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1594545711}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 1267743903}
-    weight: 10
-  stopSignal: {fileID: 1146966196}
---- !u!4 &1594545713
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1594545711}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 339.88403, y: 0, z: 29.24}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1594754836
 GameObject:
   m_ObjectHideFlags: 0
@@ -20770,11 +19721,11 @@ Transform:
   m_GameObject: {fileID: 1616196826}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 9.822731, y: 0, z: 28.6}
+  m_LocalPosition: {x: 336.1, y: 0, z: 27.3}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1378714243}
+  m_Father: {fileID: 86136621}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1616196828
 MonoBehaviour:
@@ -20791,7 +19742,7 @@ MonoBehaviour:
   exits:
   - node: {fileID: 1180017686}
     weight: 10
-  stopSignal: {fileID: 0}
+  stopSignal: {fileID: 1146966196}
 --- !u!1 &1626234393
 GameObject:
   m_ObjectHideFlags: 0
@@ -21026,11 +19977,11 @@ Transform:
   m_GameObject: {fileID: 1651665554}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: -70.08876, y: 0, z: 28.6}
+  m_LocalPosition: {x: 67.4, y: 0, z: 26.48}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1378714243}
+  m_Father: {fileID: 86136621}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1651665556
 MonoBehaviour:
@@ -21399,54 +20350,6 @@ Transform:
   - {fileID: 1274543917}
   m_Father: {fileID: 4733590}
   m_LocalEulerAnglesHint: {x: 0, y: 3.744, z: 0}
---- !u!1 &1674956134
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1674956135}
-  - component: {fileID: 1674956136}
-  m_Layer: 0
-  m_Name: TrafficNode_016
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1674956135
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1674956134}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 69.873764, y: 0, z: 28.6}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1674956136
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1674956134}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 245297009}
-    weight: 10
-  stopSignal: {fileID: 0}
 --- !u!1 &1676477956
 GameObject:
   m_ObjectHideFlags: 0
@@ -21545,54 +20448,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1676477956}
   m_CullTransparentMesh: 1
---- !u!1 &1684080935
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1684080937}
-  - component: {fileID: 1684080936}
-  m_Layer: 0
-  m_Name: TrafficNode_033
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1684080936
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1684080935}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 2018878511}
-    weight: 10
-  stopSignal: {fileID: 0}
---- !u!4 &1684080937
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1684080935}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 259.97534, y: 0, z: 29.24}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1684146312
 GameObject:
   m_ObjectHideFlags: 0
@@ -21730,7 +20585,7 @@ Transform:
   m_GameObject: {fileID: 1710624029}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 0.050538532, z: -0, w: 0.99872214}
-  m_LocalPosition: {x: 213.38158, y: 0, z: 110.615135}
+  m_LocalPosition: {x: 216.18158, y: 0, z: 110.615135}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -22062,7 +20917,7 @@ Transform:
   m_GameObject: {fileID: 1726549606}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 212.7, y: 0, z: 44.67193}
+  m_LocalPosition: {x: 214.7, y: 0, z: 43.97}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -22082,8 +20937,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
   exits:
   - node: {fileID: 616376687}
-    weight: 10
-  - node: {fileID: 1852925106}
     weight: 10
   stopSignal: {fileID: 0}
 --- !u!1 &1734355811
@@ -22161,54 +21014,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1734355811}
   m_CullTransparentMesh: 1
---- !u!1 &1739550797
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1739550798}
-  - component: {fileID: 1739550799}
-  m_Layer: 0
-  m_Name: TrafficNode_023
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1739550798
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1739550797}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 139.45377, y: 0, z: 28.6}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1739550799
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1739550797}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 511146459}
-    weight: 10
-  stopSignal: {fileID: 0}
 --- !u!1 &1742059757
 GameObject:
   m_ObjectHideFlags: 0
@@ -23293,8 +22098,8 @@ Transform:
   m_Children:
   - {fileID: 1228375879}
   - {fileID: 16712431}
-  - {fileID: 8721395}
   - {fileID: 1193746893}
+  - {fileID: 8721395}
   - {fileID: 1298517644}
   - {fileID: 1146966195}
   - {fileID: 1630526612}
@@ -23384,7 +22189,7 @@ Transform:
   m_GameObject: {fileID: 1815351806}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 212.7, y: 0, z: 70.111946}
+  m_LocalPosition: {x: 214.7, y: 0, z: 70.111946}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -24468,19 +23273,101 @@ MonoBehaviour:
   - {fileID: 3336702234273400016, guid: 9935955c634e5c74da354b058f00e43d, type: 3}
   - {fileID: 3336702234273400016, guid: 80b3af1e6c570d345adb08ec6a658f47, type: 3}
   - {fileID: 3336702234273400016, guid: a3106abde1f719f4c8a9322638e41909, type: 3}
-  vehicleCount: 40
-  heightOffset: 0.5
+  vehicleCount: 15
+  heightOffset: 0
   spawnNodes:
   - {fileID: 2039520604}
+  - {fileID: 559325855}
+  - {fileID: 1651665556}
+  - {fileID: 440521459}
+  - {fileID: 2067035482}
+  - {fileID: 41427956}
+  - {fileID: 361609421}
+  - {fileID: 1555543141}
+  - {fileID: 925483928}
+  - {fileID: 1551459189}
+  - {fileID: 1616196828}
+  - {fileID: 1180017686}
+  - {fileID: 1557579318}
+  - {fileID: 1352140775}
+  - {fileID: 447133096}
+  - {fileID: 320119667}
+  - {fileID: 600239478}
+  - {fileID: 871463389}
+  - {fileID: 483781001}
+  - {fileID: 711771732}
+  - {fileID: 1054157615}
+  - {fileID: 114461362}
+  - {fileID: 897104459}
+  - {fileID: 2037038313}
   - {fileID: 1589133835}
-  - {fileID: 913753347}
+  - {fileID: 2125933642}
+  - {fileID: 1497238416}
+  - {fileID: 652071998}
+  - {fileID: 1813612251}
+  - {fileID: 1803127541}
+  - {fileID: 1923200944}
+  - {fileID: 1908898089}
+  - {fileID: 269680293}
+  - {fileID: 143800941}
+  - {fileID: 1875744006}
+  - {fileID: 159189305}
+  - {fileID: 1001678217}
+  - {fileID: 552139278}
+  - {fileID: 21820249}
+  - {fileID: 1543319752}
+  - {fileID: 329321676}
+  - {fileID: 845315328}
+  - {fileID: 1890929615}
+  - {fileID: 1573038788}
+  - {fileID: 717321326}
+  - {fileID: 1840641051}
+  - {fileID: 2107250713}
+  - {fileID: 13563723}
+  - {fileID: 1627707135}
   - {fileID: 1452852467}
+  - {fileID: 473508897}
+  - {fileID: 1598331232}
+  - {fileID: 385921160}
+  - {fileID: 400437676}
+  - {fileID: 1112754013}
+  - {fileID: 958836777}
+  - {fileID: 724613892}
+  - {fileID: 1300599976}
+  - {fileID: 364139501}
+  - {fileID: 421463683}
+  - {fileID: 936988162}
+  - {fileID: 913753347}
+  - {fileID: 712789520}
+  - {fileID: 268011762}
+  - {fileID: 527868519}
+  - {fileID: 1054099530}
+  - {fileID: 1537202152}
+  - {fileID: 2121125471}
+  - {fileID: 1671222420}
+  - {fileID: 774336461}
+  - {fileID: 9686609}
+  - {fileID: 1485893023}
+  - {fileID: 1563267668}
+  - {fileID: 1214373686}
+  - {fileID: 1444833576}
+  - {fileID: 155026024}
+  - {fileID: 942876186}
   - {fileID: 715020454}
-  - {fileID: 245297009}
-  - {fileID: 1084431421}
-  - {fileID: 711771732}
-  - {fileID: 711771732}
+  - {fileID: 1726549608}
+  - {fileID: 616376687}
+  - {fileID: 517661240}
+  - {fileID: 1815351808}
+  - {fileID: 973040955}
+  - {fileID: 926006679}
+  - {fileID: 445448750}
+  - {fileID: 1710624031}
+  - {fileID: 426964574}
   - {fileID: 1438582215}
+  - {fileID: 490493722}
+  - {fileID: 599517313}
+  - {fileID: 1447254088}
+  - {fileID: 144185954}
   spawnPerFrame: 1
   vehicleLayer:
     serializedVersion: 2
@@ -24599,52 +23486,6 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
---- !u!1 &1852925104
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1852925105}
-  - component: {fileID: 1852925106}
-  m_Layer: 0
-  m_Name: TrafficNode_029
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1852925105
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1852925104}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 204.31474, y: 0, z: 28.6}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1852925106
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1852925104}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits: []
-  stopSignal: {fileID: 8721396}
 --- !u!1 &1875744004
 GameObject:
   m_ObjectHideFlags: 0
@@ -26170,54 +25011,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2017646233}
   m_Mesh: {fileID: 8748439755159404213, guid: 99b7ec226713cb4469011ba0a7c301fb, type: 3}
---- !u!1 &2018878510
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2018878512}
-  - component: {fileID: 2018878511}
-  m_Layer: 0
-  m_Name: TrafficNode_032
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &2018878511
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2018878510}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 1061620451}
-    weight: 10
-  stopSignal: {fileID: 0}
---- !u!4 &2018878512
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2018878510}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 249.92564, y: 0, z: 29.24}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2027743674
 GameObject:
   m_ObjectHideFlags: 0
@@ -26490,11 +25283,11 @@ Transform:
   m_GameObject: {fileID: 2037038312}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 479.81293, y: 0, z: 29.24}
+  m_LocalPosition: {x: 430.62994, y: 0, z: 31.39}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1378714243}
+  m_Father: {fileID: 1202552008}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &2038483332
 PrefabInstance:
@@ -26647,11 +25440,11 @@ Transform:
   m_GameObject: {fileID: 2039520602}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: -92.70398, y: 0, z: 28.6}
+  m_LocalPosition: {x: -92.70398, y: 0, z: 26.48}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1378714243}
+  m_Father: {fileID: 86136621}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &2039520604
 MonoBehaviour:
@@ -27223,11 +26016,11 @@ Transform:
   m_GameObject: {fileID: 2067035480}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: -50.06675, y: 0, z: 28.6}
+  m_LocalPosition: {x: 24.2, y: 0, z: 26.48}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1378714243}
+  m_Father: {fileID: 86136621}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &2067035482
 MonoBehaviour:
@@ -27337,54 +26130,6 @@ Transform:
   - {fileID: 533098265}
   m_Father: {fileID: 1218623994}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &2086993101
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2086993102}
-  - component: {fileID: 2086993103}
-  m_Layer: 0
-  m_Name: TrafficNode_028
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &2086993102
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2086993101}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 192.05, y: 0, z: 28.6}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1378714243}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2086993103
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2086993101}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9413536b71cf3f240a5879cdd88de9ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficNode
-  exits:
-  - node: {fileID: 1852925106}
-    weight: 10
-  stopSignal: {fileID: 0}
 --- !u!1 &2099455548
 GameObject:
   m_ObjectHideFlags: 0
@@ -28266,6 +27011,7 @@ SceneRoots:
   - {fileID: 1842482885}
   - {fileID: 1378714243}
   - {fileID: 1809837470}
+  - {fileID: 76296885}
   - {fileID: 13091484}
   - {fileID: 33830252}
   - {fileID: 1194770727}

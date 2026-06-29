@@ -150,7 +150,7 @@ Rigidbody:
   m_UseGravity: 0
   m_IsKinematic: 0
   m_Interpolate: 0
-  m_Constraints: 0
+  m_Constraints: 84
   m_CollisionDetection: 0
 --- !u!65 &5575691097670013366
 BoxCollider:
@@ -159,7 +159,7 @@ BoxCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3336702234273400016}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 13400000, guid: 405b140e6591f4540bad0c30fc475df0, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -171,7 +171,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 2, y: 2, z: 4}
+  m_Size: {x: 2, y: 2, z: 6}
   m_Center: {x: 0, y: 1, z: 0}
 --- !u!114 &5167615894557823784
 MonoBehaviour:
@@ -188,12 +188,15 @@ MonoBehaviour:
   cruiseSpeed: 8
   turnSpeed: 5
   reachDistance: 1.5
-  signalCheckDist: 6
-  brakeDistance: 8
+  signalCheckDist: 2
+  brakeDistance: 15
+  emergencyDist: 5
   minFollowDist: 2.5
   acceleration: 6
-  detectionRadius: 0.4
+  deceleration: 20
   vehicleLayer:
     serializedVersion: 2
     m_Bits: 256
+  vehicleHalfLength: 4
+  vehicleHalfWidth: 1
   speedCalcInterval: 4

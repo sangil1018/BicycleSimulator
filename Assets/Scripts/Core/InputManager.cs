@@ -78,6 +78,10 @@ public class InputManager : Singleton<InputManager>
     bool? _pendingAnswer;
     InputSystem_Actions _actions;
 
+#if UNITY_EDITOR
+    float _dbgRawStr;
+#endif
+
     protected override void Awake()
     {
         base.Awake();
@@ -290,6 +294,9 @@ public class InputManager : Singleton<InputManager>
     {
         CadenceRPM = Mathf.Max(0f, d.rpm);
         SpeedKph = Mathf.Max(0f, d.spd);
+#if UNITY_EDITOR
+        _dbgRawStr = d.str;
+#endif
 
         const float YawCalibThreshold = 5f;
         if (!_yawCalibrated)
@@ -300,13 +307,8 @@ public class InputManager : Singleton<InputManager>
                 _yawCalibrated = true;
                 Debug.Log($"[Input] Yaw 보정 완료: offset={_yawOffset:F2}°");
             }
-            else
-            {
-                Debug.Log($"[Input] Yaw 보정 대기 중 (str={d.str:F2}° > ±{YawCalibThreshold}°, 핸들을 센터로)");
-            }
         }
         SteeringAngle = (d.str - _yawOffset) / 45f * SteeringRange;
-        Debug.Log($"[Input] raw str={d.str:F2}  offset={_yawOffset:F2}  SteeringAngle={SteeringAngle:F2}");
 
         bool brk = d.brk == 1, o = d.o == 1, x = d.x == 1;
         Brake = brk;
@@ -366,4 +368,23 @@ public class InputManager : Singleton<InputManager>
 
     public void SendCalibrate() => SendRaw("C");
     public void SendMagCal()    => SendRaw("M");
+
+#if UNITY_EDITOR
+    void OnGUI()
+    {
+        var style = new GUIStyle(GUI.skin.box) { fontSize = 13, alignment = TextAnchor.UpperLeft };
+        style.normal.textColor = Color.white;
+        string text =
+            $"[InputManager Debug]\n" +
+            $"Connected : {IsConnected}\n" +
+            $"raw str   : {_dbgRawStr:F2}°\n" +
+            $"yawOffset : {_yawOffset:F2}°\n" +
+            $"Steering  : {SteeringAngle:F2}\n" +
+            $"Speed     : {SpeedKph:F1} km/h\n" +
+            $"Cadence   : {CadenceRPM:F0} RPM\n" +
+            $"Brake     : {Brake}  O:{BtnOHeld}  X:{BtnXHeld}\n" +
+            $"YawCalib  : {(_yawCalibrated ? "완료" : "대기중")}";
+        GUI.Box(new Rect(10, 10, 260, 160), text, style);
+    }
+#endif
 }

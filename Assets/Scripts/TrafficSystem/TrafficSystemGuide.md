@@ -30,9 +30,13 @@ TrafficSignal             TrafficSignal
 
 TrafficManager ──► TrafficVehicle (차량 AI)
                         │
-                        │ currentNode.StopSignal.CanPass 직접 체크
-                        ▼
-                   TrafficNode (정지선)
+                        ├─ currentNode.StopSignal.CanPass 직접 체크
+                        │
+                        └─ Node Queue (정적 레지스트리)
+                              같은 정지선 노드를 향한 차량끼리
+                              경로 거리로 순서·안전거리 유지
+                              ▼
+                         TrafficNode (정지선)
 
 PedestrianSpawner ──► PedestrianController (보행자 AI)
                            웨이포인트만 따라 이동 / 신호 반응 없음
@@ -43,7 +47,7 @@ PedestrianSpawner ──► PedestrianController (보행자 AI)
 | **TrafficNode** | 경로 노드. exits[] 배열로 다음 노드 연결, 가중치 선택 |
 | **TrafficSignal** | 통합 신호기. 차량 (Red/Yellow/Green) + 보행자 (Red/Green) 라이트 관리. TrafficJunction이 구동 |
 | **TrafficJunction** | 교차로 신호 사이클. JunctionPhase 배열로 구성 |
-| **TrafficVehicle** | 차량 AI. 노드 추종, 직접 신호 확인, 차간 거리 유지 |
+| **TrafficVehicle** | 차량 AI. 노드 추종, 신호 확인, Node Queue 기반 안전거리 유지 및 순차 출발 |
 | **TrafficManager** | 차량 스폰 및 리스폰 관리 (씬에 1개) |
 
 ---
@@ -275,20 +279,38 @@ TrafficVehicle 컴포넌트
 │   ├── Turn Speed: 5            ← 조향 속도 (Slerp 강도)
 │   └── Reach Distance: 1.5      ← 노드 도달 판정 거리 (m)
 ├── 신호 정지
-│   └── Signal Check Dist: 6     ← 정지선 노드에서 이 거리부터 신호 확인 (m)
+│   └── Signal Check Dist: 6     ← 정지선 노드에서 이 거리부터 신호·큐 검사 시작 (m)
 ├── 차량 감지
-│   ├── Brake Distance: 8        ← 앞차 감지 시 감속 시작 거리 (m)
-│   ├── Min Follow Dist: 2.5     ← 완전 정차 최소 차간 거리 (m)
-│   ├── Acceleration: 6          ← 가/감속도 (m/s²)
+│   ├── Brake Distance: 8        ← 원거리 사전 감속 범위, N프레임마다 SphereCast (m)
+│   ├── Emergency Dist: 5        ← 근접 긴급 감속 범위, 매 프레임 SphereCast (m)
+│   ├── Min Follow Dist: 2.5     ← 최소 안전거리 — 이 이내이면 무조건 정지 (m)
+│   ├── Acceleration: 6          ← 가속도 (m/s²)
+│   ├── Deceleration: 20         ← 제동력 (m/s²) — Acceleration보다 크게 설정
 │   ├── Detection Radius: 0.4    ← 차량 SphereCast 반경 (m)
 │   └── Vehicle Layer            ← 차량 콜라이더 레이어
 └── 성능
-    └── Speed Calc Interval: 4   ← N 물리프레임마다 속도 계산 (4 권장)
+    └── Speed Calc Interval: 4   ← N 물리프레임마다 원거리 SphereCast 실행 (4 권장)
 ```
 
 **차량 콜라이더**: Is Trigger = **OFF** (solid)
 
 > `Signal Check Dist`는 Reach Distance(1.5m)보다 충분히 크게 설정하세요 (기본 6m).
+
+**차량 감지 3단계 구조**
+
+| 단계 | 범위 | 실행 주기 | 역할 |
+|---|---|---|---|
+| 원거리 추종 (`Brake Distance`) | 8m | N프레임마다 | 앞차를 미리 감지해 부드럽게 감속 |
+| 긴급 감속 (`Emergency Dist`) | 5m | 매 프레임 | 겹침 직전 강제 감속 — N프레임 지연 보완 |
+| 완전 정지 (`Min Follow Dist`) | 2.5m | 매 프레임 | 이 이내이면 즉시 정지 |
+
+**Node Queue — 신호 구역 안전거리·순차 출발**
+
+신호 구역(`Signal Check Dist` 이내)에 진입한 차량은 같은 정지선 노드를 향한 차량 목록에 자동 등록됩니다.
+
+- **빨간불**: 선두 차량만 신호로 정지 / 후속 차량은 앞차와의 **경로 거리**로 순서대로 정지
+- **초록불**: 선두 차량 즉시 출발 → 간격이 벌어지면 2번째 차 출발 → 3번째 차 출발 (파도형 순차 출발)
+- SphereCast 방향에 의존하지 않으므로 커브·합류 구간에서도 정확하게 동작
 
 ---
 
@@ -416,12 +438,21 @@ junction.ClearPedestrianOverrideAll();
 - 정지선 노드 위치가 교차로 진입 **직전**인지 확인
 - `Reach Distance`를 줄여보세요 (교차로 내부에서 노드 도달 판정이 나는 경우)
 
-### 차량끼리 겹쳐요
+### 차량끼리 겹쳐요 (일반 주행)
 
 1. 차량 콜라이더 **Is Trigger = OFF** 확인
 2. `Vehicle Layer` 마스크가 차량에 적용됐는지 확인
-3. `Brake Distance` 또는 `Min Follow Dist` 증가
-4. `Speed Calc Interval`을 1~2로 줄여 감지 빈도 높이기
+3. `Min Follow Dist` 증가 (기본 2.5m) — 완전 정지 최소 거리
+4. `Emergency Dist` 증가 (기본 5m) — 근접 긴급 감속 구간 확대
+5. `Deceleration` 증가 (기본 20) — 제동력 강화
+
+### 신호 구역에서 차량끼리 겹쳐요
+
+1. `Signal Check Dist`를 늘려 정지선 노드 접근을 더 일찍 감지하도록 설정
+2. `Vehicle Layer`가 올바른 레이어인지 확인 — Node Queue는 이 레이어로 차량을 식별
+3. `Min Follow Dist` 증가 — 신호 큐에서도 동일한 최소 거리 적용
+4. Play 모드에서 차량 선택 → Scene 뷰에서 **하늘색 선**이 리더 차량을 가리키는지 확인  
+   (하늘색 선이 없으면 큐 등록이 안 된 것 → Vehicle Layer 재확인)
 
 ### 코너에서 차가 벽에 부딪혀요
 
