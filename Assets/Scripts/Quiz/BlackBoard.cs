@@ -191,12 +191,14 @@ public class BlackBoard : MonoBehaviour
             if (correctMark != null) correctMark.SetActive(true);
             if (correctScore != null) correctScore.SetActive(true);
             QuizManager.Instance.SetQuizResult(true);
+            InputManager.Instance.SendVibrate(VibeState.Correct);
         }
         else
         {
             if (audioSource != null && wrongSound != null) audioSource.PlayOneShot(wrongSound);
             if (wrongMark != null) wrongMark.SetActive(true);
             if (wrongScore != null) wrongScore.SetActive(true);
+            InputManager.Instance.SendVibrate(VibeState.Wrong);
         }
 
         // 정답 이미지

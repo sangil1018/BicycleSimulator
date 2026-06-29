@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Ports;
-using System.Linq;
 using System.Threading;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -14,13 +13,14 @@ public enum VibeState
     Success = 2,
     Correct = 3,
     Wrong = 4,
-    Walk = 5
+    Walk = 5,
+    Ready = 6
 }
 
 [DefaultExecutionOrder(-100)]
 public class InputManager : Singleton<InputManager>
 {
-    [Header("Serial Port")]
+    [Header("Serial Port — ESP32-S3")]
     [SerializeField] string portName = "COM8";
     [SerializeField] int baudRate = 115200;
     [SerializeField] bool autoConnect = true;
@@ -54,14 +54,13 @@ public class InputManager : Singleton<InputManager>
     public event Action OnCalibrated;
     public event Action<string> OnMagCalMessage;
     public event Action<string> OnErrorMessage;
-    /// <summary>방향키 O/X 선택 변경. true=O, false=X, null=선택 없음 (모든 상태에서 동작)</summary>
     public event Action<bool?> OnSelectionChanged;
 
     public bool IsConnected => _serial?.IsOpen ?? false;
 
     readonly object _lock = new();
     readonly Queue<string> _specialQueue = new();
-    readonly List<string> _specialDrain = new(4);   // Update()에서 재사용, 매 이벤트 배열 할당 방지
+    readonly List<string> _specialDrain = new(4);
     BikeInputData _pending;
     bool _hasNew;
     bool _prevO, _prevX, _prevBrk;
@@ -73,8 +72,9 @@ public class InputManager : Singleton<InputManager>
     const float DMP_STABLE_TIMEOUT = 3f;
     float _yawOffset = 0f;
     bool _yawCalibrated = false;
-    int _expectedStationID = 1; // Default value
+    int _expectedStationID = 1;
 
+    float _vibeMultiplier = 1.0f;
     bool? _pendingAnswer;
     InputSystem_Actions _actions;
 
@@ -120,9 +120,10 @@ public class InputManager : Singleton<InputManager>
                     case "PlaybackMultiplier": if (float.TryParse(val, out float pm)) PlaybackMultiplier = Mathf.Max(0.01f, pm); break;
                     case "CameraSteerSmoothTime": if (float.TryParse(val, out float ct)) CameraSteerSmoothTime = Mathf.Max(0f, ct); break;
                     case "StationID": int.TryParse(val, out _expectedStationID); break;
+                    case "VibeMultiplier": if (float.TryParse(val, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float vm)) _vibeMultiplier = Mathf.Clamp(vm, 0.5f, 3.0f); break;
                 }
             }
-            Debug.Log($"[Input] 설정 로드 완료: Port={portName}, Baud={baudRate}, BaseSpeed={BaseSpeedKph}, ShowLogo={ShowLogo}, YellowThreshold={YellowThreshold}, RedThreshold={RedThreshold}");
+            Debug.Log($"[Input] 설정 로드: ESP32={portName}@{baudRate}");
         }
         catch (Exception e)
         {
@@ -130,6 +131,7 @@ public class InputManager : Singleton<InputManager>
         }
     }
 
+    // ── ESP32-S3 연결 ────────────────────────────────────────────────
     public void Connect()
     {
         Disconnect();
@@ -140,7 +142,7 @@ public class InputManager : Singleton<InputManager>
                 ReadTimeout = 100,
                 WriteTimeout = 100,
                 DtrEnable = true,
-                NewLine = "\n"   // ESP32는 LF 한 문자만 전송
+                NewLine = "\n"
             };
             _serial.Open();
             _running = true;
@@ -150,11 +152,12 @@ public class InputManager : Singleton<InputManager>
             _yawOffset = 0f;
             _thread = new Thread(ReadLoop) { IsBackground = true, Name = "BikeSerial" };
             _thread.Start();
-            Debug.Log($"[Input] {portName} 연결됨");
+            SendRaw($"P{Mathf.RoundToInt(_vibeMultiplier * 100)}");
+            Debug.Log($"[Input] ESP32 {portName} 연결됨 (VibeScale={_vibeMultiplier:F1}x)");
         }
         catch (Exception e)
         {
-            Debug.LogWarning($"[Input] 연결실패: {e.Message}");
+            Debug.LogWarning($"[Input] ESP32 연결 실패: {e.Message}");
         }
     }
 
@@ -177,7 +180,6 @@ public class InputManager : Singleton<InputManager>
                 if (string.IsNullOrWhiteSpace(line)) continue;
                 line = line.Trim();
 
-                // 이벤트성 특수 메시지 — 메인 스레드에서 처리
                 if (line.Contains("\"debug\"") ||
                     line.Contains("\"calibrated\"") ||
                     line.Contains("\"magcal\""))
@@ -188,7 +190,6 @@ public class InputManager : Singleton<InputManager>
 
                 if (!line.StartsWith("{")) continue;
                 var d = JsonUtility.FromJson<BikeInputData>(line);
-                // 부팅 직후 깨진 첫 줄 방지: id 필드로 유효성 검사
                 if (d.id != _expectedStationID) continue;
                 lock (_lock) { _pending = d; _hasNew = true; }
             }
@@ -218,33 +219,30 @@ public class InputManager : Singleton<InputManager>
             _dmpReady = true;
             Debug.Log("[Input] DMP 안정화 메시지 미수신 — 타임아웃으로 자동 활성화");
             SendCalibrate();
+            SendVibrate(VibeState.Ready);
         }
 
         if (hasSnap && _dmpReady)
             ApplyData(snap);
         else if (!IsConnected)
-            CadenceRPM = SpeedKph = SteeringAngle = 0f;  // 연결 없을 때 잔류값 초기화
+            CadenceRPM = SpeedKph = SteeringAngle = 0f;
 
         if (keyboardEnabled) UpdateKeyboard();
     }
 
-    // ── 키보드 입력 (New Input System — InputSystem_Actions.BikeGame 맵) ──
     void UpdateKeyboard()
     {
         var bike = _actions.BikeGame;
 
-        // Space — 앞으로 가기 (시리얼 속도보다 낮지 않을 때만 반영)
         if (bike.Forward.IsPressed())
         {
             CadenceRPM = Mathf.Max(CadenceRPM, keyboardSpeedKph / 0.25f);
             SpeedKph = Mathf.Max(SpeedKph, keyboardSpeedKph);
         }
 
-        // 방향키 — O/X 선택 (모든 상태에서 동작)
-        if (bike.SelectO.WasPressedThisFrame()) SetPendingAnswer(true);   // ←  O (사용자 요청: 왼쪽이 O)
-        if (bike.SelectX.WasPressedThisFrame()) SetPendingAnswer(false);  // →  X (사용자 요청: 오른쪽이 X)
+        if (bike.SelectO.WasPressedThisFrame()) SetPendingAnswer(true);
+        if (bike.SelectX.WasPressedThisFrame()) SetPendingAnswer(false);
 
-        // 1 — 시작 / 확인: 선택된 답 확정, 미선택이면 O 버튼
         if (bike.Confirm.WasPressedThisFrame())
         {
             if (_pendingAnswer.HasValue)
@@ -260,7 +258,6 @@ public class InputManager : Singleton<InputManager>
             }
         }
 
-        // Esc — 종료
         if (bike.Exit.WasPressedThisFrame()) OnBtnX?.Invoke();
     }
 
@@ -278,7 +275,13 @@ public class InputManager : Singleton<InputManager>
         else if (line.Contains("\"magcal\"")) OnMagCalMessage?.Invoke(line);
         else if (line.Contains("\"debug\""))
         {
-            if (line.Contains("DMP Stabilized")) { _dmpReady = true; SendCalibrate(); }
+            if (line.Contains("DMP Stabilized"))
+            {
+                _dmpReady = true;
+                SendRaw($"P{Mathf.RoundToInt(_vibeMultiplier * 100)}");
+                SendCalibrate();
+                SendVibrate(VibeState.Ready);
+            }
             OnErrorMessage?.Invoke(line);
         }
     }
@@ -288,7 +291,6 @@ public class InputManager : Singleton<InputManager>
         CadenceRPM = Mathf.Max(0f, d.rpm);
         SpeedKph = Mathf.Max(0f, d.spd);
 
-        // 핸들이 센터 근처일 때만 offset 캡처 — 기울어진 상태에서 보정하면 +측 범위가 압축됨
         const float YawCalibThreshold = 5f;
         if (!_yawCalibrated)
         {
@@ -313,6 +315,9 @@ public class InputManager : Singleton<InputManager>
         BtnODown = o && !_prevO;
         BtnXDown = x && !_prevX;
         BrkDown = brk && !_prevBrk;
+
+        if (brk != _prevBrk)
+            SendRaw(brk ? "B1" : "B0");
 
         if (BtnODown) OnBtnO?.Invoke();
         if (BtnXDown) OnBtnX?.Invoke();
@@ -345,9 +350,20 @@ public class InputManager : Singleton<InputManager>
         });
     }
 
-    // ── Unity → ESP32 송신 ────────────────────────────────────────────
+    // ── Unity → ESP32-S3 송신 ────────────────────────────────────────
+    public void SendVibrate(VibeState state)
+    {
+        Debug.Log($"[Input] SendVibrate → {state} (V{(int)state}), connected={IsConnected}");
+        SendRaw($"V{(int)state}");
+    }
 
-    public void SendVibrate(VibeState state) { if (_serial?.IsOpen == true) _serial.WriteLine($"V{(int)state}"); }
-    public void SendCalibrate() { if (_serial?.IsOpen == true) _serial.WriteLine("C"); }
-    public void SendMagCal() { if (_serial?.IsOpen == true) _serial.WriteLine("M"); }
+    void SendRaw(string cmd)
+    {
+        if (_serial?.IsOpen != true) return;
+        try { _serial.WriteLine(cmd); }
+        catch (Exception e) { Debug.LogWarning($"[Input] ESP32 송신 실패: {e.Message}"); }
+    }
+
+    public void SendCalibrate() => SendRaw("C");
+    public void SendMagCal()    => SendRaw("M");
 }

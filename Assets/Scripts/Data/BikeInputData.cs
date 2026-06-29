@@ -1,18 +1,16 @@
 using System;
 /// <summary>
-/// ESP32-S3 JSON 패킷 v4 — PAS 12자석 홀 센서 기반
-/// rpm = 케이던스 RPM (PAS 12자석 기반 크랭크 회전속도)
-/// spd = 가상 속도 km/h (cadenceRpm × 0.25)
-/// struct: JsonUtility.FromJson 호출이 50 Hz이므로 class 대신 struct로 GC 부하 제거
+/// ESP32-S3 JSON 패킷 v5.8 — 50 Hz, bicycle_sim_x
+/// struct: 50 Hz JsonUtility.FromJson GC 부하 제거
 /// </summary>
 [Serializable]
 public struct BikeInputData
 {
     public int   id;
     public float rpm;   // 케이던스 RPM
-    public float spd;   // 가상 속도 km/h
-    public float str;   // 핸들 조향각 (-45~+45)
-    public int   brk;
-    public int   o;
-    public int   x;
+    public float spd;   // 가상 속도 km/h (rpm × 0.25)
+    public float str;   // 핸들 조향각 -45~+45 (DMP Yaw)
+    public int   brk;   // 브레이크 0/1
+    public int   o;     // O 버튼 0/1
+    public int   x;     // X 버튼 0/1
 }
