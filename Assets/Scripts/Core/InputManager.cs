@@ -292,8 +292,8 @@ public class InputManager : Singleton<InputManager>
 
     void ApplyData(BikeInputData d)
     {
-        CadenceRPM = Mathf.Max(0f, -d.rpm);
-        SpeedKph = Mathf.Max(0f, -d.spd);
+        CadenceRPM = Mathf.Max(0f, d.rpm);
+        SpeedKph = Mathf.Max(0f, d.spd);
 #if UNITY_EDITOR
         _dbgRawStr = d.str;
 #endif
@@ -367,7 +367,7 @@ public class InputManager : Singleton<InputManager>
     }
 
     public void SendCalibrate() => SendRaw("C");
-    public void SendMagCal()    => SendRaw("M");
+    public void SendMagCal() => SendRaw("M");
 
 #if UNITY_EDITOR
     void OnGUI()
