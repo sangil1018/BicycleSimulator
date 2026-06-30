@@ -292,8 +292,8 @@ public class InputManager : Singleton<InputManager>
 
     void ApplyData(BikeInputData d)
     {
-        CadenceRPM = Mathf.Max(0f, d.rpm);
-        SpeedKph = Mathf.Max(0f, d.spd);
+        CadenceRPM = Mathf.Max(0f, -d.rpm);
+        SpeedKph = Mathf.Max(0f, -d.spd);
 #if UNITY_EDITOR
         _dbgRawStr = d.str;
 #endif

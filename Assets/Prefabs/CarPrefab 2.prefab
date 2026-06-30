@@ -188,15 +188,16 @@ MonoBehaviour:
   cruiseSpeed: 8
   turnSpeed: 5
   reachDistance: 1.5
-  signalCheckDist: 15
-  brakeDistance: 10
-  emergencyDist: 5
+  signalCheckDist: 12
+  followGap: 2
   minFollowDist: 2.5
   acceleration: 6
   deceleration: 20
   vehicleLayer:
     serializedVersion: 2
     m_Bits: 256
-  vehicleHalfLength: 4
+  brakeDistance: 8
+  emergencyDist: 5
+  vehicleHalfLength: 3
   vehicleHalfWidth: 1
-  speedCalcInterval: 4
+  speedCalcInterval: 2
