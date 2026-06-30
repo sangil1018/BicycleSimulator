@@ -3,7 +3,6 @@ using UnityEngine;
 
 namespace TrafficSystem
 {
-    [RequireComponent(typeof(Rigidbody))]
     public class TrafficVehicle : MonoBehaviour
     {
         [Header("Movement")]
@@ -16,47 +15,51 @@ namespace TrafficSystem
         [Tooltip("StopSignal 노드에서 이 거리 이내부터 신호·큐 검사 시작 (m)")]
         [SerializeField] float signalCheckDist = 6f;
 
-        [Header("차량 감지")]
-        [Tooltip("원거리 사전 감속 범위 — N프레임마다 BoxCast")]
-        [SerializeField] float brakeDistance   = 8f;
-        [Tooltip("근접 긴급 감속 범위 — 매 프레임 BoxCast")]
-        [SerializeField] float emergencyDist   = 5f;
-        [Tooltip("최소 안전거리 (범퍼~범퍼) — 이 거리 이내이면 무조건 정지")]
-        [SerializeField] float minFollowDist   = 2.0f;
-        [SerializeField] float acceleration    = 6f;
-        [Tooltip("제동력 (acceleration 보다 강하게 설정할 것)")]
-        [SerializeField] float deceleration    = 20f;
+        [Header("차량 간격 제어")]
+        [Tooltip("앞차와 유지할 목표 범퍼~범퍼 거리 (m). 크게 설정할수록 차량 사이 간격이 넓어짐.")]
+        [SerializeField] float followGap = 5f;
+        [Tooltip("절대 최소 안전거리 (범퍼~범퍼). 이 거리 이내면 무조건 정지.")]
+        [SerializeField] float minFollowDist = 2.0f;
+        [SerializeField] float acceleration  = 6f;
+        [Tooltip("제동력. acceleration 보다 강하게 설정할 것.")]
+        [SerializeField] float deceleration  = 20f;
         [SerializeField] LayerMask vehicleLayer;
 
+        [Header("차량 감지 범위 (BoxCast)")]
+        [Tooltip("원거리 사전 감속 BoxCast 범위 (m). N프레임마다 실행. followGap보다 크게 설정.")]
+        [SerializeField] float brakeDistance = 12f;
+        [Tooltip("근접 긴급 감속 BoxCast 범위 (m). 매 프레임 실행. followGap 이상으로 유지.")]
+        [SerializeField] float emergencyDist = 6f;
+
         [Header("차량 크기 (BoxCast 기준)")]
-        [Tooltip("차량 중심~앞 범퍼 거리 (m). 인스펙터에서 실제 차량 반길이에 맞게 조정.")]
+        [Tooltip("차량 중심~앞 범퍼 거리 (m)")]
         [SerializeField] float vehicleHalfLength = 2.0f;
-        [Tooltip("차량 좌우 반폭 (m). 이 값으로 BoxCast 폭이 결정됨.")]
+        [Tooltip("차량 좌우 반폭 (m)")]
         [SerializeField] float vehicleHalfWidth  = 0.8f;
 
         [Header("Performance")]
-        [Tooltip("N 물리 프레임마다 1회 원거리 BoxCast 실행")]
+        [Tooltip("N 프레임마다 1회 원거리 BoxCast 실행")]
         [SerializeField] int speedCalcInterval = 4;
 
         // ── Runtime ───────────────────────────────────────────────────────────
-        Rigidbody   rb;
-        TrafficNode currentNode;
-        TrafficNode pendingNode;
-        float       currentSpeed;
-        float       targetSpeed;
-        int         frameCounter;
+        TrafficNode    currentNode;
+        TrafficNode    pendingNode;
+        float          currentSpeed;
+        float          targetSpeed;
+        int            frameCounter;
         TrafficVehicle _leader;
-
-        // BoxCast 반크기: X=반폭(조금 줄여 오탐 방지), Y=높이 무시, Z=최소
-        Vector3 _castHalfExt;
+        Vector3        _castHalfExt;
 
         // ── Node Queue (정적 레지스트리) ──────────────────────────────────────
         static readonly Dictionary<TrafficNode, List<TrafficVehicle>> s_queues = new();
         TrafficNode _queuedAt;
 
+        // TrafficManager.Awake에서 호출 — 씬 전환 시 잔류 데이터 초기화
+        public static void ClearQueues() => s_queues.Clear();
+
         void EnqueueAt(TrafficNode node)
         {
-            if (_queuedAt == node) return;
+            if (node == null || _queuedAt == node) return;
             Dequeue();
             _queuedAt = node;
             if (!s_queues.TryGetValue(node, out var list))
@@ -71,18 +74,20 @@ namespace TrafficSystem
             _queuedAt = null;
         }
 
-        // 같은 노드를 향해 나보다 노드에 더 가까운 차 중 최근접 차 = 바로 앞차
+        // 나보다 노드에 가까운 차(=앞차) 중, 3D 거리가 가장 가까운 차 = 직전 앞차
         TrafficVehicle FindLeader()
         {
             if (!s_queues.TryGetValue(currentNode, out var peers)) return null;
-            float myDist  = PlanarDist(rb.position, currentNode.transform.position);
-            TrafficVehicle best = null;
-            float bestDist = float.MaxValue;
+            float myDistToNode = PlanarDist(transform.position, currentNode.transform.position);
+            TrafficVehicle best    = null;
+            float          bestGap = float.MaxValue;
             foreach (var v in peers)
             {
-                if (v == this) continue;
-                float d = PlanarDist(v.rb.position, currentNode.transform.position);
-                if (d < myDist && d < bestDist) { bestDist = d; best = v; }
+                if (v == null || v == this) continue;
+                float theirDistToNode = PlanarDist(v.transform.position, currentNode.transform.position);
+                if (theirDistToNode >= myDistToNode) continue;   // 나보다 뒤 → 무시
+                float gap = PlanarDist(v.transform.position, transform.position);
+                if (gap < bestGap) { bestGap = gap; best = v; }
             }
             return best;
         }
@@ -101,9 +106,9 @@ namespace TrafficSystem
         // ── Unity Lifecycle ───────────────────────────────────────────────────
         void Awake()
         {
-            rb = GetComponent<Rigidbody>();
-            rb.constraints   = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
-            rb.interpolation = RigidbodyInterpolation.Interpolate;
+            // 기존 프리팹에 Rigidbody가 있으면 kinematic으로 중화 (하위호환)
+            var rb = GetComponent<Rigidbody>();
+            if (rb != null) { rb.isKinematic = true; rb.useGravity = false; }
 
             _castHalfExt = new Vector3(vehicleHalfWidth * 0.85f, 0.3f, 0.05f);
         }
@@ -111,13 +116,11 @@ namespace TrafficSystem
         void OnDisable() => Dequeue();
         void OnDestroy() => Dequeue();
 
-        void FixedUpdate()
+        void Update()
         {
             if (currentNode == null) return;
 
             EnqueueAt(currentNode);
-
-            // 신호 구역 제한 없이 항상 리더 탐색 (전 구간 큐 간격 유지)
             _leader = FindLeader();
 
             // 원거리 추종 — N프레임마다 (BoxCast 비용 분산)
@@ -134,11 +137,7 @@ namespace TrafficSystem
             float effective  = Mathf.Min(emergency, Mathf.Min(queueSpeed, Mathf.Min(targetSpeed, signal)));
 
             float rate = effective < currentSpeed ? deceleration : acceleration;
-            currentSpeed = Mathf.MoveTowards(currentSpeed, effective, rate * Time.fixedDeltaTime);
-
-            // 완전 정지 시 관성 강제 제거 (MovePosition 이후 남은 velocity로 인한 밀림 방지)
-            if (currentSpeed < 0.01f)
-                rb.linearVelocity = Vector3.zero;
+            currentSpeed = Mathf.MoveTowards(currentSpeed, effective, rate * Time.deltaTime);
 
             Steer();
             Move();
@@ -148,25 +147,21 @@ namespace TrafficSystem
         // ── Movement ──────────────────────────────────────────────────────────
         void Steer()
         {
-            Vector3 dir = currentNode.transform.position - rb.position;
+            Vector3 dir = currentNode.transform.position - transform.position;
             dir.y = 0f;
             if (dir.sqrMagnitude < 0.001f) return;
             Quaternion target = Quaternion.LookRotation(dir.normalized);
-            rb.MoveRotation(Quaternion.Slerp(rb.rotation, target, turnSpeed * Time.fixedDeltaTime));
+            transform.rotation = Quaternion.Slerp(transform.rotation, target, turnSpeed * Time.deltaTime);
         }
 
         void Move()
         {
-            // linearVelocity 방식: 물리 엔진이 충돌을 직접 해결하므로
-            // 속도 계산 로직이 실패해도 Collider가 최후 방어선 역할을 함
-            Vector3 vel = transform.forward * currentSpeed;
-            vel.y = rb.linearVelocity.y; // 중력 성분 유지
-            rb.linearVelocity = vel;
+            transform.position += transform.forward * currentSpeed * Time.deltaTime;
         }
 
         void CheckArrival()
         {
-            Vector3 myPos  = rb.position; myPos.y = 0f;
+            Vector3 myPos  = transform.position; myPos.y  = 0f;
             Vector3 tgtPos = currentNode.transform.position; tgtPos.y = 0f;
             if (Vector3.Distance(myPos, tgtPos) >= reachDistance) return;
 
@@ -194,67 +189,70 @@ namespace TrafficSystem
 
         // ── Speed Calculation ─────────────────────────────────────────────────
 
-        // 매 프레임 — 앞 범퍼 기준 BoxCast 근접 감지 (전 구간 겹침 방지)
-        // hit.distance = 내 앞 범퍼 ~ 상대 차 표면 = 실제 범퍼간 거리
+        // 매 프레임 — 앞 범퍼 기준 BoxCast 근접 감지
         float CalcEmergencySpeed()
         {
-            var frontBumper = rb.position + transform.forward * vehicleHalfLength + Vector3.up * 0.5f;
+            float castDist  = Mathf.Max(emergencyDist, followGap + 1f);
+            var frontBumper = transform.position + transform.forward * vehicleHalfLength + Vector3.up * 0.5f;
 
             if (Physics.BoxCast(frontBumper, _castHalfExt, transform.forward,
-                    out var hit, rb.rotation, emergencyDist, vehicleLayer, QueryTriggerInteraction.Ignore)
-                && hit.collider.gameObject != gameObject)
+                    out var hit, transform.rotation, castDist, vehicleLayer, QueryTriggerInteraction.Ignore)
+                && hit.collider.transform.root != transform)  // 자기 자신의 자식 Collider 제외
             {
-                float gap = hit.distance;
-                if (gap <= minFollowDist) return 0f;
-                float t = Mathf.Clamp01((gap - minFollowDist) / (emergencyDist - minFollowDist));
-                return cruiseSpeed * t;
+                return SpeedFromGap(hit.distance);
             }
 
             return cruiseSpeed;
         }
 
-        // 매 프레임 — 경로 거리 기반 큐 안전거리 (전 구간)
+        // N프레임마다 — 원거리 사전 감속
+        float CalcFollowSpeed()
+        {
+            float castDist  = Mathf.Max(brakeDistance, followGap + 1f);
+            var frontBumper = transform.position + transform.forward * vehicleHalfLength + Vector3.up * 0.5f;
+
+            if (Physics.BoxCast(frontBumper, _castHalfExt, transform.forward,
+                    out var hit, transform.rotation, castDist, vehicleLayer, QueryTriggerInteraction.Ignore)
+                && hit.collider.transform.root != transform)
+            {
+                return SpeedFromGap(hit.distance, smooth: true);
+            }
+
+            return cruiseSpeed;
+        }
+
+        // 매 프레임 — 경로 거리 기반 큐 안전거리 (followGap 기준)
         float CalcSignalQueueSpeed()
         {
             if (_leader == null) return cruiseSpeed;
 
-            float myDist     = PlanarDist(rb.position,         currentNode.transform.position);
-            float leaderDist = PlanarDist(_leader.rb.position, currentNode.transform.position);
-            float gap        = myDist - leaderDist;
+            float myDist     = PlanarDist(transform.position,         currentNode.transform.position);
+            float leaderDist = PlanarDist(_leader.transform.position, currentNode.transform.position);
+            float pathGap    = myDist - leaderDist;
+            float bumperGap  = pathGap - (vehicleHalfLength + _leader.vehicleHalfLength);
 
-            if (gap <= minFollowDist) return 0f;
-
-            float maxGap = currentNode.StopSignal != null ? signalCheckDist : brakeDistance;
-            float t = Mathf.Clamp01((gap - minFollowDist) / (maxGap - minFollowDist));
-            return cruiseSpeed * Mathf.Sqrt(t);
+            return SpeedFromGap(bumperGap);
         }
 
         // 매 프레임 — 선두 차량의 빨간불 정지
         float CalcSignalSpeed()
         {
             if (currentNode.StopSignal == null || currentNode.StopSignal.CanPass) return cruiseSpeed;
-            float dist = PlanarDist(rb.position, currentNode.transform.position);
+            float dist = PlanarDist(transform.position, currentNode.transform.position);
             if (dist > signalCheckDist) return cruiseSpeed;
             if (_leader != null) return cruiseSpeed; // 후속 차 → 큐 속도가 담당
             return 0f;
         }
 
-        // N프레임마다 — 원거리 사전 감속 (앞 범퍼 기준 BoxCast)
-        float CalcFollowSpeed()
+        // gap(범퍼~범퍼 거리) → 목표 속도
+        // smooth=true : Sqrt 커브(완만한 감속), false : 선형 커브(빠른 감속)
+        float SpeedFromGap(float gap, bool smooth = false)
         {
-            var frontBumper = rb.position + transform.forward * vehicleHalfLength + Vector3.up * 0.5f;
-
-            if (Physics.BoxCast(frontBumper, _castHalfExt, transform.forward,
-                    out var hit, rb.rotation, brakeDistance, vehicleLayer, QueryTriggerInteraction.Ignore)
-                && hit.collider.gameObject != gameObject)
-            {
-                float gap = hit.distance;
-                if (gap <= minFollowDist) return 0f;
-                float t = Mathf.Clamp01((gap - minFollowDist) / (brakeDistance - minFollowDist));
-                return cruiseSpeed * Mathf.Sqrt(t);
-            }
-
-            return cruiseSpeed;
+            if (gap <= minFollowDist) return 0f;
+            float safeRange = Mathf.Max(0.01f, followGap - minFollowDist);
+            if (gap >= followGap + safeRange) return cruiseSpeed; // 충분히 멀면 전속력
+            float t = Mathf.Clamp01((gap - minFollowDist) / safeRange);
+            return cruiseSpeed * (smooth ? Mathf.Sqrt(t) : t);
         }
 
         static float PlanarDist(Vector3 a, Vector3 b)
@@ -277,15 +275,15 @@ namespace TrafficSystem
                 Gizmos.DrawWireSphere(currentNode.transform.position, signalCheckDist);
             }
 
-            // 원거리 감지 (노랑)
+            // 원거리 감지 범위 (노랑)
             Gizmos.color = Color.yellow;
             Gizmos.DrawLine(frontBumper + right * w, frontBumper + transform.forward * brakeDistance + right * w);
             Gizmos.DrawLine(frontBumper - right * w, frontBumper + transform.forward * brakeDistance - right * w);
             Gizmos.DrawWireCube(frontBumper + transform.forward * brakeDistance, new Vector3(w * 2f, 0.6f, 0.1f));
 
-            // 긴급 감속 구간 (주황)
-            Gizmos.color = new Color(1f, 0.5f, 0f);
-            Gizmos.DrawWireCube(frontBumper + transform.forward * emergencyDist, new Vector3(w * 2f, 0.6f, 0.1f));
+            // followGap — 목표 차간 거리 (하늘색)
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawWireCube(frontBumper + transform.forward * followGap, new Vector3(w * 2f, 0.6f, 0.1f));
 
             // 최소 안전거리 경계 (빨강)
             Gizmos.color = Color.red;
@@ -295,10 +293,10 @@ namespace TrafficSystem
             Gizmos.color = Color.green;
             Gizmos.DrawWireCube(frontBumper, new Vector3(w * 2f, 0.6f, 0.1f));
 
-            // 큐 리더 연결선 (하늘색)
+            // 큐 리더 연결선 (보라)
             if (_leader != null)
             {
-                Gizmos.color = Color.cyan;
+                Gizmos.color = Color.magenta;
                 Gizmos.DrawLine(transform.position + Vector3.up * 0.5f,
                                 _leader.transform.position + Vector3.up * 0.5f);
             }

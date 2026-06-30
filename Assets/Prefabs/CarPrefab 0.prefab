@@ -159,7 +159,7 @@ BoxCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3336702234273400016}
-  m_Material: {fileID: 13400000, guid: 405b140e6591f4540bad0c30fc475df0, type: 2}
+  m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -188,8 +188,8 @@ MonoBehaviour:
   cruiseSpeed: 8
   turnSpeed: 5
   reachDistance: 1.5
-  signalCheckDist: 20
-  brakeDistance: 15
+  signalCheckDist: 15
+  brakeDistance: 10
   emergencyDist: 5
   minFollowDist: 2.5
   acceleration: 6

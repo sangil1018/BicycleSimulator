@@ -31,6 +31,8 @@ namespace TrafficSystem
         {
             if (Instance != null && Instance != this) { Destroy(gameObject); return; }
             Instance = this;
+            // 씬 전환 후 잔류하는 정적 큐 데이터 초기화
+            TrafficVehicle.ClearQueues();
         }
 
         void Start() => StartCoroutine(SpawnAll());
@@ -108,14 +110,8 @@ namespace TrafficSystem
 
         void Teleport(TrafficVehicle vehicle, TrafficNode node)
         {
-            var rb = vehicle.GetComponent<Rigidbody>();
-            if (rb != null)
-            {
-                rb.position        = node.transform.position + Vector3.up * heightOffset;
-                rb.rotation        = node.transform.rotation;
-                rb.linearVelocity  = Vector3.zero;
-                rb.angularVelocity = Vector3.zero;
-            }
+            vehicle.transform.position = node.transform.position + Vector3.up * heightOffset;
+            vehicle.transform.rotation = node.transform.rotation;
             vehicle.Init(node);
         }
     }
