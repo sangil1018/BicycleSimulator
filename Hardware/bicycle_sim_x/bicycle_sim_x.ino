@@ -52,16 +52,17 @@ float    g_lastRawYaw  = 0.0f;
 float    g_yawOffset   = 0.0f;
 String   g_rxBuf       = "";
 uint32_t g_lastSendMs  = 0;
-bool     g_dmpStable   = false;
+bool     g_dmpStable   = false; 
 uint32_t g_bootMs      = 0;
 
 // ── 진동 시퀀서 ──────────────────────────────────────────────────
-const VibeStep PAT_DANGER[]  = {{255, 700}, {0, 0}};
-const VibeStep PAT_SUCCESS[] = {{220, 150}, {0, 80}, {220, 150}, {0, 0}};
-const VibeStep PAT_CORRECT[] = {{180, 100}, {0, 0}};
-const VibeStep PAT_WRONG[]   = {{255, 450}, {0, 0}};
-const VibeStep PAT_WALK[]    = {{200, 100}, {0, 80}, {200, 100}, {0, 80}, {200, 100}, {0, 0}};
-const VibeStep PAT_READY[]   = {{160,  80}, {0, 60}, {200, 120}, {0, 0}};
+// 3.3V 게이트 환경 최적화: PWM 최대(255), 최소 ON 300ms (모터 스핀업 보장)
+const VibeStep PAT_DANGER[]  = {{255, 900}, {0, 0}};
+const VibeStep PAT_SUCCESS[] = {{255, 400}, {0, 100}, {255, 400}, {0, 0}};
+const VibeStep PAT_CORRECT[] = {{255, 500}, {0, 0}};
+const VibeStep PAT_WRONG[]   = {{255, 650}, {0, 0}};
+const VibeStep PAT_WALK[]    = {{255, 400}, {0, 100}, {255, 400}, {0, 100}, {255, 400}, {0, 0}};
+const VibeStep PAT_READY[]   = {{255, 350}, {0, 80},  {255, 500}, {0, 0}};
 
 static VibeStep  g_vSeq[10];
 static int       g_vCount = 0, g_vIdx = 0;
@@ -69,19 +70,46 @@ static uint32_t  g_vEnd   = 0;
 static bool      g_brake  = false;
 static uint16_t  g_vibeScale = 100; // 100 = 1.0x, 150 = 1.5x (P 명령으로 설정)
 
+// 진동 수신 시 LED 표시
+struct VibeLedColor { uint8_t r, g, b; };
+static VibeLedColor g_vibeLedColor = {0, 0, 0};
+static uint32_t     g_vibeLedEndMs = 0;
+
+// V 명령 번호별 LED 색상
+static const VibeLedColor VIBE_COLORS[] = {
+    {0,   0,   0  }, // V0 Stop    — 꺼짐
+    {255, 0,   0  }, // V1 Danger  — 빨강
+    {0,   255, 0  }, // V2 Success — 초록
+    {0,   200, 255}, // V3 Correct — 하늘
+    {255, 80,  0  }, // V4 Wrong   — 주황
+    {0,   80,  255}, // V5 Walk    — 파랑
+    {200, 200, 200}, // V6 Ready   — 흰색
+};
+
 void vibeSet(uint8_t val) { analogWrite(PIN_MOTOR, val); }
 
-void playVibe(const VibeStep *p, int n)
+void playVibe(const VibeStep *p, int n, int vibeId = 0)
 {
     if (n <= 0 || n > 10) return;
+    uint32_t totalMs = 0;
     for (int i = 0; i < n; i++)
     {
         g_vSeq[i].s  = p[i].s;
         g_vSeq[i].ms = (uint16_t)min((uint32_t)p[i].ms * g_vibeScale / 100, (uint32_t)9999);
+        totalMs += g_vSeq[i].ms;
     }
     g_vCount = n; g_vIdx = 0;
     g_vEnd = millis() + g_vSeq[0].ms;
     vibeSet(g_vSeq[0].s);
+
+    // 즉시 LED 점등 — updateRGB 400ms 스로틀을 우회하기 위해 여기서 직접 setRGB 호출
+    // 최소 800ms 보장 (짧은 패턴도 LED로 확인 가능)
+    if (vibeId >= 0 && vibeId <= 6)
+    {
+        g_vibeLedColor  = VIBE_COLORS[vibeId];
+        g_vibeLedEndMs  = millis() + max(totalMs, (uint32_t)800);
+        setRGB(g_vibeLedColor.r, g_vibeLedColor.g, g_vibeLedColor.b);
+    }
 }
 
 bool vibeIsPlaying() { return g_vIdx < g_vCount; }
@@ -174,23 +202,23 @@ float calcCadenceRPM()
 // ── RGB LED 제어 ─────────────────────────────────────────────────
 void updateRGB(float spd, bool brake)
 {
+    uint32_t now = millis();
+
+    // 진동 LED 활성 중 — g_dmpStable·400ms 스로틀보다 앞에서 체크하여 덮어쓰기 방지
+    if (g_vibeLedEndMs > 0 && now < g_vibeLedEndMs) return;
+
     if (!g_dmpStable) return;
 
     static uint32_t blinkMs = 0;
     static bool blinkOn = false;
-    uint32_t now = millis();
     if (now - blinkMs < 400) return;
     blinkMs = now;
     blinkOn = !blinkOn;
 
-    if (brake)               { setRGB(255, 80, 0); return; }
-    if (g_rgbState == RGB_EVENT) { setRGB(255, 0, 0); return; }
-    if (g_rgbState == RGB_QUIZ)
-    {
-        setRGB(blinkOn ? 100 : 0, 0, blinkOn ? 100 : 0);
-        return;
-    }
-    if (spd > 1.0f)          { setRGB(0, 200, 0); return; }
+    if (brake)                    { setRGB(255, 80, 0); return; }
+    if (g_rgbState == RGB_EVENT)  { setRGB(255, 0, 0);  return; }
+    if (g_rgbState == RGB_QUIZ)   { setRGB(blinkOn ? 100 : 0, 0, blinkOn ? 100 : 0); return; }
+    if (spd > 1.0f)               { setRGB(0, 200, 0);  return; }
     setRGB(blinkOn ? 40 : 0, blinkOn ? 40 : 0, blinkOn ? 40 : 0);
 }
 
@@ -208,15 +236,17 @@ void handleCommand(const String &cmd)
     case 'B': setBrake(v == 1); break;
     case 'P': g_vibeScale = (uint16_t)constrain(v, 50, 300); break;
     case 'V':
+        // 수신 확인 에코 — Unity 콘솔에서 명령 도달 여부 확인용
+        Serial.printf("{\"debug\":\"V%d recv\"}\n", v);
         switch (v)
         {
-        case 0: vibeStop(); break;
-        case 1: playVibe(PAT_DANGER,  sizeof(PAT_DANGER)  / sizeof(VibeStep)); break;
-        case 2: playVibe(PAT_SUCCESS, sizeof(PAT_SUCCESS) / sizeof(VibeStep)); break;
-        case 3: playVibe(PAT_CORRECT, sizeof(PAT_CORRECT) / sizeof(VibeStep)); break;
-        case 4: playVibe(PAT_WRONG,   sizeof(PAT_WRONG)   / sizeof(VibeStep)); break;
-        case 5: playVibe(PAT_WALK,    sizeof(PAT_WALK)    / sizeof(VibeStep)); break;
-        case 6: playVibe(PAT_READY,   sizeof(PAT_READY)   / sizeof(VibeStep)); break;
+        case 0: vibeStop(); g_vibeLedEndMs = 0; break;
+        case 1: playVibe(PAT_DANGER,  sizeof(PAT_DANGER)  / sizeof(VibeStep), 1); break;
+        case 2: playVibe(PAT_SUCCESS, sizeof(PAT_SUCCESS) / sizeof(VibeStep), 2); break;
+        case 3: playVibe(PAT_CORRECT, sizeof(PAT_CORRECT) / sizeof(VibeStep), 3); break;
+        case 4: playVibe(PAT_WRONG,   sizeof(PAT_WRONG)   / sizeof(VibeStep), 4); break;
+        case 5: playVibe(PAT_WALK,    sizeof(PAT_WALK)    / sizeof(VibeStep), 5); break;
+        case 6: playVibe(PAT_READY,   sizeof(PAT_READY)   / sizeof(VibeStep), 6); break;
         }
         break;
     }
