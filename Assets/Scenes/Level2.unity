@@ -19978,8 +19978,10 @@ MonoBehaviour:
   - {fileID: 3336702234273400016, guid: 9935955c634e5c74da354b058f00e43d, type: 3}
   - {fileID: 3336702234273400016, guid: 80b3af1e6c570d345adb08ec6a658f47, type: 3}
   - {fileID: 3336702234273400016, guid: a3106abde1f719f4c8a9322638e41909, type: 3}
+  - {fileID: 3336702234273400016, guid: 9bb6d747bf63b864eb9ba04c9c75c2d4, type: 3}
+  - {fileID: 3336702234273400016, guid: 780c4d8e67efd9f4b90414ccc001149a, type: 3}
   vehicleCount: 30
-  heightOffset: 0.5
+  heightOffset: -0.1
   spawnNodes:
   - {fileID: 861150219}
   - {fileID: 829645878}
@@ -20005,7 +20007,7 @@ MonoBehaviour:
   - {fileID: 811315992}
   - {fileID: 1946976643}
   - {fileID: 1329645649}
-  spawnPerFrame: 1
+  spawnPerFrame: 2
   vehicleLayer:
     serializedVersion: 2
     m_Bits: 256
@@ -24311,6 +24313,58 @@ MonoBehaviour:
     greenDuration: 25
     pedestrianCountdown: 10
   yellowDuration: 4
+--- !u!1 &1994875992
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1994875994}
+  - component: {fileID: 1994875993}
+  m_Layer: 0
+  m_Name: VibrationManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1994875993
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1994875992}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: df1f5c31c09e69148b80fdcb18a8b521, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VibrationRelay
+  portName: COM3
+  baudRate: 9600
+  autoConnect: 1
+  shortDuration: 0.2
+  mediumDuration: 0.5
+  longDuration: 1.5
+  reconnectInterval: 5
+  statusTimeoutMs: 200
+--- !u!4 &1994875994
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1994875992}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2003110589
 GameObject:
   m_ObjectHideFlags: 0
@@ -370732,15 +370786,16 @@ SceneRoots:
   - {fileID: 1898412542}
   - {fileID: 1978741378}
   - {fileID: 954411701}
+  - {fileID: 1994875994}
   - {fileID: 1693175930}
   - {fileID: 2532835565350810915}
   - {fileID: 7723942484057817987}
   - {fileID: 1140583605}
   - {fileID: 1740655532}
-  - {fileID: 86720949}
   - {fileID: 1873067381}
   - {fileID: 971307187}
   - {fileID: 593658502}
+  - {fileID: 86720949}
   - {fileID: 20510217}
   - {fileID: 1194770727}
   - {fileID: 946997627}

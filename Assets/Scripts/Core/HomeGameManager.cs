@@ -91,6 +91,8 @@ public class HomeGameManager : MonoBehaviour
     {
         if (_audioSource && clickClip)
             _audioSource.PlayOneShot(clickClip);
+        if (InputManager.Instance != null)
+            InputManager.Instance.SendVibrate(VibeState.Click);
     }
 
     /// <summary>초급 버튼 UI의 oButton.onExecute에서 호출</summary>

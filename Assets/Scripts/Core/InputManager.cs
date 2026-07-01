@@ -14,7 +14,8 @@ public enum VibeState
     Correct = 3,
     Wrong = 4,
     Walk = 5,
-    Ready = 6
+    Ready = 6,
+    Click = 7
 }
 
 [DefaultExecutionOrder(-100)]
@@ -33,6 +34,13 @@ public class InputManager : Singleton<InputManager>
     public float RedThreshold { get; private set; } = 30f;
     public float PlaybackMultiplier { get; private set; } = 1f;
     public float CameraSteerSmoothTime { get; private set; } = 0.12f;
+
+    [Header("Config — Vibration Relay")]
+    public string RelayPortName { get; private set; } = "COM3";
+    public int RelayBaudRate { get; private set; } = 9600;
+    public float VibeShortDuration { get; private set; } = 0.15f;
+    public float VibeMediumDuration { get; private set; } = 0.5f;
+    public float VibeLongDuration { get; private set; } = 1.5f;
 
     [Header("Keyboard")]
     [SerializeField] bool keyboardEnabled = true;
@@ -125,6 +133,11 @@ public class InputManager : Singleton<InputManager>
                     case "CameraSteerSmoothTime": if (float.TryParse(val, out float ct)) CameraSteerSmoothTime = Mathf.Max(0f, ct); break;
                     case "StationID": int.TryParse(val, out _expectedStationID); break;
                     case "VibeMultiplier": if (float.TryParse(val, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float vm)) _vibeMultiplier = Mathf.Clamp(vm, 0.5f, 3.0f); break;
+                    case "RelayPortName": RelayPortName = val; break;
+                    case "RelayBaudRate": if (int.TryParse(val, out int rb)) RelayBaudRate = rb; break;
+                    case "VibeShortDuration": if (float.TryParse(val, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float vsd)) VibeShortDuration = vsd; break;
+                    case "VibeMediumDuration": if (float.TryParse(val, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float vmd)) VibeMediumDuration = vmd; break;
+                    case "VibeLongDuration": if (float.TryParse(val, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float vld)) VibeLongDuration = vld; break;
                 }
             }
             Debug.Log($"[Input] 설정 로드: ESP32={portName}@{baudRate}");
@@ -370,6 +383,7 @@ public class InputManager : Singleton<InputManager>
             case VibeState.Ready:
             case VibeState.Walk:
             case VibeState.Correct:
+            case VibeState.Click:
                 VibrationRelay.Instance.VibrateShort();
                 break;
             case VibeState.Success:

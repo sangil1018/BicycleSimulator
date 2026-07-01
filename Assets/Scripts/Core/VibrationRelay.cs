@@ -1,7 +1,5 @@
 using System;
 using System.Collections;
-using System.Globalization;
-using System.IO;
 using System.IO.Ports;
 using UnityEngine;
 
@@ -17,61 +15,72 @@ public class VibrationRelay : Singleton<VibrationRelay>
     [SerializeField] bool autoConnect = true;
 
     [Header("진동 지속시간 프리셋 (초)")]
-    [SerializeField] float shortDuration = 0.15f;
+    [SerializeField] float shortDuration = 0.2f;
     [SerializeField] float mediumDuration = 0.5f;
     [SerializeField] float longDuration = 1.5f;
 
-    // 보드에 맞는 명령어로 교체 필요
+    [Header("연결 확인 / 재연결")]
+    [SerializeField] float reconnectInterval = 5f;
+    [SerializeField] int statusTimeoutMs = 200;
+
+    // 릴레이 보드 스펙: 9600bps, N/8/1, 릴레이1 ON/OFF 명령 (체크섬 = 바이트 합산)
     readonly byte[] onCmd = { 0xA0, 0x01, 0x01, 0xA2 };
     readonly byte[] offCmd = { 0xA0, 0x01, 0x00, 0xA1 };
+    // 상태확인 명령: 헤더 0xFF만 전송, 릴레이 상태값은 ASCII로 응답
+    readonly byte[] statusCmd = { 0xFF };
 
     SerialPort port;
     Coroutine currentVibration;
+    bool _verified;
 
-    public bool IsConnected => port?.IsOpen ?? false;
+    public bool IsConnected => port != null && port.IsOpen && _verified;
 
     protected override void Awake()
     {
         base.Awake();
-        LoadConfig();
+        ApplyConfig();
         if (autoConnect) Connect();
+        StartCoroutine(ConnectionWatchdog());
     }
 
-    void LoadConfig()
+    IEnumerator ConnectionWatchdog()
     {
-        string path = Path.Combine(Application.dataPath, "../config.ini");
-        if (!File.Exists(path))
+        var wait = new WaitForSeconds(reconnectInterval);
+        while (true)
         {
-            Debug.Log($"[VibrationRelay] 설정 파일 없음: {path}. 기본값을 사용합니다.");
+            yield return wait;
+
+            if (port == null || !port.IsOpen)
+            {
+                Connect();
+                continue;
+            }
+
+            _verified = CheckStatus();
+            if (!_verified)
+            {
+                Debug.LogWarning("[VibrationRelay] 릴레이 응답 없음 — 재연결 시도");
+                Connect();
+            }
+        }
+    }
+
+    // config.ini는 InputManager가 읽어들이므로, 여기서는 그 값을 그대로 가져다 쓴다.
+    void ApplyConfig()
+    {
+        var im = InputManager.Instance;
+        if (im == null)
+        {
+            Debug.LogWarning("[VibrationRelay] InputManager 없음 — 인스펙터 기본값 사용");
             return;
         }
 
-        try
-        {
-            foreach (var line in File.ReadAllLines(path))
-            {
-                if (string.IsNullOrWhiteSpace(line) || line.TrimStart().StartsWith(";")) continue;
-                var parts = line.Split('=');
-                if (parts.Length != 2) continue;
-
-                string key = parts[0].Trim();
-                string val = parts[1].Trim();
-
-                switch (key)
-                {
-                    case "RelayPortName": portName = val; break;
-                    case "RelayBaudRate": int.TryParse(val, out baudRate); break;
-                    case "VibeShortDuration": if (float.TryParse(val, NumberStyles.Float, CultureInfo.InvariantCulture, out float sd)) shortDuration = sd; break;
-                    case "VibeMediumDuration": if (float.TryParse(val, NumberStyles.Float, CultureInfo.InvariantCulture, out float md)) mediumDuration = md; break;
-                    case "VibeLongDuration": if (float.TryParse(val, NumberStyles.Float, CultureInfo.InvariantCulture, out float ld)) longDuration = ld; break;
-                }
-            }
-            Debug.Log($"[VibrationRelay] 설정 로드: {portName}@{baudRate}, S={shortDuration:F2} M={mediumDuration:F2} L={longDuration:F2}");
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"[VibrationRelay] 설정 파일 읽기 실패: {e.Message}");
-        }
+        portName = im.RelayPortName;
+        baudRate = im.RelayBaudRate;
+        shortDuration = im.VibeShortDuration;
+        mediumDuration = im.VibeMediumDuration;
+        longDuration = im.VibeLongDuration;
+        Debug.Log($"[VibrationRelay] 설정 로드: {portName}@{baudRate}, S={shortDuration:F2} M={mediumDuration:F2} L={longDuration:F2}");
     }
 
     public void Connect()
@@ -79,14 +88,19 @@ public class VibrationRelay : Singleton<VibrationRelay>
         Disconnect();
         try
         {
-            port = new SerialPort(portName, baudRate) { WriteTimeout = 200 };
+            port = new SerialPort(portName, baudRate) { WriteTimeout = 200, ReadTimeout = statusTimeoutMs };
             port.Open();
-            Debug.Log($"[VibrationRelay] {portName} 연결됨");
         }
         catch (Exception e)
         {
             Debug.LogWarning($"[VibrationRelay] 연결 실패: {e.Message}");
+            return;
         }
+
+        _verified = CheckStatus();
+        Debug.Log(_verified
+            ? $"[VibrationRelay] {portName} 연결됨 (상태확인 성공)"
+            : $"[VibrationRelay] {portName} 포트는 열렸지만 릴레이 응답 없음");
     }
 
     public void Disconnect()
@@ -103,17 +117,40 @@ public class VibrationRelay : Singleton<VibrationRelay>
             port.Close();
         }
         port = null;
+        _verified = false;
+    }
+
+    // 헤더 0xFF만 전송해 릴레이 보드가 살아있는지 확인 (응답 수신 여부만 체크)
+    bool CheckStatus()
+    {
+        if (port == null || !port.IsOpen) return false;
+        try
+        {
+            port.DiscardInBuffer();
+            port.Write(statusCmd, 0, statusCmd.Length);
+            port.ReadByte();
+            return true;
+        }
+        catch (TimeoutException)
+        {
+            return false;
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"[VibrationRelay] 상태확인 오류: {e.Message}");
+            return false;
+        }
     }
 
     // ===== 프리셋 호출용 =====
-    public void VibrateShort()  => Vibrate(shortDuration);
+    public void VibrateShort() => Vibrate(shortDuration);
     public void VibrateMedium() => Vibrate(mediumDuration);
-    public void VibrateLong()   => Vibrate(longDuration);
+    public void VibrateLong() => Vibrate(longDuration);
 
     // 커스텀 길이가 필요하면 이것도 그대로 사용 가능
     public void Vibrate(float duration)
     {
-        if (port == null || !port.IsOpen)
+        if (!IsConnected)
         {
             Debug.LogWarning("[VibrationRelay] 포트 미연결 — 진동 무시");
             return;
