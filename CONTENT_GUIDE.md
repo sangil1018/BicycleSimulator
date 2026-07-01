@@ -9,7 +9,9 @@
 
 ```
 [ESP32 하드웨어] → InputManager → TimelineGameController → PlayableDirector
-                                ↘ SpeedUIController (속도 UI / 네비게이션)
+                       │        ↘ SpeedUIController (속도 UI / 네비게이션)
+                       ↓
+                  VibrationRelay (진동, USB 릴레이 — ESP32와 별도 포트)
                   GameSignalReceiver ← Timeline Signal Track
                        ↓
                   GameManager (이벤트 루틴)
@@ -21,10 +23,17 @@
 
 | 파라미터 | 기본값 | 설명 |
 | :--- | :--- | :--- |
-| `PortName` | `COM8` | ESP32 시리얼 포트 |
-| `BaudRate` | `115200` | 시리얼 통신 속도 |
+| `PortName` | `COM8` | ESP32 시리얼 포트 (센서 전용) |
+| `BaudRate` | `115200` | ESP32 시리얼 통신 속도 |
 | `BaseSpeedKph` | `15.0` | 1.0× 재생 기준 속도(km/h) |
 | `logo` | `1` | UI 로고 표시 여부 |
+| `RelayPortName` | `COM3` | 진동 릴레이 연결 포트 (ESP32와 별도 USB 장치) |
+| `RelayBaudRate` | `9600` | 진동 릴레이 통신 속도 |
+| `VibeShortDuration` | `0.15` | 짧은 진동 지속시간(초) — Ready/Walk/Correct/Click |
+| `VibeMediumDuration` | `0.5` | 중간 진동 지속시간(초) — Success |
+| `VibeLongDuration` | `1.5` | 긴 진동 지속시간(초) — Danger/Wrong |
+
+> 위 값은 모두 `InputManager`가 읽어서 `VibrationRelay`에 전달합니다. 상세 프로토콜은 `Hardware/Unity_시리얼_통신_가이드.md` §3-6 참고.
 
 ---
 
@@ -77,7 +86,7 @@ GameState에 따른 자동 동작:
 ## 5. 씬 구조
 
 ### 5.1 홈 씬 (Home)
-- `InputManager`, `GameManager` 오브젝트 필수
+- `InputManager`, `GameManager`, `VibrationRelay` 오브젝트 필수 (버튼 선택 시 진동 피드백)
 - Additive 로드 후 1.6초 커버 포인트에서 레벨 씬 활성화
 
 ### 5.2 레벨 씬 (Level)
@@ -86,10 +95,12 @@ GameState에 따른 자동 동작:
 - `GameSignalReceiver` — Timeline Signal 수신 (PlayableDirector와 같은 오브젝트)
 - `SpeedUIController` — 속도 UI 및 네비게이션 애니메이터
 - `IntroManager`, `QuizManager` — 인트로 및 퀴즈
+- `VibrationRelay` — 진동 피드백 (USB 릴레이, ESP32와 별도 포트)
 
 ### 5.3 영속 매니저
-`GameManager`, `InputManager`, `QuizManager`는 ``DontDestroyOnLoad``로 씬 전환 후에도 유지됩니다.  
-씬 로드 시 `GameManager`가 `TimelineGameController`를 자동으로 탐색합니다.
+`GameManager`, `InputManager`, `QuizManager`, `VibrationRelay`는 ``DontDestroyOnLoad``로 씬 전환 후에도 유지됩니다.  
+씬 로드 시 `GameManager`가 `TimelineGameController`를 자동으로 탐색합니다.  
+`VibrationRelay`는 `InputManager`(`[DefaultExecutionOrder(-100)]`)보다 나중에 `Awake`되어 `config.ini` 값을 넘겨받습니다.
 
 ---
 

@@ -1,14 +1,17 @@
 # 자전거 시뮬레이터 — Unity 시리얼 통신 가이드
 
-**펌웨어**: bicycle_sim_x v5.8 (ESP32-S3 단독, 센서 + 진동 통합)  
+**펌웨어**: bicycle_sim_x v5.8 (ESP32-S3, 센서 담당)  
 **대상**: 빛고을국민안전체험관 / FLUXION  
-**작성일**: 2026.06
+**작성일**: 2026.06  
+**갱신**: 2026.07 — 진동 제어를 ESP32에서 분리, 별도 USB 릴레이로 이관 (펌웨어는 v5.8 그대로 유지, Unity가 진동 명령을 더 이상 ESP32로 보내지 않음)
 
 ---
 
 ## 1. 연결 설정
 
-Unity는 **COM 포트 1개**만 사용합니다. (센서·진동 통합)
+Unity는 **COM 포트 2개**를 사용합니다 — ① ESP32(센서), ② USB 릴레이(진동, ESP32와 무관한 별도 장치).
+
+### 1-1. ESP32 (센서)
 
 | 항목 | 값 |
 |------|----|
@@ -19,6 +22,18 @@ Unity는 **COM 포트 1개**만 사용합니다. (센서·진동 통합)
 | 정지 비트 | 1 |
 | 줄 끝 문자 | `\n` (LF) |
 | 전송 주기 | **50 Hz** (20 ms마다 1 패킷) |
+
+### 1-2. USB 릴레이 (진동)
+
+| 항목 | 값 |
+|------|----|
+| 포트 | `config.ini` → `RelayPortName` (예: COM3) |
+| 보드레이트 | **9,600 bps** |
+| 데이터 비트 | 8 |
+| 패리티 | None |
+| 정지 비트 | 1 |
+
+자세한 명령 프로토콜과 Unity 구현은 §3-6 참고.
 
 ---
 
@@ -72,7 +87,10 @@ S2\n   ← RGB LED 상태
 C\n    ← 조향 캘리브레이션
 ```
 
-### 3-1. V — 진동 패턴 (IRF520 모듈 → 진동 모터)
+### 3-1. V — 진동 패턴 (IRF520 모듈 → 진동 모터) — ⚠️ Unity 미사용 (레거시)
+
+> 펌웨어에는 그대로 남아있지만, **Unity(InputManager)는 더 이상 이 명령을 전송하지 않습니다.**
+> 진동 피드백은 §3-6의 USB 릴레이로 완전히 이관되었습니다. 아래 표는 시리얼 모니터로 펌웨어 자체를 단독 테스트할 때만 참고하세요.
 
 | 명령 | 패턴명 | 내용 | 총 시간 |
 |------|--------|------|---------|
@@ -114,6 +132,45 @@ C\n    ← 조향 캘리브레이션
 v5.8은 DMP Quat6(Game Rotation Vector)를 사용하므로 지자기 보정이 필요 없습니다.  
 하위 호환을 위해 유지되며 응답만 반환합니다: `{"magcal":"not_required_in_dmp"}`
 
+### 3-6. 진동 제어 (USB 릴레이, ESP32와 별도 포트) ✅ 현재 사용 중
+
+Unity는 ESP32 포트가 아니라 **별도의 USB 릴레이 포트**(`config.ini` → `RelayPortName`)로 진동을 제어합니다.
+릴레이 보드 자체 스펙(9600bps, N/8/1)은 §1-2 참고.
+
+**HEX 명령 (릴레이 1번 채널)**
+
+| 동작 | 프레임 | 비고 |
+|------|--------|------|
+| ON | `A0 01 01 A2` | 체크섬 = 앞 3바이트 합산 |
+| OFF | `A0 01 00 A1` | 체크섬 = 앞 3바이트 합산 |
+| 상태확인 | `FF` | 응답은 ASCII 값 (Unity는 응답 수신 여부만으로 생존 확인) |
+
+**Unity 구현**: `Assets/Scripts/Core/VibrationRelay.cs` (Singleton, DontDestroyOnLoad)
+
+- `InputManager.SendVibrate(VibeState)`가 유일한 진입점이며, 내부에서 `VibrationRelay`의 프리셋 메서드로 위임합니다.
+- ESP32로는 더 이상 `V{n}` 명령을 보내지 않습니다. (B/S/C/M 명령은 기존대로 ESP32로 전송)
+
+| VibeState | 프리셋 | 기본 지속시간 |
+|-----------|--------|---------------|
+| `Ready`, `Walk`, `Correct`, `Click` | Short | 0.15 s |
+| `Success` | Medium | 0.5 s |
+| `Danger`, `Wrong` | Long | 1.5 s |
+| `Stop` | (무시) | - |
+
+**연결 확인 / 자동 재연결**: `Awake()`에서 연결 직후 상태확인 명령(`FF`)으로 실제 보드 응답을 검증하고, 이후 `Reconnect Interval`(기본 5초)마다 재확인하여 응답이 없으면 자동으로 재연결을 시도합니다.
+
+**config.ini 키** (모두 `InputManager`가 읽어서 `VibrationRelay`에 전달 — 릴레이 스크립트는 파일을 직접 읽지 않음)
+
+| 키 | 기본값 | 설명 |
+|----|--------|------|
+| `RelayPortName` | `COM3` | 릴레이 연결 포트 |
+| `RelayBaudRate` | `9600` | 릴레이 통신 속도 |
+| `VibeShortDuration` | `0.15` | 짧은 진동 지속시간(초) |
+| `VibeMediumDuration` | `0.5` | 중간 진동 지속시간(초) |
+| `VibeLongDuration` | `1.5` | 긴 진동 지속시간(초) |
+
+**씬 설정**: `VibrationRelay`는 Singleton이라 씬에 컴포넌트가 붙은 GameObject가 최소 1개 있어야 동작합니다. 현재 Home/Level1/Level2 씬 모두에 배치되어 있습니다.
+
 ---
 
 ## 4. 캘리브레이션 절차
@@ -154,11 +211,12 @@ v5.8은 DMP Quat6(Game Rotation Vector)를 사용하므로 지자기 보정이 �
 |------------|------|------|--------|
 | 페달 센서 | 페달을 천천히 밟음 | `rpm`, `spd` | rpm > 0, spd > 0 |
 | 핸들 조향 | 핸들을 좌우로 기울임 | `str` | -45 ~ +45 범위 내 변화 |
-| 브레이크 | 레버 당김 | `brk` + 체감 진동 | 0 → 1, 약진동 연속 |
+| 브레이크 | 레버 당김 | `brk` + 체감 진동 | 0 → 1, 약진동 연속 (ESP32 `B1` — 릴레이와 무관) |
 | O 버튼 | O 버튼 누름 | `o` | 0 → 1 |
 | X 버튼 | X 버튼 누름 | `x` | 0 → 1 |
-| 진동 패턴 | `V1\n` 전송 | 체감 진동 | 700 ms 강진동 |
+| 진동 패턴 (레거시) | `V1\n` 전송 | 체감 진동 | 펌웨어 단독 테스트용, Unity는 미사용 (§3-1 참고) |
 | RGB LED | `S2\n` 전송 | LED 색상 | 빨간색 |
+| 진동 릴레이 | Unity 실행 후 `DebugInputPanel`에서 진동 버튼 클릭 | 릴레이 클릭음 + 체감 진동 | 프리셋 길이만큼 ON |
 
 #### STEP 4 — 초기 상태 설정
 
@@ -172,8 +230,9 @@ S0\n   ← 대기 상태 (흰색 깜박)로 설정
 [ ] STEP 1  부팅 시 "DMP Stabilized" 수신 확인 (약 3초)
 [ ] STEP 2  조향 기준점 설정 완료 (str = 0.0° at 직진)
 [ ] STEP 3  페달 / 핸들 / 브레이크 / 버튼 전체 동작 확인
-[ ] STEP 3  진동 모터 동작 확인 (V1 전송)
 [ ] STEP 3  RGB LED 색상 변경 확인
+[ ] STEP 3  진동 릴레이 연결 확인 (DebugInputPanel에서 "● 릴레이 연결됨" 표시)
+[ ] STEP 3  진동 릴레이 동작 확인 (DebugInputPanel 진동 버튼)
 [ ] STEP 4  초기 상태 S0 설정
 ```
 
@@ -274,7 +333,7 @@ public class BikeSerial : MonoBehaviour
         catch (Exception e) { Debug.LogWarning($"[Bike] 송신 실패: {e.Message}"); }
     }
 
-    // 진동 (ESP32 GPIO2 → IRF520 → 모터)
+    // 진동 (레거시, ESP32 GPIO2 → IRF520 → 모터) — 이 프로젝트에서는 미사용, §3-6 릴레이 참고
     public void SetVibration(int pattern) => Send($"V{pattern}");
     public void SetBrake(bool on)         => Send(on ? "B1" : "B0");
 
@@ -284,6 +343,8 @@ public class BikeSerial : MonoBehaviour
 }
 ```
 
+> 이 예시는 ESP32 프로토콜 자체를 보여주기 위한 단독 참고 코드입니다. 실제 프로젝트의 진동 제어는 `SetVibration()`이 아니라 별도 포트로 붙는 `Assets/Scripts/Core/VibrationRelay.cs`를 사용합니다 (§3-6).
+
 ### 5-2. 사용 예시
 
 ```csharp
@@ -291,9 +352,9 @@ float steer   = bike.Data.str;      // -45 ~ 45도
 float speed   = bike.Data.spd;      // km/h
 bool  braking = bike.Data.brk == 1;
 
-bike.SetVibration(1);   // V1: 위험 경고
-bike.SetVibration(2);   // V2: 성공
-bike.SetBrake(true);    // B1: 브레이크 피드백
+bike.SetVibration(1);   // V1: 위험 경고 — 레거시, 이 프로젝트에서는 VibrationRelay 사용 (§3-6)
+bike.SetVibration(2);   // V2: 성공 — 레거시
+bike.SetBrake(true);    // B1: 브레이크 피드백 (ESP32 GPIO2 — 릴레이와 별개, 현재도 사용 중)
 bike.SetBrake(false);   // B0: 브레이크 해제
 bike.SetRGBState(2);    // S2: 빨간 LED
 bike.SetRGBState(1);    // S1: 주행 복귀
@@ -312,8 +373,10 @@ bike.SetRGBState(1);    // S1: 주행 복귀
 | `str` 값이 드리프트 | DMP 안정화 전 캘리브레이션 | 3초 대기 후 재캘리브레이션 |
 | `rpm` 값이 간헐적으로 급등 | 노이즈 | `spd` 사용 시 `Mathf.Clamp` 추가 권장 |
 | JSON 파싱 오류 | 부팅 직후 깨진 첫 줄 | `id` 필드 확인 후 사용 (`if (data.id != 1) return`) |
-| 진동이 작동 안 함 | IRF520 모듈 배선 오류 | SIG(GPIO2)·VCC(5V)·GND·V+·OUT 배선 점검 |
-| 진동이 약함 | IRF520 게이트 전압 부족 | 3.3V 신호로 동작 확인, 모터 전원 5V 확인 |
+| 브레이크 진동이 작동 안 함 (ESP32 쪽) | IRF520 모듈 배선 오류 | SIG(GPIO2)·VCC(5V)·GND·V+·OUT 배선 점검 |
+| 브레이크 진동이 약함 | IRF520 게이트 전압 부족 | 3.3V 신호로 동작 확인, 모터 전원 5V 확인 |
+| 이벤트/퀴즈 진동이 작동 안 함 (릴레이 쪽) | 릴레이 포트 미연결 또는 상태확인 실패 | `DebugInputPanel`에서 "● 릴레이 연결됨" 확인, `config.ini`의 `RelayPortName` 점검, USB 케이블/전원(5V) 점검 |
+| `VibrationRelay` 응답 없음 로그 반복 | 릴레이 보드가 상태확인(`FF`) 명령에 응답 안 함 | 릴레이 보드레이트(9600) 및 배선 확인, 다른 프로그램이 같은 포트 점유 중인지 확인 |
 
 ---
 
@@ -326,22 +389,23 @@ ESP32 부팅
   ├─ DMP 초기화 (Quat6 활성화, ODR 설정)
   ├─ 파란 LED 점등 + "DMP v5.8 Ready. Stabilizing for 3s..." 출력
   ├─ DMP 안정화 대기 (3초)
-  │   └─ "DMP Stabilized" 출력 → V6(READY) 진동 → 파란 LED 소등
+  │   └─ "DMP Stabilized" 출력 → 파란 LED 소등 (V6 진동 명령은 더 이상 전송되지 않음)
   │
   └─ loop() 시작 ─────────────────────────────────
        │ 20ms마다
        ├─ JSON 전송 (rpm, spd, str, brk, o, x)
-       ├─ 시리얼 수신 처리 (V/B/C/M/S 명령)
-       ├─ 진동 시퀀서 업데이트 (GPIO2 PWM)
+       ├─ 시리얼 수신 처리 (B/C/M/S 명령 — V는 미수신)
+       ├─ 브레이크 진동 업데이트 (GPIO2 PWM, B1/B0 수신 시)
        └─ RGB LED 업데이트
 
 Unity 측
   │
-  ├─ Update()에서 매 프레임 버퍼 읽기
+  ├─ Update()에서 매 프레임 ESP32 버퍼 읽기
   ├─ \n 단위로 JSON 파싱
-  └─ 이벤트 발생 시 V/B/S/C 명령 전송 (동일 포트)
+  ├─ 이벤트 발생 시 B/S/C 명령은 ESP32 포트로 전송
+  └─ 이벤트 발생 시 진동은 InputManager.SendVibrate() → VibrationRelay가 별도 릴레이 포트로 전송 (§3-6)
 ```
 
 ---
 
-*bicycle_sim_x v5.8 · 빛고을국민안전체험관 · FLUXION · 2026.06*
+*bicycle_sim_x v5.8 · 빛고을국민안전체험관 / FLUXION · 진동 릴레이 이관 2026.07*
