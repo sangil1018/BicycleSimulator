@@ -23,8 +23,7 @@ public class DebugInputPanel : MonoBehaviour
     public void TestVibrate(VibeState state)
     {
         if (InputManager.Instance == null) { Debug.LogWarning("[VibeTest] InputManager 없음"); return; }
-        _lastSent = $"V{(int)state} ({state})";
-        _lastEcho = "대기 중...";
+        _lastSent = state.ToString();
         Debug.Log($"[VibeTest] {state} 전송");
         InputManager.Instance.SendVibrate(state);
     }
@@ -49,8 +48,8 @@ public class DebugInputPanel : MonoBehaviour
 #if UNITY_EDITOR
     void OnGUI()
     {
-        var im = InputManager.Instance;
-        bool connected = im != null && im.IsConnected;
+        var relay = VibrationRelay.Instance;
+        bool connected = relay != null && relay.IsConnected;
 
         const float panelW  = 600f;
         const float pad     = 10f;
@@ -77,21 +76,21 @@ public class DebugInputPanel : MonoBehaviour
         GUI.Box(new Rect(px, py, panelW, panelH), "진동 테스트", boxStyle);
         float y = py + titleH;
 
-        // 연결 상태
+        // 연결 상태 (진동 릴레이)
         statusStyle.normal.textColor = connected ? Color.green : Color.red;
         GUI.Label(new Rect(bx, y, bw, statusH),
-            connected ? "● 시리얼 연결됨" : "● 시리얼 미연결", statusStyle);
+            connected ? "● 릴레이 연결됨" : "● 릴레이 미연결", statusStyle);
         y += statusH;
 
         // 송신 / ESP32 에코 표시
         echoStyle.normal.textColor = Color.yellow;
         GUI.Label(new Rect(bx, y, bw, echoH),
-            $"송신: {_lastSent}   에코: {_lastEcho}", echoStyle);
+            $"송신: {_lastSent}   ESP32 에코: {_lastEcho}", echoStyle);
         y += echoH;
 
-        // 재연결 버튼
+        // 재연결 버튼 (릴레이)
         if (GUI.Button(new Rect(bx, y, bw, connectH), "재연결 (Connect)", connectStyle))
-            im?.Connect();
+            relay?.Connect();
         y += connectH + pad;
 
         // 진동 버튼 — 미연결 시 비활성화

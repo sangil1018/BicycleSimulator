@@ -352,12 +352,37 @@ public class InputManager : Singleton<InputManager>
         });
     }
 
-    // ── Unity → ESP32-S3 송신 ────────────────────────────────────────
+    // ── 진동 제어 (USB 릴레이 — ESP32와 별도 포트) ─────────────────────
     public void SendVibrate(VibeState state)
     {
-        Debug.Log($"[Input] SendVibrate → {state} (V{(int)state}), connected={IsConnected}");
-        SendRaw($"V{(int)state}");
+        if (VibrationRelay.Instance == null)
+        {
+            Debug.LogWarning($"[Input] SendVibrate → {state} 무시 (VibrationRelay 없음)");
+            return;
+        }
+
+        Debug.Log($"[Input] SendVibrate → {state}, relayConnected={VibrationRelay.Instance.IsConnected}");
+
+        switch (state)
+        {
+            case VibeState.Stop:
+                break;
+            case VibeState.Ready:
+            case VibeState.Walk:
+            case VibeState.Correct:
+                VibrationRelay.Instance.VibrateShort();
+                break;
+            case VibeState.Success:
+                VibrationRelay.Instance.VibrateMedium();
+                break;
+            case VibeState.Danger:
+            case VibeState.Wrong:
+                VibrationRelay.Instance.VibrateLong();
+                break;
+        }
     }
+
+    // ── Unity → ESP32-S3 송신 ────────────────────────────────────────
 
     void SendRaw(string cmd)
     {
