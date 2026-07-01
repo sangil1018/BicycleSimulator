@@ -9,6 +9,9 @@ using UnityEngine;
 /// </summary>
 public class VibrationRelay : Singleton<VibrationRelay>
 {
+    [Header("활성화 여부")]
+    [SerializeField] bool isActive = true;
+
     [Header("포트 설정 (USB 릴레이 — ESP32와 별도)")]
     [SerializeField] string portName = "COM3";
     [SerializeField] int baudRate = 9600;
@@ -39,6 +42,11 @@ public class VibrationRelay : Singleton<VibrationRelay>
     {
         base.Awake();
         ApplyConfig();
+        if (!isActive)
+        {
+            Debug.Log("[VibrationRelay] 진동 비활성화 설정(isActive=0) — 연결하지 않음");
+            return;
+        }
         if (autoConnect) Connect();
         StartCoroutine(ConnectionWatchdog());
     }
@@ -75,6 +83,7 @@ public class VibrationRelay : Singleton<VibrationRelay>
             return;
         }
 
+        isActive = im.VibrationActive;
         portName = im.RelayPortName;
         baudRate = im.RelayBaudRate;
         shortDuration = im.VibeShortDuration;
@@ -85,6 +94,11 @@ public class VibrationRelay : Singleton<VibrationRelay>
 
     public void Connect()
     {
+        if (!isActive)
+        {
+            Debug.LogWarning("[VibrationRelay] 진동 비활성화 설정(isActive=0) — 연결 요청 무시");
+            return;
+        }
         Disconnect();
         try
         {
@@ -150,6 +164,7 @@ public class VibrationRelay : Singleton<VibrationRelay>
     // 커스텀 길이가 필요하면 이것도 그대로 사용 가능
     public void Vibrate(float duration)
     {
+        if (!isActive) return;
         if (!IsConnected)
         {
             Debug.LogWarning("[VibrationRelay] 포트 미연결 — 진동 무시");

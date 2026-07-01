@@ -28,6 +28,7 @@ public class InputManager : Singleton<InputManager>
 
     [Header("Config")]
     public float BaseSpeedKph { get; private set; } = 15f;
+    public float MetersPerRevolution { get; private set; } = 1.5f;
     public bool ShowLogo { get; private set; } = true;
     public float SteeringRange { get; private set; } = 45f;
     public float YellowThreshold { get; private set; } = 20f;
@@ -36,6 +37,7 @@ public class InputManager : Singleton<InputManager>
     public float CameraSteerSmoothTime { get; private set; } = 0.12f;
 
     [Header("Config — Vibration Relay")]
+    public bool VibrationActive { get; private set; } = true;
     public string RelayPortName { get; private set; } = "COM3";
     public int RelayBaudRate { get; private set; } = 9600;
     public float VibeShortDuration { get; private set; } = 0.15f;
@@ -125,6 +127,7 @@ public class InputManager : Singleton<InputManager>
                     case "PortName": portName = val; break;
                     case "BaudRate": int.TryParse(val, out baudRate); break;
                     case "BaseSpeedKph": float.TryParse(val, out float s); BaseSpeedKph = s; break;
+                    case "MetersPerRevolution": if (float.TryParse(val, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float mpr)) MetersPerRevolution = Mathf.Max(0.01f, mpr); break;
                     case "logo": ShowLogo = !int.TryParse(val, out int logo) || logo != 0; break;
                     case "SteeringRange": if (float.TryParse(val, out float sr)) SteeringRange = Mathf.Clamp(sr, 1f, 45f); break;
                     case "YellowThreshold": if (float.TryParse(val, out float yt)) YellowThreshold = yt; break;
@@ -133,6 +136,7 @@ public class InputManager : Singleton<InputManager>
                     case "CameraSteerSmoothTime": if (float.TryParse(val, out float ct)) CameraSteerSmoothTime = Mathf.Max(0f, ct); break;
                     case "StationID": int.TryParse(val, out _expectedStationID); break;
                     case "VibeMultiplier": if (float.TryParse(val, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float vm)) _vibeMultiplier = Mathf.Clamp(vm, 0.5f, 3.0f); break;
+                    case "isActive": VibrationActive = !int.TryParse(val, out int va) || va != 0; break;
                     case "RelayPortName": RelayPortName = val; break;
                     case "RelayBaudRate": if (int.TryParse(val, out int rb)) RelayBaudRate = rb; break;
                     case "VibeShortDuration": if (float.TryParse(val, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float vsd)) VibeShortDuration = vsd; break;
@@ -242,9 +246,12 @@ public class InputManager : Singleton<InputManager>
         if (hasSnap && _dmpReady)
             ApplyData(snap);
         else if (!IsConnected)
-            CadenceRPM = SpeedKph = SteeringAngle = 0f;
+            CadenceRPM = SteeringAngle = 0f;
 
         if (keyboardEnabled) UpdateKeyboard();
+
+        // 케이던스(RPM) × 1회전당 이동거리(m) 기준으로 매 프레임 속도 재계산 (RPM × m/rev × 60/1000)
+        SpeedKph = CadenceRPM * MetersPerRevolution * 0.06f;
     }
 
     void UpdateKeyboard()
@@ -253,8 +260,8 @@ public class InputManager : Singleton<InputManager>
 
         if (bike.Forward.IsPressed())
         {
-            CadenceRPM = Mathf.Max(CadenceRPM, keyboardSpeedKph / 0.25f);
-            SpeedKph = Mathf.Max(SpeedKph, keyboardSpeedKph);
+            float kphPerRpm = MetersPerRevolution * 0.06f;
+            CadenceRPM = Mathf.Max(CadenceRPM, keyboardSpeedKph / kphPerRpm);
         }
 
         if (bike.SelectO.WasPressedThisFrame()) SetPendingAnswer(true);
@@ -306,7 +313,6 @@ public class InputManager : Singleton<InputManager>
     void ApplyData(BikeInputData d)
     {
         CadenceRPM = Mathf.Max(0f, d.rpm);
-        SpeedKph = Mathf.Max(0f, d.spd);
 #if UNITY_EDITOR
         _dbgRawStr = d.str;
 #endif
@@ -352,7 +358,7 @@ public class InputManager : Singleton<InputManager>
     public void Simulate(float cadenceRpm, float steering, float speedKph = -1f,
                          bool brk = false, bool o = false, bool x = false)
     {
-        float spd = speedKph >= 0f ? speedKph : cadenceRpm * 0.25f;
+        float spd = speedKph >= 0f ? speedKph : cadenceRpm * MetersPerRevolution * 0.06f;
         ApplyData(new BikeInputData
         {
             id = 1,

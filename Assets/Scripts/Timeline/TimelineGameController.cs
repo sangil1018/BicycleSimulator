@@ -16,8 +16,6 @@ public class TimelineGameController : MonoBehaviour
     [Header("Speed Mapping")]
     [Tooltip("이 속도(km/h)에서 1.0× 재생")]
     [SerializeField] float baseSpeedKph = 15f;
-    [Tooltip("이 속도(km/h) 미만이면 타임라인 정지")]
-    [SerializeField] float minSpeedKph = 1f;
     [Tooltip("최대 재생 배속")]
     [SerializeField] float maxRate = 1.5f;
     [Tooltip("자동진행 구간 재생 배속 (CrosswalkWalk 등)")]
@@ -88,9 +86,7 @@ public class TimelineGameController : MonoBehaviour
         else
         {
             float spd = InputManager.Instance != null ? InputManager.Instance.SpeedKph : 0f;
-            rate = spd < minSpeedKph
-                ? 0f
-                : Mathf.Clamp(spd / baseSpeedKph * playbackMultiplier, 0.05f, maxRate);
+            rate = Mathf.Clamp(spd / baseSpeedKph * playbackMultiplier, 0f, maxRate);
         }
 
         SetRootSpeed(rate);
@@ -152,9 +148,7 @@ public class TimelineGameController : MonoBehaviour
         var im = InputManager.Instance;
         float spd = im != null ? im.SpeedKph : -1f;
         bool valid = director != null && director.playableGraph.IsValid();
-        float rate = 0f;
-        if (!_autoPlay && spd >= minSpeedKph)
-            rate = Mathf.Clamp(spd / baseSpeedKph, 0.05f, maxRate);
+        float rate = _autoPlay ? 0f : Mathf.Clamp(spd / baseSpeedKph, 0f, maxRate);
 
         var style = new GUIStyle(GUI.skin.label)
         {
