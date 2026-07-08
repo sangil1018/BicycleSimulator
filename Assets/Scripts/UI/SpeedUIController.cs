@@ -111,11 +111,11 @@ public class SpeedUIController : MonoBehaviour
             {
                 _currentTier = tier;
                 UpdateNavigationTrigger();
-            }
 
-            // 과속 UI 활성화 상태 제어
-            if (overSpeedUI != null)
-                overSpeedUI.SetActive(tier == SpeedTier.Red);
+                // 과속 UI 활성화 상태 제어 — 등급이 바뀔 때만 갱신 (매 프레임 SetActive 방지)
+                if (overSpeedUI != null)
+                    overSpeedUI.SetActive(tier == SpeedTier.Red);
+            }
         }
         catch (System.Exception ex)
         {
@@ -227,7 +227,8 @@ public class SpeedUIController : MonoBehaviour
             {
                 case GameState.NormalRiding:
                     _stateAllowsShow = true;
-                    _isVisible = false; // Update()에서 속도 기반으로 다시 판단
+                    _isVisible = false;              // Update()에서 속도 기반으로 다시 판단
+                    _currentTier = SpeedTier.Normal; // 등급 재평가 유도 (Update에서 SetActive/트리거 재발화)
                     break;
                 case GameState.OXQuiz:
                 case GameState.EventBrake:
@@ -236,6 +237,8 @@ public class SpeedUIController : MonoBehaviour
                 case GameState.CrosswalkWalk:
                     _stateAllowsShow = false;
                     _isVisible = false;
+                    _currentTier = SpeedTier.Normal;
+                    if (overSpeedUI != null) overSpeedUI.SetActive(false); // 비주행 상태에선 과속 UI off
                     Hide();
                     break;
             }

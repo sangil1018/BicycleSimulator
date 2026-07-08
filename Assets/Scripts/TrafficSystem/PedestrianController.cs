@@ -24,16 +24,19 @@ namespace TrafficSystem
         int   pathDir    = 1;
         float sideOffset;
         float lateralMag;
+        float heightOff;
         float speed;
 
         Animator anim;
         static readonly int HashSpeed = Animator.StringToHash("Speed");
 
         public void Init(Transform[] wps, Vector3 spawnPos, int nextWpIndex, bool reverse,
-                         float walkSpeed, float lateralOffset, float blendRadius)
+                         float walkSpeed, float lateralOffset, float blendRadius,
+                         float heightOffset = 0f)
         {
             speed      = walkSpeed;
             lateralMag = lateralOffset;
+            heightOff  = heightOffset;
             pathDir    = reverse ? -1 : 1;
             sideOffset = reverse ? -lateralOffset : lateralOffset;
 
@@ -115,20 +118,21 @@ namespace TrafficSystem
             }
         }
 
-        // centerPath[idx]에 현재 sideOffset 적용한 월드 위치 반환
+        // centerPath[idx]에 현재 sideOffset·heightOff 적용한 월드 위치 반환
         Vector3 OffsetPos(int idx)
         {
-            if (Mathf.Approximately(sideOffset, 0f)) return centerPath[idx];
+            Vector3 basePos = centerPath[idx] + Vector3.up * heightOff;
+            if (Mathf.Approximately(sideOffset, 0f)) return basePos;
 
             int last = centerPath.Length - 1;
             int a    = Mathf.Max(idx - 1, 0);
             int b    = Mathf.Min(idx + 1, last);
             Vector3 tangent = centerPath[b] - centerPath[a];
             tangent.y = 0f;
-            if (tangent.sqrMagnitude < 0.0001f) return centerPath[idx];
+            if (tangent.sqrMagnitude < 0.0001f) return basePos;
 
             Vector3 right = Vector3.Cross(Vector3.up, tangent.normalized);
-            return centerPath[idx] + right * sideOffset;
+            return basePos + right * sideOffset;
         }
 
         int NearestIdx(Vector3 pos)

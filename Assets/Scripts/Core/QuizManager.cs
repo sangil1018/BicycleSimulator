@@ -4,7 +4,7 @@ using UnityEngine;
 /// 퀴즈의 상태와 데이터를 전역적으로 관리하는 매니저 클래스.
 /// UI 로직은 GameManager로 이관되었습니다.
 /// </summary>
-public class QuizManager : Singleton<QuizManager>
+public class QuizManager : SceneSingleton<QuizManager>
 {
     [Header("Quiz State")]
     // 현재 퀴즈에서 얻은 점수
@@ -33,7 +33,18 @@ public class QuizManager : Singleton<QuizManager>
     public void StartQuiz(int number)
     {
         CurrentQuizNumber = number;
-        CurrentQuizAnswer = answerList[number - 1];
+
+        int idx = number - 1;
+        if (answerList == null || idx < 0 || idx >= answerList.Length)
+        {
+            Debug.LogError($"[QuizManager] 잘못된 퀴즈 번호 {number} (answerList 크기 {answerList?.Length ?? 0}) — 정답 false로 처리");
+            CurrentQuizAnswer = false;
+        }
+        else
+        {
+            CurrentQuizAnswer = answerList[idx];
+        }
+
         Debug.Log($"[QuizManager] 퀴즈 시작: 퀴즈 {CurrentQuizNumber}, 정답: {CurrentQuizAnswer}");
         if (quizUI != null)
         {

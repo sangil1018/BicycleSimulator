@@ -79,6 +79,74 @@ namespace TrafficSystem
             foreach (var l in allPedSignals) l?.ClearPedestrianOverride();
         }
 
+        public void OverrideVehicleAll(SignalState state)
+        {
+            if (allSignals == null) return;
+            foreach (var s in allSignals) s?.OverrideVehicleSignal(state);
+        }
+
+        public void ClearVehicleOverrideAll()
+        {
+            if (allSignals == null) return;
+            foreach (var s in allSignals) s?.ClearVehicleOverride();
+        }
+
+        // 오버라이드 해제 직후 호출 — 현재 신호 상태와 가장 일치하는 페이즈를 찾아
+        // 그 페이즈부터 사이클을 재개 (해제 시 신호가 튀지 않고 자연스럽게 이어짐)
+        public void ResumeFromCurrentState()
+        {
+            if (phases == null || phases.Length == 0) return;
+
+            int bestIdx = 0, bestScore = int.MinValue, currentScore = int.MinValue;
+
+            for (int i = 0; i < phases.Length; i++)
+            {
+                int score = MatchScore(phases[i]);
+                if (i == currentIdx) currentScore = score;
+                if (score > bestScore) { bestScore = score; bestIdx = i; }
+            }
+
+            // 동점이면 진행 중이던 페이즈 유지
+            if (currentScore == bestScore) bestIdx = currentIdx;
+
+            ApplyGreenPhase(bestIdx);
+            paused = false;
+        }
+
+        // 현재 신호 상태가 해당 페이즈 정의와 일치하는 정도 (일치 +1 / 불일치 -1)
+        int MatchScore(JunctionPhase phase)
+        {
+            int score = 0;
+
+            if (allSignals != null)
+                foreach (var s in allSignals)
+                {
+                    if (s == null) continue;
+                    bool shouldGreen = Contains(phase.vehicleGreen, s);
+                    bool isGreen     = s.State == SignalState.Green;
+                    score += shouldGreen == isGreen ? 1 : -1;
+                }
+
+            if (allPedSignals != null)
+                foreach (var l in allPedSignals)
+                {
+                    if (l == null) continue;
+                    bool shouldGreen = Contains(phase.pedestrianGreen, l);
+                    bool isGreen     = l.PedestrianSignal == PedestrianState.Green;
+                    score += shouldGreen == isGreen ? 1 : -1;
+                }
+
+            return score;
+        }
+
+        static bool Contains(TrafficSignal[] arr, TrafficSignal s)
+        {
+            if (arr == null) return false;
+            foreach (var x in arr)
+                if (x == s) return true;
+            return false;
+        }
+
         // ── Internal ─────────────────────────────────────────────────────────
 
         void AdvanceState()

@@ -75,9 +75,17 @@ public class HomeGameManager : MonoBehaviour
     {
         bgVideoPlayer.gameObject.SetActive(true);
         bgVideoPlayer.Prepare();
-        while (!bgVideoPlayer.isPrepared)
+
+        // 최대 5초 대기 — 클립 누락/로딩 실패 시 무한 대기 방지
+        float prepTimer = 0f;
+        while (!bgVideoPlayer.isPrepared && prepTimer < 5f)
+        {
+            prepTimer += Time.deltaTime;
             yield return null;
-        bgVideoPlayer.Play();
+        }
+
+        if (bgVideoPlayer.isPrepared) bgVideoPlayer.Play();
+        else Debug.LogWarning("[HomeGameManager] 배경 비디오 준비 시간 초과 — 재생 생략");
     }
 
     /// <summary>키보드 방향키 입력 시 사운드 피드백 (애니메이터는 LevelSelectionBtn이 처리)</summary>
@@ -148,9 +156,40 @@ public class HomeGameManager : MonoBehaviour
 
         if (homePanel) homePanel.SetActive(false);
 
+        // Additive 오버랩(약 1초) 동안 Home 씬과 레벨 씬의 AudioListener/EventSystem이
+        // 동시에 활성화되어 "2 audio listeners / 2 event systems" 경고가 뜬다.
+        // 레벨 씬에 해당 서비스가 있을 때만 Home 씬 것을 비활성화한다.
+        if (newScene.IsValid())
+            DisableDuplicateSceneServices(newScene);
+
         yield return new WaitForSeconds(1.0f);
 
         Debug.Log("[Home] Unloading Home scene after transition complete.");
         SceneManager.UnloadSceneAsync("Home");
+    }
+
+    // 레벨 씬(keepScene)에 활성 서비스가 있으면 Home 씬의 같은 서비스를 비활성화한다.
+    // (레벨에 없으면 그대로 둬서 "0개" 상태를 만들지 않는다.)
+    void DisableDuplicateSceneServices(Scene keepScene)
+    {
+        Scene homeScene = gameObject.scene;
+
+        var listeners = FindObjectsByType<AudioListener>(FindObjectsSortMode.None);
+        if (HasActiveInScene(listeners, keepScene, l => l.isActiveAndEnabled, l => l.gameObject.scene))
+            foreach (var l in listeners)
+                if (l.gameObject.scene == homeScene) l.enabled = false;
+
+        var systems = FindObjectsByType<UnityEngine.EventSystems.EventSystem>(FindObjectsSortMode.None);
+        if (HasActiveInScene(systems, keepScene, e => e.isActiveAndEnabled, e => e.gameObject.scene))
+            foreach (var e in systems)
+                if (e.gameObject.scene == homeScene) e.enabled = false;
+    }
+
+    static bool HasActiveInScene<T>(T[] items, Scene scene,
+                                    System.Func<T, bool> isActive, System.Func<T, Scene> sceneOf)
+    {
+        foreach (var it in items)
+            if (isActive(it) && sceneOf(it) == scene) return true;
+        return false;
     }
 }

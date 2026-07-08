@@ -24,7 +24,7 @@ namespace TrafficSystem
         struct SpawnPoint
         {
             public Vector3 position;
-            public int     nextWpIndex;
+            public int nextWpIndex;
         }
 
         void Start() => StartCoroutine(SpawnRoutine());
@@ -43,8 +43,8 @@ namespace TrafficSystem
             {
                 if (g == null || g.waypoints == null || g.waypoints.Length < 2) continue;
 
-                float[] cum      = BuildCumLengths(g.waypoints);
-                float   totalLen = cum[g.waypoints.Length - 1];
+                float[] cum = BuildCumLengths(g.waypoints);
+                float totalLen = cum[g.waypoints.Length - 1];
                 if (totalLen < 0.1f) continue;
 
                 int fwdTotal = g.adultsForward + g.childrenForward;
@@ -82,7 +82,7 @@ namespace TrafficSystem
         static List<SpawnPoint> SamplePath(Transform[] wps, float[] cum, float totalLen,
                                            int count, bool reverse)
         {
-            var list      = new List<SpawnPoint>(count);
+            var list = new List<SpawnPoint>(count);
             if (count <= 0) return list;
 
             float slotSize = totalLen / count;
@@ -117,16 +117,16 @@ namespace TrafficSystem
                 if (dist <= cum[i] || i == wps.Length - 1)
                 {
                     float segLen = cum[i] - cum[i - 1];
-                    float t      = segLen > 0f ? (dist - cum[i - 1]) / segLen : 0f;
-                    Vector3 pos  = Vector3.Lerp(wps[i - 1].position, wps[i].position, t);
-                    Vector3 dir  = (wps[i].position - wps[i - 1].position).normalized;
+                    float t = segLen > 0f ? (dist - cum[i - 1]) / segLen : 0f;
+                    Vector3 pos = Vector3.Lerp(wps[i - 1].position, wps[i].position, t);
+                    Vector3 dir = (wps[i].position - wps[i - 1].position).normalized;
                     // 역방향은 낮은 인덱스로, 정방향은 높은 인덱스로 이동
-                    int nextIdx  = reverse ? Mathf.Max(i - 1, 0) : Mathf.Min(i, wps.Length - 1);
+                    int nextIdx = reverse ? Mathf.Max(i - 1, 0) : Mathf.Min(i, wps.Length - 1);
                     return (pos, dir, nextIdx);
                 }
             }
 
-            int last       = wps.Length - 1;
+            int last = wps.Length - 1;
             Vector3 endDir = (wps[last].position - wps[last - 1].position).normalized;
             return (wps[last].position, endDir, reverse ? Mathf.Max(last - 1, 0) : last);
         }
@@ -149,7 +149,7 @@ namespace TrafficSystem
             ped.name = $"Ped_{type}_{(reverse ? "L" : "R")}_{sp.nextWpIndex:D2}";
 
             if (ped.TryGetComponent(out PedestrianController ctrl))
-                ctrl.Init(g.waypoints, sp.position, sp.nextWpIndex, reverse, walkSpeed, g.lateralOffset, g.blendRadius);
+                ctrl.Init(g.waypoints, sp.position, sp.nextWpIndex, reverse, walkSpeed, g.lateralOffset, g.blendRadius, g.heightOffset);
             else
                 Debug.LogWarning($"[PedestrianSpawner] {prefab.name}에 PedestrianController가 없습니다.");
         }
@@ -173,9 +173,9 @@ namespace TrafficSystem
 
         [Header("Spawn Count")]
         [Tooltip("우측(정방향) 어른 수")]
-        public int adultsForward   = 2;
+        public int adultsForward = 2;
         [Tooltip("좌측(역방향) 어른 수")]
-        public int adultsReverse   = 2;
+        public int adultsReverse = 2;
         [Tooltip("우측(정방향) 아이 수")]
         public int childrenForward = 1;
         [Tooltip("좌측(역방향) 아이 수")]
@@ -185,6 +185,9 @@ namespace TrafficSystem
         [Tooltip("웨이포인트 중심선에서 좌우로 떨어지는 거리 (m). 0 = 중심선 위.")]
         [Min(0f)]
         public float lateralOffset = 0.5f;
+
+        [Tooltip("바닥 기준 높이 오프셋 (m). 모델이 바닥에 파묻히거나 떠 있을 때 조정. 음수 가능.")]
+        public float heightOffset = 0f;
 
         [Header("Path Smoothing")]
         [Tooltip("중간 웨이포인트 앞뒤로 Bezier 보간을 적용할 반경 (m). 0 = 직선만 사용.")]

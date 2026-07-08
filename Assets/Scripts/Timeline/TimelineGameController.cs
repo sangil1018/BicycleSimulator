@@ -34,6 +34,9 @@ public class TimelineGameController : MonoBehaviour
 
     void Awake()
     {
+#if DEBUG_GUI
+        useGUILayout = false; // GUILayout 미사용 — Layout 이벤트 패스 생략으로 OnGUI 상주 비용 절감
+#endif
         if (director == null) director = GetComponent<PlayableDirector>();
         if (director != null)
         {
@@ -55,6 +58,8 @@ public class TimelineGameController : MonoBehaviour
 
     void Update()
     {
+        if (director == null) return;
+
         if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
             Debug.Log($"[TL] Space down — canMove:{_canMove}  graphValid:{director.playableGraph.IsValid()}  SpeedKph:{(InputManager.Instance != null ? InputManager.Instance.SpeedKph : -1f):F1}");
 
@@ -137,27 +142,29 @@ public class TimelineGameController : MonoBehaviour
         if (auto) _canMove = true;
     }
 
-#if UNITY_EDITOR
+#if DEBUG_GUI
     [Header("Debug GUI")]
     [SerializeField] int debugFontSize = 50;
     [SerializeField] Color debugFontColor = Color.white;
+    GUIStyle _debugStyle;
 
     void OnGUI()
     {
         if (!Application.isPlaying) return;
         var im = InputManager.Instance;
-        float spd = im != null ? im.SpeedKph : -1f;
+        if (im == null || !im.DebugMode) return;
+        float spd = im.SpeedKph;
         bool valid = director != null && director.playableGraph.IsValid();
         float rate = _autoPlay ? 0f : Mathf.Clamp(spd / baseSpeedKph, 0f, maxRate);
 
-        var style = new GUIStyle(GUI.skin.label)
+        _debugStyle ??= new GUIStyle(GUI.skin.label)
         {
             fontSize = debugFontSize,
             normal = { textColor = debugFontColor }
         };
         GUI.Label(new Rect(10, 10, 1000, 400),
             $"[TL] canMove:{_canMove}  graphValid:{valid}  SpeedKph:{spd:F1}  rate:{rate:F2}  time:{(director != null ? director.time : 0):F2}/{(director != null ? director.duration : 0):F2}",
-            style);
+            _debugStyle);
     }
 #endif
 }

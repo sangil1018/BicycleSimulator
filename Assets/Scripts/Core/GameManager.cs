@@ -22,7 +22,7 @@ public enum GameState
 /// 게임의 전체적인 흐름을 제어하는 매니저 클래스.
 /// Timeline 기반 시스템으로 전환됨 (VideoRailController → TimelineGameController).
 /// </summary>
-public class GameManager : Singleton<GameManager>
+public class GameManager : SceneSingleton<GameManager>
 {
     [Header("Start Menu")]
     [SerializeField] private GameObject start_menu;
@@ -76,10 +76,18 @@ public class GameManager : Singleton<GameManager>
 
     void Start()
     {
+        // 영속 InputManager 이벤트 구독 — GameManager는 씬 스코프라 레벨 종료 시 파괴되므로
+        // 반드시 OnDestroy에서 해제해야 영속 InputManager에 죽은 참조가 남지 않는다.
         InputManager.Instance.OnBtnX += HandleXButton;
 
         if (SceneManager.GetActiveScene().name.StartsWith("Level"))
             InitLevelScene();
+    }
+
+    void OnDestroy()
+    {
+        if (InputManager.Instance != null)
+            InputManager.Instance.OnBtnX -= HandleXButton;
     }
 
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)

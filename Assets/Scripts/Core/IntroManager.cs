@@ -54,12 +54,18 @@ public class IntroManager : MonoBehaviour
     {
         // yield return new WaitForSeconds(0.5f);
 
-        // 비디오 준비 대기
+        // 비디오 준비 대기 (최대 5초 — 클립 누락/로딩 실패 시 무한 대기 방지)
         if (introVideoPlayer)
         {
             introVideoPlayer.Prepare();
-            while (!introVideoPlayer.isPrepared) yield return null;
-            introVideoPlayer.Play();
+            float prepTimer = 0f;
+            while (!introVideoPlayer.isPrepared && prepTimer < 5f)
+            {
+                prepTimer += Time.deltaTime;
+                yield return null;
+            }
+            if (introVideoPlayer.isPrepared) introVideoPlayer.Play();
+            else Debug.LogWarning("[IntroManager] 비디오 준비 시간 초과 — 영상 없이 인트로 진행");
         }
 
         float timer = 0f;

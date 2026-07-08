@@ -21,15 +21,19 @@ RGB LED  GPIO48 (WS2812 내장)
 
 ```cpp
 #define STATION_ID      1     // 스테이션 번호 1~6
-#define CADENCE_TO_KPH  0.25f // 속도 계수 (현장 조정)
+#define CADENCE_TO_KPH  0.25f // 참고용 spd 필드 계수 — Unity는 이 값을 사용하지 않음 (아래 참고)
 ```
 
 ### 속도 매핑
 
+Unity는 ESP32가 보내는 `spd` 필드를 더 이상 사용하지 않고, `rpm`(케이던스)만으로 자체 계산합니다.
+
 ```
-CadenceRPM × 0.25 = SpeedKph
-60 RPM = 15 km/h → Timeline 1.0× 재생 (BaseSpeedKph 기본값)
+SpeedKph = CadenceRPM × MetersPerRevolution × 0.06   ← config.ini에서 조정 (CONTENT_GUIDE.md §2.1)
+BaseSpeedKph = 15.0 (기본값) → 이 속도에서 Timeline 1.0× 재생
 ```
+
+펌웨어의 `CADENCE_TO_KPH`/`spd` 필드는 `serial_monitor.py` 등 하드웨어 단독 점검용으로만 남아있습니다.
 
 ### 참고 문서
 

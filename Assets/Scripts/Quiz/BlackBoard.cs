@@ -202,7 +202,7 @@ public class BlackBoard : MonoBehaviour
         }
 
         // 정답 이미지
-        quizImage.sprite = answerSprites[QuizManager.Instance.CurrentQuizNumber];
+        SetQuizImage(answerSprites, QuizManager.Instance.CurrentQuizNumber);
         // 스코어 현재 점수 표시
         var triggerScoreName = $"cnt{QuizManager.Instance.CurrentQuizScore}";
         scoreAnimator.SetTrigger(triggerScoreName);
@@ -234,7 +234,8 @@ public class BlackBoard : MonoBehaviour
         if (isFinalQuiz && autoResult) GameManager.Instance.OnTimelineComplete();
 
         GameManager.Instance.ChangeState(GameState.NormalRiding);
-        GameManager.Instance.TimelineController.Resume();
+        if (GameManager.Instance.TimelineController != null)
+            GameManager.Instance.TimelineController.Resume();
 
         // 퀴즈 오브젝트 초기화
         if (correctScore != null) correctScore.SetActive(false);
@@ -243,9 +244,25 @@ public class BlackBoard : MonoBehaviour
         if (scoreAnimator != null) { scoreAnimator.Rebind(); scoreAnimator.Update(0f); }
         if (oButtonAnimator != null) { oButtonAnimator.Rebind(); oButtonAnimator.Update(0f); }
         if (xButtonAnimator != null) { xButtonAnimator.Rebind(); xButtonAnimator.Update(0f); }
-        quizImage.sprite = quizSprites[0];
+        SetQuizImage(quizSprites, 0);
 
-        transform.parent.parent.gameObject.SetActive(false);
+        // 예상 계층: BlackBoard → (부모) → (조부모=퀴즈 루트). 구조가 다르면 건너뜀.
+        if (transform.parent != null && transform.parent.parent != null)
+            transform.parent.parent.gameObject.SetActive(false);
+        else
+            Debug.LogWarning("[BlackBoard] 예상 계층(parent.parent)이 없어 퀴즈 루트 비활성화를 건너뜁니다.");
+    }
+
+    // 스프라이트 배열 범위를 벗어나면 이미지를 바꾸지 않고 경고만 남긴다.
+    void SetQuizImage(Sprite[] arr, int idx)
+    {
+        if (quizImage == null) return;
+        if (arr == null || idx < 0 || idx >= arr.Length)
+        {
+            Debug.LogWarning($"[BlackBoard] 스프라이트 인덱스 {idx} 범위 초과 (배열 크기 {arr?.Length ?? 0})");
+            return;
+        }
+        quizImage.sprite = arr[idx];
     }
 
     public void BellAndBike()
@@ -261,7 +278,7 @@ public class BlackBoard : MonoBehaviour
         scoreAnimator.SetTrigger(triggerScoreName);
 
         // 퀴즈 번호에 맞는 퀴즈 텍스트 표시
-        quizImage.sprite = quizSprites[QuizManager.Instance.CurrentQuizNumber];
+        SetQuizImage(quizSprites, QuizManager.Instance.CurrentQuizNumber);
         quizText.SetActive(true);
     }
 }

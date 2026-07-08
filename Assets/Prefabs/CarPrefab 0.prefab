@@ -189,8 +189,9 @@ MonoBehaviour:
   cruiseSpeed: 8
   turnSpeed: 5
   reachDistance: 1.5
-  signalCheckDist: 12
-  followGap: 2
+  signalCheckDist: 8
+  stopLineOffset: 1
+  followGap: 5
   minFollowDist: 2.5
   acceleration: 6
   deceleration: 20

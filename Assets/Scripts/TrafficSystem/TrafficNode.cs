@@ -21,6 +21,9 @@ namespace TrafficSystem
         [SerializeField] TrafficSignal stopSignal;
 
         public TrafficSignal StopSignal => stopSignal;
+        public int ExitCount => exits?.Length ?? 0;
+        public TrafficNode GetExitNode(int i) =>
+            (exits != null && i >= 0 && i < exits.Length) ? exits[i].node : null;
         public bool IsEndOfPath
         {
             get

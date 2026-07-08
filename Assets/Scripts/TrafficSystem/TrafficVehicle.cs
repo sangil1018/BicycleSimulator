@@ -13,7 +13,9 @@ namespace TrafficSystem
 
         [Header("신호 정지")]
         [Tooltip("StopSignal 노드에서 이 거리 이내부터 신호·큐 검사 시작 (m)")]
-        [SerializeField] float signalCheckDist = 6f;
+        [SerializeField] float signalCheckDist = 8f;
+        [Tooltip("정지선(노드)에서 앞 범퍼까지 남길 거리 (m)")]
+        [SerializeField] float stopLineOffset = 1.0f;
 
         [Header("차량 간격 제어")]
         [Tooltip("앞차와 유지할 목표 범퍼~범퍼 거리 (m). 크게 설정할수록 차량 사이 간격이 넓어짐.")]
@@ -48,6 +50,8 @@ namespace TrafficSystem
         float          targetSpeed;
         int            frameCounter;
         TrafficVehicle _leader;
+        float          _leaderPathGap;       // 경로 기준 중심 간 거리 (m)
+        bool           _leaderInSameSegment; // false = 다음 세그먼트에서 찾은 체인 리더
         Vector3        _castHalfExt;
 
         // ── Node Queue (정적 레지스트리) ──────────────────────────────────────
@@ -74,22 +78,53 @@ namespace TrafficSystem
             _queuedAt = null;
         }
 
-        // 나보다 노드에 가까운 차(=앞차) 중, 3D 거리가 가장 가까운 차 = 직전 앞차
-        TrafficVehicle FindLeader()
+        // 직전 앞차 탐색 — 같은 세그먼트 우선, 없으면 다음 세그먼트(노드 체인)까지 확장.
+        // 결과는 _leader / _leaderPathGap(경로 기준 중심 간 거리) / _leaderInSameSegment에 기록.
+        void FindLeader()
         {
-            if (!s_queues.TryGetValue(currentNode, out var peers)) return null;
-            float myDistToNode = PlanarDist(transform.position, currentNode.transform.position);
-            TrafficVehicle best    = null;
-            float          bestGap = float.MaxValue;
-            foreach (var v in peers)
+            _leader              = null;
+            _leaderPathGap       = float.MaxValue;
+            _leaderInSameSegment = false;
+
+            Vector3 nodePos = currentNode.transform.position;
+            float   myDist  = PlanarDist(transform.position, nodePos);
+
+            // 1) 같은 세그먼트: currentNode 큐에서 나보다 노드에 가까운 차
+            if (s_queues.TryGetValue(currentNode, out var peers))
             {
-                if (v == null || v == this) continue;
-                float theirDistToNode = PlanarDist(v.transform.position, currentNode.transform.position);
-                if (theirDistToNode >= myDistToNode) continue;   // 나보다 뒤 → 무시
-                float gap = PlanarDist(v.transform.position, transform.position);
-                if (gap < bestGap) { bestGap = gap; best = v; }
+                foreach (var v in peers)
+                {
+                    if (v == null || v == this) continue;
+                    float theirDist = PlanarDist(v.transform.position, nodePos);
+                    if (theirDist >= myDist) continue;   // 나보다 뒤 → 무시
+                    float gap = myDist - theirDist;
+                    if (gap < _leaderPathGap)
+                    {
+                        _leaderPathGap       = gap;
+                        _leader              = v;
+                        _leaderInSameSegment = true;
+                    }
+                }
+                if (_leader != null) return;
             }
-            return best;
+
+            // 2) 다음 세그먼트: currentNode의 각 exit 노드 큐에서
+            //    내 노드~exit 사이에 있는 차량 중 내 노드에 가장 가까운(후미) 차
+            for (int i = 0; i < currentNode.ExitCount; i++)
+            {
+                var next = currentNode.GetExitNode(i);
+                if (next == null || !s_queues.TryGetValue(next, out var nextPeers)) continue;
+
+                float segLen = PlanarDist(nodePos, next.transform.position);
+                foreach (var v in nextPeers)
+                {
+                    if (v == null || v == this) continue;
+                    float fromNode = PlanarDist(v.transform.position, nodePos);
+                    if (fromNode > segLen) continue; // 구간 밖(다른 방향에서 합류하는 차 등) 제외
+                    float gap = myDist + fromNode;   // 내 위치 → 노드 → 앞차 경로 거리
+                    if (gap < _leaderPathGap) { _leaderPathGap = gap; _leader = v; }
+                }
+            }
         }
 
         // ── Public API ────────────────────────────────────────────────────────
@@ -121,7 +156,7 @@ namespace TrafficSystem
             if (currentNode == null) return;
 
             EnqueueAt(currentNode);
-            _leader = FindLeader();
+            FindLeader();
 
             // 원거리 추종 — N프레임마다 (BoxCast 비용 분산)
             frameCounter++;
@@ -225,12 +260,7 @@ namespace TrafficSystem
         float CalcSignalQueueSpeed()
         {
             if (_leader == null) return cruiseSpeed;
-
-            float myDist     = PlanarDist(transform.position,         currentNode.transform.position);
-            float leaderDist = PlanarDist(_leader.transform.position, currentNode.transform.position);
-            float pathGap    = myDist - leaderDist;
-            float bumperGap  = pathGap - (vehicleHalfLength + _leader.vehicleHalfLength);
-
+            float bumperGap = _leaderPathGap - (vehicleHalfLength + _leader.vehicleHalfLength);
             return SpeedFromGap(bumperGap);
         }
 
@@ -240,8 +270,14 @@ namespace TrafficSystem
             if (currentNode.StopSignal == null || currentNode.StopSignal.CanPass) return cruiseSpeed;
             float dist = PlanarDist(transform.position, currentNode.transform.position);
             if (dist > signalCheckDist) return cruiseSpeed;
-            if (_leader != null) return cruiseSpeed; // 후속 차 → 큐 속도가 담당
-            return 0f;
+            // 같은 세그먼트 앞차만 큐 속도에 위임 — 노드 너머 체인 리더는 빨간불 정지를 대신할 수 없음
+            if (_leader != null && _leaderInSameSegment) return cruiseSpeed;
+
+            // 남은 거리에 맞춘 등감속 — 앞 범퍼가 정지선 앞 stopLineOffset 지점에 오도록 정지
+            // v = √(2·a·gap), 0.8 = 제동 여유 마진
+            float gap = dist - vehicleHalfLength - stopLineOffset;
+            if (gap <= 0f) return 0f;
+            return Mathf.Min(cruiseSpeed, Mathf.Sqrt(2f * deceleration * 0.8f * gap));
         }
 
         // gap(범퍼~범퍼 거리) → 목표 속도

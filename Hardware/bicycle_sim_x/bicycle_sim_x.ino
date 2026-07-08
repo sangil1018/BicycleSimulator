@@ -52,8 +52,9 @@ float    g_lastRawYaw  = 0.0f;
 float    g_yawOffset   = 0.0f;
 String   g_rxBuf       = "";
 uint32_t g_lastSendMs  = 0;
-bool     g_dmpStable   = false; 
+bool     g_dmpStable   = false;
 uint32_t g_bootMs      = 0;
+bool     g_icmOk       = false;  // 조향 센서 인식 여부 — 실패 시 str은 항상 0으로 송신
 
 // ── 진동 시퀀서 ──────────────────────────────────────────────────
 // 3.3V 게이트 환경 최적화: PWM 최대(255), 최소 ON 300ms (모터 스핀업 보장)
@@ -293,8 +294,9 @@ void setup()
     pinMode(PIN_MOTOR, OUTPUT);
     vibeSet(0);
 
-    bool initialized = false;
-    while (!initialized)
+    // 센서 인식 실패 시에도 부팅을 계속해 str=0으로 송신 (재시도 5회 후 포기)
+    const uint8_t ICM_MAX_RETRY = 5;
+    for (uint8_t attempt = 0; attempt < ICM_MAX_RETRY; attempt++)
     {
         icm.begin(Wire, 1); // 0x69 (AD0=HIGH)
         if (icm.status != ICM_20948_Stat_Ok)
@@ -325,19 +327,30 @@ void setup()
         icm.enableDMP();
         icm.resetDMP();
         icm.resetFIFO();
-        initialized = true;
+        g_icmOk = true;
+        break;
     }
 
     g_bootMs = millis();
-    Serial.println("{\"debug\":\"DMP v5.8 Ready. Stabilizing for 3s...\"}");
-    setRGB(0, 0, 255);
+    if (g_icmOk)
+    {
+        Serial.println("{\"debug\":\"DMP v5.8 Ready. Stabilizing for 3s...\"}");
+        setRGB(0, 0, 255);
+    }
+    else
+    {
+        g_steerAngle = 0.0f;
+        g_dmpStable  = true; // 안정화 대기 없이 LED 상태 표시 활성화
+        Serial.println("{\"debug\":\"Steer sensor NOT found. str fixed to 0\"}");
+        setRGB(255, 0, 255); // 자홍색: 센서 없음 경고
+    }
 }
 
 // ── loop ─────────────────────────────────────────────────────────
 void loop()
 {
     uint32_t now = millis();
-    processDMP();
+    if (g_icmOk) processDMP();
     processSerial();
     updateVibe();
 

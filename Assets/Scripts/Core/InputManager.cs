@@ -35,6 +35,9 @@ public class InputManager : Singleton<InputManager>
     public float RedThreshold { get; private set; } = 30f;
     public float PlaybackMultiplier { get; private set; } = 1f;
     public float CameraSteerSmoothTime { get; private set; } = 0.12f;
+    public float BrakeStopDuration { get; private set; } = 1.0f;
+    public int TargetFps { get; private set; } = 60;
+    public bool DebugMode { get; private set; } = false;
 
     [Header("Config — Vibration Relay")]
     public bool VibrationActive { get; private set; } = true;
@@ -67,6 +70,8 @@ public class InputManager : Singleton<InputManager>
     public event Action<bool?> OnSelectionChanged;
 
     public bool IsConnected => _serial?.IsOpen ?? false;
+    /// <summary>조향 센서(ICM-20948) 인식 여부. 미인식 시 펌웨어가 str=0 고정 송신.</summary>
+    public bool SteerSensorOk { get; private set; } = true;
 
     readonly object _lock = new();
     readonly Queue<string> _specialQueue = new();
@@ -80,6 +85,15 @@ public class InputManager : Singleton<InputManager>
     bool _dmpReady = false;
     float _dmpReadyFallbackTime = -1f;
     const float DMP_STABLE_TIMEOUT = 3f;
+    float _lastDataTime = -1f;
+    bool _dataStale = false;
+    const float DATA_TIMEOUT = 0.5f; // 펌웨어 50Hz 송신 기준 — 이 시간 무수신 시 입력값 0 처리
+    float _lastConnectAttempt = -999f; // 마지막 연결 시도 시각
+    int _connectFailCount = 0;         // 연속 연결 실패 횟수 (재시도마다 로그 표기)
+    string _lastConnectError = "";     // 마지막 연결 실패 예외 메시지
+    const float RECONNECT_INTERVAL = 5f; // 미연결 시 재연결 시도 주기 (초)
+    bool _wasBraking = false;
+    float _brakeDecelRate = 0f; // 브레이크 시작 시점 속도 / BrakeStopDuration (km/h per sec)
     float _yawOffset = 0f;
     bool _yawCalibrated = false;
     int _expectedStationID = 1;
@@ -88,17 +102,23 @@ public class InputManager : Singleton<InputManager>
     bool? _pendingAnswer;
     InputSystem_Actions _actions;
 
-#if UNITY_EDITOR
+#if DEBUG_GUI
     float _dbgRawStr;
+    GUIStyle _debugStyle;
 #endif
 
     protected override void Awake()
     {
         base.Awake();
+        if (Instance != this) return; // 중복 인스턴스 — Destroy 예정이므로 연결 시도 등 부수효과 생략
+#if DEBUG_GUI
+        useGUILayout = false; // GUILayout 미사용 — Layout 이벤트 패스 생략으로 OnGUI 상주 비용 절감
+#endif
         LoadConfig();
+        ApplyFrameRate();
         _actions = new InputSystem_Actions();
         _actions.BikeGame.Enable();
-        if (autoConnect) Connect();
+        if (autoConnect) AttemptConnect();
     }
 
     void LoadConfig()
@@ -134,6 +154,9 @@ public class InputManager : Singleton<InputManager>
                     case "RedThreshold": if (float.TryParse(val, out float rt)) RedThreshold = rt; break;
                     case "PlaybackMultiplier": if (float.TryParse(val, out float pm)) PlaybackMultiplier = Mathf.Max(0.01f, pm); break;
                     case "CameraSteerSmoothTime": if (float.TryParse(val, out float ct)) CameraSteerSmoothTime = Mathf.Max(0f, ct); break;
+                    case "BrakeStopDuration": if (float.TryParse(val, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float bsd)) BrakeStopDuration = Mathf.Clamp(bsd, 0.05f, 10f); break;
+                    case "fps": if (int.TryParse(val, out int fps)) TargetFps = fps <= 0 ? 0 : Mathf.Clamp(fps, 15, 240); break;
+                    case "debugMode": DebugMode = int.TryParse(val, out int dm) && dm != 0; break;
                     case "StationID": int.TryParse(val, out _expectedStationID); break;
                     case "VibeMultiplier": if (float.TryParse(val, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float vm)) _vibeMultiplier = Mathf.Clamp(vm, 0.5f, 3.0f); break;
                     case "isActive": VibrationActive = !int.TryParse(val, out int va) || va != 0; break;
@@ -152,8 +175,36 @@ public class InputManager : Singleton<InputManager>
         }
     }
 
+    void ApplyFrameRate()
+    {
+        // VSync가 켜져 있으면 targetFrameRate가 무시되므로 반드시 비활성화
+        QualitySettings.vSyncCount = 0;
+        Application.targetFrameRate = TargetFps > 0 ? TargetFps : -1;
+        Debug.Log($"[Input] 목표 프레임레이트: {(TargetFps > 0 ? $"{TargetFps}fps" : "제한 없음")}");
+    }
+
     // ── ESP32-S3 연결 ────────────────────────────────────────────────
-    public void Connect()
+
+    // 미연결 시 RECONNECT_INTERVAL 주기로 재시도. 재시도마다 결과를 로그로 남긴다.
+    void AttemptConnect()
+    {
+        _lastConnectAttempt = Time.time;
+        if (Connect())
+        {
+            Debug.Log(_connectFailCount > 0
+                ? $"[Input] ESP32 {portName} 연결됨 (VibeScale={_vibeMultiplier:F1}x, {_connectFailCount}회 실패 후 복구)"
+                : $"[Input] ESP32 {portName} 연결됨 (VibeScale={_vibeMultiplier:F1}x)");
+            _connectFailCount = 0;
+        }
+        else
+        {
+            _connectFailCount++;
+            Debug.LogWarning($"[Input] ESP32 연결 실패 ({_connectFailCount}회): {_lastConnectError} — {RECONNECT_INTERVAL:F0}초 후 재시도 (포트 {portName} 확인)");
+        }
+    }
+
+    // 포트 열고 수신 스레드 시작까지 성공하면 true. 로그는 호출부(AttemptConnect)에서 처리.
+    public bool Connect()
     {
         Disconnect();
         try
@@ -171,14 +222,20 @@ public class InputManager : Singleton<InputManager>
             _dmpReadyFallbackTime = Time.time + DMP_STABLE_TIMEOUT;
             _yawCalibrated = false;
             _yawOffset = 0f;
+            SteerSensorOk = true;
+            _lastDataTime = -1f;
+            _dataStale = false;
             _thread = new Thread(ReadLoop) { IsBackground = true, Name = "BikeSerial" };
             _thread.Start();
             SendRaw($"P{Mathf.RoundToInt(_vibeMultiplier * 100)}");
-            Debug.Log($"[Input] ESP32 {portName} 연결됨 (VibeScale={_vibeMultiplier:F1}x)");
+            return true;
         }
         catch (Exception e)
         {
-            Debug.LogWarning($"[Input] ESP32 연결 실패: {e.Message}");
+            _lastConnectError = e.Message;
+            try { _serial?.Dispose(); } catch { }
+            _serial = null;
+            return false;
         }
     }
 
@@ -223,6 +280,10 @@ public class InputManager : Singleton<InputManager>
     {
         BtnODown = BtnXDown = BrkDown = false;
 
+        // 미연결 시 주기적으로 자동 재연결 시도 (ESP32를 나중에 꽂거나 재부팅해도 복구)
+        if (autoConnect && !IsConnected && Time.time - _lastConnectAttempt >= RECONNECT_INTERVAL)
+            AttemptConnect();
+
         BikeInputData snap = default;
         bool hasSnap = false;
         lock (_lock)
@@ -244,14 +305,49 @@ public class InputManager : Singleton<InputManager>
         }
 
         if (hasSnap && _dmpReady)
+        {
             ApplyData(snap);
+            _lastDataTime = Time.time;
+            if (_dataStale)
+            {
+                _dataStale = false;
+                Debug.Log("[Input] ESP32 데이터 수신 재개");
+            }
+        }
         else if (!IsConnected)
+        {
             CadenceRPM = SteeringAngle = 0f;
+        }
+        else if (_lastDataTime > 0f && !_dataStale && Time.time - _lastDataTime > DATA_TIMEOUT)
+        {
+            // 연결은 살아있지만 데이터가 끊김 — 이전 입력값이 남지 않게 0으로 리셋
+            _dataStale = true;
+            CadenceRPM = SteeringAngle = 0f;
+            Brake = BtnOHeld = BtnXHeld = false;
+            _prevO = _prevX = _prevBrk = false;
+            Debug.LogWarning($"[Input] ESP32 데이터 {DATA_TIMEOUT:F1}s 무수신 — 입력값 0으로 리셋");
+        }
 
         if (keyboardEnabled) UpdateKeyboard();
 
         // 케이던스(RPM) × 1회전당 이동거리(m) 기준으로 매 프레임 속도 재계산 (RPM × m/rev × 60/1000)
-        SpeedKph = CadenceRPM * MetersPerRevolution * 0.06f;
+        float rawSpeed = CadenceRPM * MetersPerRevolution * 0.06f;
+
+        if (BrakeAny)
+        {
+            if (!_wasBraking)
+            {
+                _wasBraking = true;
+                _brakeDecelRate = Mathf.Max(SpeedKph, rawSpeed) / BrakeStopDuration;
+            }
+            // 브레이크 유지 중에는 페달 입력을 무시하고 BrakeStopDuration 안에 0까지 선형 감속
+            SpeedKph = Mathf.MoveTowards(SpeedKph, 0f, _brakeDecelRate * Time.deltaTime);
+        }
+        else
+        {
+            _wasBraking = false;
+            SpeedKph = rawSpeed;
+        }
     }
 
     void UpdateKeyboard()
@@ -302,9 +398,21 @@ public class InputManager : Singleton<InputManager>
             if (line.Contains("DMP Stabilized"))
             {
                 _dmpReady = true;
+                SteerSensorOk = true;
                 SendRaw($"P{Mathf.RoundToInt(_vibeMultiplier * 100)}");
                 SendCalibrate();
                 SendVibrate(VibeState.Ready);
+            }
+            else if (line.Contains("Steer sensor NOT found"))
+            {
+                // 펌웨어가 조향 센서 인식 실패 — str=0 고정 송신 모드. 대기 없이 바로 활성화
+                SteerSensorOk = false;
+                _dmpReady = true;
+                _yawCalibrated = true;
+                _yawOffset = 0f;
+                SendRaw($"P{Mathf.RoundToInt(_vibeMultiplier * 100)}");
+                SendVibrate(VibeState.Ready);
+                Debug.LogWarning("[Input] 조향 센서 미인식 — 조향각 0 고정으로 진행 (페달/브레이크/버튼은 정상)");
             }
             OnErrorMessage?.Invoke(line);
         }
@@ -313,7 +421,7 @@ public class InputManager : Singleton<InputManager>
     void ApplyData(BikeInputData d)
     {
         CadenceRPM = Mathf.Max(0f, d.rpm);
-#if UNITY_EDITOR
+#if DEBUG_GUI
         _dbgRawStr = d.str;
 #endif
 
@@ -414,14 +522,19 @@ public class InputManager : Singleton<InputManager>
     public void SendCalibrate() => SendRaw("C");
     public void SendMagCal() => SendRaw("M");
 
-#if UNITY_EDITOR
+#if DEBUG_GUI
     void OnGUI()
     {
-        var style = new GUIStyle(GUI.skin.box) { fontSize = 13, alignment = TextAnchor.UpperLeft };
-        style.normal.textColor = Color.white;
+        if (!DebugMode) return;
+        if (_debugStyle == null)
+        {
+            _debugStyle = new GUIStyle(GUI.skin.box) { fontSize = 34, alignment = TextAnchor.UpperLeft };
+            _debugStyle.normal.textColor = Color.white;
+        }
         string text =
             $"[InputManager Debug]\n" +
-            $"Connected : {IsConnected}\n" +
+            $"Connected : {IsConnected}{(_dataStale ? " (수신끊김)" : "")}\n" +
+            $"SteerSens : {(SteerSensorOk ? "OK" : "미인식(0고정)")}\n" +
             $"raw str   : {_dbgRawStr:F2}°\n" +
             $"yawOffset : {_yawOffset:F2}°\n" +
             $"Steering  : {SteeringAngle:F2}\n" +
@@ -429,7 +542,7 @@ public class InputManager : Singleton<InputManager>
             $"Cadence   : {CadenceRPM:F0} RPM\n" +
             $"Brake     : {Brake}  O:{BtnOHeld}  X:{BtnXHeld}\n" +
             $"YawCalib  : {(_yawCalibrated ? "완료" : "대기중")}";
-        GUI.Box(new Rect(10, 10, 260, 160), text, style);
+        GUI.Box(new Rect(10, 160, 560, 420), text, _debugStyle);
     }
 #endif
 }

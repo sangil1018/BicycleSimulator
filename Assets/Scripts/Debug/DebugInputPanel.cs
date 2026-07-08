@@ -46,20 +46,35 @@ public class DebugInputPanel : MonoBehaviour
     }
 
 #if UNITY_EDITOR
+    const float panelW  = 600f;
+    const float pad     = 10f;
+    const float statusH = 60f;
+    const float echoH   = 55f;   // 송신/수신 에코 표시
+    const float connectH = 70f;
+    const float titleH  = 40f;
+    const float btnGap  = 8f;
+    const int   btnCount = 7;
+    const float bh      = 110f;
+
+    GUIStyle _boxStyle, _statusStyle, _echoStyle, _connectStyle, _btnStyle;
+
+    void EnsureStyles()
+    {
+        if (_boxStyle != null) return;
+        _boxStyle     = new GUIStyle(GUI.skin.box)    { fontSize = (int)(titleH  * 0.6f) };
+        _statusStyle  = new GUIStyle(GUI.skin.label)  { fontSize = (int)(statusH * 0.45f), alignment = TextAnchor.MiddleCenter };
+        _echoStyle    = new GUIStyle(GUI.skin.label)  { fontSize = (int)(echoH   * 0.35f), alignment = TextAnchor.MiddleCenter };
+        _connectStyle = new GUIStyle(GUI.skin.button) { fontSize = (int)(connectH * 0.4f) };
+        _btnStyle     = new GUIStyle(GUI.skin.button) { fontSize = (int)(bh      * 0.45f) };
+    }
+
     void OnGUI()
     {
+        EnsureStyles();
+
         var relay = VibrationRelay.Instance;
         bool connected = relay != null && relay.IsConnected;
 
-        const float panelW  = 600f;
-        const float pad     = 10f;
-        const float statusH = 60f;
-        const float echoH   = 55f;   // 송신/수신 에코 표시
-        const float connectH = 70f;
-        const float titleH  = 40f;
-        const float btnGap  = 8f;
-        const int   btnCount = 7;
-        const float bh      = 110f;
         float panelH = titleH + statusH + echoH + connectH + pad + (bh + btnGap) * btnCount;
 
         float px = Screen.width - panelW;
@@ -67,11 +82,11 @@ public class DebugInputPanel : MonoBehaviour
         float bx = px + pad;
         float bw = panelW - pad * 2;
 
-        var boxStyle    = new GUIStyle(GUI.skin.box)    { fontSize = (int)(titleH  * 0.6f) };
-        var statusStyle = new GUIStyle(GUI.skin.label)  { fontSize = (int)(statusH * 0.45f), alignment = TextAnchor.MiddleCenter };
-        var echoStyle   = new GUIStyle(GUI.skin.label)  { fontSize = (int)(echoH   * 0.35f), alignment = TextAnchor.MiddleCenter };
-        var connectStyle = new GUIStyle(GUI.skin.button) { fontSize = (int)(connectH * 0.4f) };
-        var btnStyle    = new GUIStyle(GUI.skin.button) { fontSize = (int)(bh      * 0.45f) };
+        var boxStyle = _boxStyle;
+        var statusStyle = _statusStyle;
+        var echoStyle = _echoStyle;
+        var connectStyle = _connectStyle;
+        var btnStyle = _btnStyle;
 
         GUI.Box(new Rect(px, py, panelW, panelH), "진동 테스트", boxStyle);
         float y = py + titleH;

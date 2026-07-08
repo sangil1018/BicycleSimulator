@@ -25,12 +25,14 @@ namespace TrafficSystem
         [SerializeField] PedestrianState pedestrianState = PedestrianState.Red;
 
         bool pedestrianOverridden;
+        bool vehicleOverridden;
         Coroutine pedestrianCoroutine;
 
         public SignalState     State                => state;
         public bool            CanPass              => state == SignalState.Green;
         public PedestrianState PedestrianSignal     => pedestrianState;
         public bool            PedestrianOverridden => pedestrianOverridden;
+        public bool            VehicleOverridden    => vehicleOverridden;
 
         static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
         MaterialPropertyBlock _mpb;
@@ -62,12 +64,23 @@ namespace TrafficSystem
             return (c.r + c.g + c.b) < 0.01f ? Color.white : c;
         }
 
-        // TrafficJunction에서만 호출
+        // TrafficJunction 사이클용 — 오버라이드 중이면 무시
         public void SetState(SignalState newState)
         {
+            if (vehicleOverridden) return;
             state = newState;
             ApplyVehicleVisual();
         }
+
+        // 콘텐츠 제어용 — ClearVehicleOverride() 전까지 Junction이 덮어쓰지 않음
+        public void OverrideVehicleSignal(SignalState newState)
+        {
+            vehicleOverridden = true;
+            state = newState;
+            ApplyVehicleVisual();
+        }
+
+        public void ClearVehicleOverride() => vehicleOverridden = false;
 
         void ApplyVehicleVisual()
         {

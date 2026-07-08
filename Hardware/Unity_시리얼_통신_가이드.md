@@ -3,7 +3,8 @@
 **펌웨어**: bicycle_sim_x v5.8 (ESP32-S3, 센서 담당)  
 **대상**: 빛고을국민안전체험관 / FLUXION  
 **작성일**: 2026.06  
-**갱신**: 2026.07 — 진동 제어를 ESP32에서 분리, 별도 USB 릴레이로 이관 (펌웨어는 v5.8 그대로 유지, Unity가 진동 명령을 더 이상 ESP32로 보내지 않음)
+**갱신**: 2026.07 — 진동 제어를 ESP32에서 분리, 별도 USB 릴레이로 이관 (펌웨어는 v5.8 그대로 유지, Unity가 진동 명령을 더 이상 ESP32로 보내지 않음)  
+**갱신**: 2026.07 — 조향 센서(ICM-20948) 페일세이프 추가: 부팅 시 인식 실패해도 `str=0` 고정으로 정상 송신 (§2-4, §4-1 참고)
 
 ---
 
@@ -55,7 +56,7 @@ Unity는 **COM 포트 2개**를 사용합니다 — ① ESP32(센서), ② USB �
 |------|------|------|------|
 | `id` | int | 1 | 스테이션 ID (`STATION_ID` 상수값) |
 | `rpm` | float | 0.0 ~ 300.0 | 페달 케이던스 (분당 회전수) |
-| `spd` | float | 0.0 ~ 75.0 | 환산 속도 (km/h) · `rpm × 0.25` |
+| `spd` | float | 0.0 ~ 75.0 | 환산 속도 (km/h) · `rpm × CADENCE_TO_KPH` (펌웨어 참고용 — **Unity는 이 필드를 사용하지 않음**. Unity는 `rpm`과 `config.ini`의 `MetersPerRevolution`으로 자체 계산, CONTENT_GUIDE.md §2.1 참고) |
 | `str` | float | -45.0 ~ 45.0 | 핸들 조향각 (도) · DMP Yaw 기반, 왼쪽 음수 / 오른쪽 양수 |
 | `brk` | int | 0 / 1 | 브레이크 (1 = 당김) |
 | `o` | int | 0 / 1 | O 버튼 (1 = 눌림) |
@@ -67,12 +68,24 @@ Unity는 **COM 포트 2개**를 사용합니다 — ① ESP32(센서), ② USB �
 |--------|-----------|
 | `{"debug":"DMP v5.8 Ready. Stabilizing for 3s..."}` | 부팅 완료, DMP 안정화 시작 |
 | `{"debug":"DMP Stabilized"}` | DMP 안정화 완료 (부팅 후 약 3초) |
-| `{"debug":"Connect failed"}` | IMU 연결 실패 |
+| `{"debug":"Connect failed"}` | IMU 연결 실패 (재시도 중 반복 출력될 수 있음) |
 | `{"debug":"DMP Init failed. Check ICM_20948_USE_DMP in library."}` | DMP 초기화 실패 |
 | `{"debug":"Sensor enable failed"}` | 센서 활성화 실패 |
 | `{"debug":"ODR set failed"}` | ODR 설정 실패 |
+| `{"debug":"Steer sensor NOT found. str fixed to 0"}` | 조향 센서 인식 최종 실패 — str=0 고정 모드 진입 (§2-4) |
 | `{"calibrated":true,"center":0.0}` | 조향 기준점 캘리브레이션 완료 |
 | `{"magcal":"not_required_in_dmp"}` | M 명령 수신 응답 |
+
+### 2-4. 조향 센서 페일세이프 (str=0 고정 모드)
+
+부팅 시 ICM-20948 초기화를 **5회 재시도**하고, 모두 실패하면 무한 대기 대신 부팅을 계속합니다.
+
+- `{"debug":"Steer sensor NOT found. str fixed to 0"}` 출력 후 RGB LED **자홍색** 점등
+- 이후 50Hz 데이터 송신은 정상 진행되며 `str`만 항상 `0.0` (rpm/spd/brk/o/x는 정상)
+- Unity(InputManager)는 이 메시지를 받으면 3초 안정화 대기 없이 즉시 수신을 시작하고, `SteerSensorOk=false`로 표시 (디버그 GUI에서 "미인식(0고정)" 확인 가능)
+- `Hardware/serial_monitor.py`도 이 상태를 감지해 상태 줄에 빨간색 `조향:센서없음(0)`으로 표시
+
+> 참고: Unity는 연결 상태에서 0.5초 이상 데이터가 끊기면 모든 입력값을 0으로 리셋합니다 (케이블 반탈거 등으로 이전 입력이 남는 것 방지). 수신이 재개되면 자동 복구됩니다.
 
 ---
 
@@ -195,6 +208,11 @@ Unity는 ESP32 포트가 아니라 **별도의 USB 릴레이 포트**(`config.in
 {"debug":"DMP Init failed. ..."}     ← 라이브러리 ICM_20948_USE_DMP 설정 확인
 {"debug":"Sensor enable failed"}     ← 센서 활성화 실패
 {"debug":"ODR set failed"}           ← ODR 설정 실패
+```
+
+위 오류는 **5회까지 재시도**되며, 최종 실패 시 아래 출력과 함께 str=0 고정 모드로 계속 부팅합니다 (§2-4):
+```
+{"debug":"Steer sensor NOT found. str fixed to 0"}   ← LED 자홍색, 조향 없이 운영 가능
 ```
 
 #### STEP 2 — 조향 기준점 캘리브레이션
@@ -367,9 +385,10 @@ bike.SetRGBState(1);    // S1: 주행 복귀
 | 증상 | 원인 | 조치 |
 |------|------|------|
 | 시리얼 포트 열리지 않음 | 드라이버 미설치 / 포트 번호 오류 | 장치 관리자 확인, CH340/CP2102 드라이버 설치 |
-| `"Connect failed"` 반복 출력 | IMU 배선 불량 | SDA(GPIO17)·SCL(GPIO18)·VCC·GND 배선 점검 |
+| `"Connect failed"` 반복 출력 | IMU 배선 불량 | SDA(GPIO17)·SCL(GPIO18)·VCC·GND 배선 점검 (5회 실패 시 str=0 고정 모드로 전환됨) |
 | `"DMP Init failed..."` | 라이브러리 설정 오류 | `ICM_20948_C.h`에서 `#define ICM_20948_USE_DMP` 주석 해제 확인 |
-| `str` 값이 항상 0 | 캘리브레이션 미실시 또는 DMP 미안정화 | "DMP Stabilized" 수신 후 `C\n` 전송 |
+| `str` 값이 항상 0 + LED 자홍색 | 조향 센서 미인식 (str=0 고정 모드) | IMU 배선/전원 점검 후 ESP32 재부팅. 게임은 조향 없이 계속 운영 가능 (§2-4) |
+| `str` 값이 항상 0 (LED 정상) | 캘리브레이션 미실시 또는 DMP 미안정화 | "DMP Stabilized" 수신 후 `C\n` 전송 |
 | `str` 값이 드리프트 | DMP 안정화 전 캘리브레이션 | 3초 대기 후 재캘리브레이션 |
 | `rpm` 값이 간헐적으로 급등 | 노이즈 | `spd` 사용 시 `Mathf.Clamp` 추가 권장 |
 | JSON 파싱 오류 | 부팅 직후 깨진 첫 줄 | `id` 필드 확인 후 사용 (`if (data.id != 1) return`) |
@@ -385,7 +404,9 @@ bike.SetRGBState(1);    // S1: 주행 복귀
 ```
 ESP32 부팅
   │
-  ├─ ICM-20948 I2C 연결 확인
+  ├─ ICM-20948 I2C 연결 확인 ─ 실패 시 5회 재시도
+  │   └─ 최종 실패 → "Steer sensor NOT found. str fixed to 0" + 자홍 LED
+  │                  (str=0 고정, 아래 loop()는 동일하게 진행)
   ├─ DMP 초기화 (Quat6 활성화, ODR 설정)
   ├─ 파란 LED 점등 + "DMP v5.8 Ready. Stabilizing for 3s..." 출력
   ├─ DMP 안정화 대기 (3초)

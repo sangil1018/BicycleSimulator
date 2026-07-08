@@ -55,7 +55,7 @@ MonoBehaviour:
   - {fileID: 6308293592908873224, guid: 0138ea5a3997a6d4c8a7952d2983fc5d, type: 3}
   - {fileID: 4931565789412187612, guid: 73c7dbeddb9cbea40b0d140b9c2d5a80, type: 3}
   adultWalkSpeed: 1.4
-  childWalkSpeed: 0.85
+  childWalkSpeed: 1
   groups:
   - label: 
     waypoints: []
@@ -64,5 +64,6 @@ MonoBehaviour:
     childrenForward: 1
     childrenReverse: 1
     lateralOffset: 0.6
+    heightOffset: 0.1
     blendRadius: 3
   spawnPerFrame: 5
