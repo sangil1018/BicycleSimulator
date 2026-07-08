@@ -10,7 +10,7 @@
 1. **InputManager (필수)**: 하드웨어/키보드 입력 처리 및 로고 표시 제어.
 2. **GameManager (필수)**: 전체 게임 상태 및 씬 전환 데이터 관리.
 3. **VibrationRelay (필수)**: 버튼 선택/클릭 시 진동 피드백 (`HomeGameManager.PlayClickSound()`에서 `InputManager.SendVibrate(VibeState.Click)` 호출). ESP32와 별도의 USB 릴레이 포트를 사용하며, 없으면 진동 없이 사운드만 재생됩니다.
-4. **영속성**: 위 매니저들은 `Singleton`으로 설계되어 씬 전환 후에도 유지됩니다.
+4. **수명**: `InputManager`, `VibrationRelay`는 `Singleton`(`DontDestroyOnLoad`)으로 씬 전환 후에도 유지됩니다. `GameManager`는 `SceneSingleton`이라 씬마다 새 인스턴스가 존재하므로 Home·Level 각 씬에 배치되어야 합니다.
 
 ---
 

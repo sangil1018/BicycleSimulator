@@ -5827,6 +5827,102 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 082a60693ebf03c4293a4a841e637233, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.TrafficSignal
+--- !u!1 &486713457
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 486713460}
+  - component: {fileID: 486713459}
+  - component: {fileID: 486713458}
+  m_Layer: 0
+  m_Name: cross0
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &486713458
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 486713457}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e52de21a22b6dd44c9cc19f810c65059, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Timeline::UnityEngine.Timeline.SignalReceiver
+  m_Events:
+    m_Signals:
+    - {fileID: 11400000, guid: 878490993330a1342bea01bd671031e6, type: 2}
+    - {fileID: 11400000, guid: b55e65d0e23434946b6d8c0c178ce1d5, type: 2}
+    m_Events:
+    - m_PersistentCalls:
+        m_Calls:
+        - m_Target: {fileID: 486713459}
+          m_TargetAssemblyTypeName: TrafficSystem.PedestrianSignalController, Assembly-CSharp
+          m_MethodName: SetGreen
+          m_Mode: 1
+          m_Arguments:
+            m_ObjectArgument: {fileID: 0}
+            m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+            m_IntArgument: 0
+            m_FloatArgument: 0
+            m_StringArgument: 
+            m_BoolArgument: 0
+          m_CallState: 2
+    - m_PersistentCalls:
+        m_Calls:
+        - m_Target: {fileID: 486713459}
+          m_TargetAssemblyTypeName: TrafficSystem.PedestrianSignalController, Assembly-CSharp
+          m_MethodName: ClearOverride
+          m_Mode: 1
+          m_Arguments:
+            m_ObjectArgument: {fileID: 0}
+            m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+            m_IntArgument: 0
+            m_FloatArgument: 0
+            m_StringArgument: 
+            m_BoolArgument: 0
+          m_CallState: 2
+--- !u!114 &486713459
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 486713457}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b1b13a6847442e4aa67e138221a250f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TrafficSystem.PedestrianSignalController
+  junction: {fileID: 1992739199}
+  lights:
+  - {fileID: 1131154299}
+  - {fileID: 2104565672}
+  linkVehicleSignal: 1
+  resumeFromCurrentState: 1
+--- !u!4 &486713460
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 486713457}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -5.9, y: 0, z: 24.7}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &500974221
 GameObject:
   m_ObjectHideFlags: 0
@@ -23447,6 +23543,8 @@ PlayableDirector:
     value: {fileID: 405028520}
   - key: {fileID: 2940874294883000478, guid: 67d7697fc695fa241a8bf9dad1934ea2, type: 2}
     value: {fileID: 1873067382}
+  - key: {fileID: -6094931961586441046, guid: 67d7697fc695fa241a8bf9dad1934ea2, type: 2}
+    value: {fileID: 486713458}
   m_ExposedReferences:
     m_References: []
 --- !u!114 &1898412544
@@ -371957,6 +372055,7 @@ SceneRoots:
   - {fileID: 7723942484057817987}
   - {fileID: 1140583605}
   - {fileID: 1740655532}
+  - {fileID: 486713460}
   - {fileID: 1873067381}
   - {fileID: 971307187}
   - {fileID: 593658502}

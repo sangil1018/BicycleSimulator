@@ -43,7 +43,7 @@ public class InputManager : Singleton<InputManager>
     public bool VibrationActive { get; private set; } = true;
     public string RelayPortName { get; private set; } = "COM3";
     public int RelayBaudRate { get; private set; } = 9600;
-    public float VibeShortDuration { get; private set; } = 0.15f;
+    public float VibeShortDuration { get; private set; } = 0.2f;
     public float VibeMediumDuration { get; private set; } = 0.5f;
     public float VibeLongDuration { get; private set; } = 1.5f;
 

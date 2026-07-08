@@ -4,17 +4,22 @@
 >
 > Timeline은 Unity가 자동 재생하지 않습니다.
 > 자전거 페달 속도에 비례해 `TimelineGameController`가 매 프레임 재생 속도를 조절합니다.
-> 이벤트는 **SignalAsset 없이** 글로벌 Markers 트랙에 `GameMarker`를 직접 배치합니다.
+> 이벤트는 세 종류의 트랙으로 배치합니다.
+> - **게임 이벤트** → Unity 내장 **Signal Track** + Signal Emitter (내장 Signal Receiver가 UnityEvent로 수신)
+> - **방향 안내** → 커스텀 **Direction Track** + `DirectionMarker`
+> - **퀴즈** → 커스텀 **Quiz Track** + `QuizMarker`
+>
+> 세 트랙 모두 최종적으로 `GameSignalReceiver`로 전달됩니다.
 
 ---
 
 ## 전체 작업 순서
 
 ```
-① GameObject 구성        ← PlayableDirector + 두 컴포넌트 추가
+① GameObject 구성        ← PlayableDirector + 두 컴포넌트 + 내장 Signal Receiver
 ② Timeline Asset 생성    ← .playable 파일 생성 및 연결
-③ 트랙 구성              ← Animation Track 추가
-④ GameMarker 배치        ← 글로벌 Markers 트랙에 마커 핀 꽂기
+③ 트랙 구성              ← Animation / Signal / Direction / Quiz Track
+④ 이벤트 배치            ← Signal Emitter · DirectionMarker · QuizMarker
 ⑤ Inspector 값 설정      ← 속도·배속 파라미터 입력
 ⑥ 바인딩 최종 확인       ← 연결 누락 없는지 체크
 ⑦ Play 테스트            ← 디버그 HUD로 확인
@@ -31,16 +36,17 @@ Hierarchy → Create Empty
 이름: "TimelineDirector"
 ```
 
-### 1-2. 컴포넌트 세 개 추가
+### 1-2. 컴포넌트 추가
 
 ```
 Add Component → Playable Director
 Add Component → Timeline Game Controller
 Add Component → Game Signal Receiver
+Add Component → Signal Receiver        ← Unity 내장. 게임 이벤트(Signal Track) 수신용
 ```
 
-> 세 컴포넌트가 **반드시 같은 GameObject**에 있어야 합니다.
-> INotificationReceiver는 PlayableDirector와 동일한 오브젝트에서만 수신됩니다.
+> 위 컴포넌트가 **반드시 같은 GameObject**에 있어야 합니다.
+> `INotificationReceiver`(GameSignalReceiver)와 내장 `Signal Receiver`는 PlayableDirector와 동일한 오브젝트에서만 신호를 받습니다.
 
 ### 1-3. PlayableDirector 기본값 설정
 
@@ -50,7 +56,8 @@ Inspector → Playable Director
   Play On Awake : ❌ Off      ← 필수. 스크립트가 직접 제어
 ```
 
-> ⚠️ `Manual` 또는 `DSP Clock` 모드에서는 Marker 신호가 발화되지 않습니다.
+> ⚠️ `Manual` 또는 `DSP Clock` 모드에서는 마커/시그널이 발화되지 않습니다.
+> (`TimelineGameController.Awake()`가 자동으로 Game Time · Play On Awake Off로 설정하지만, 에디터에서도 맞춰두는 것을 권장합니다.)
 
 ### 1-4. Game Signal Receiver 설정
 
@@ -58,6 +65,11 @@ Inspector → Playable Director
 Inspector → Game Signal Receiver
   Speed UI Controller : 씬의 SpeedUIController 오브젝트 드래그
 ```
+
+`GameSignalReceiver`의 역할:
+- `QuizMarker`·`DirectionMarker`는 `OnNotify()`에서 직접 수신.
+- 게임 이벤트는 내장 `Signal Receiver`의 UnityEvent가 아래 public 메서드를 호출:
+  `TriggerBrakeEvent` · `TriggerWarningStop` · `TriggerBicycleStop` · `TriggerAutoPlayStart` · `TriggerAutoPlayEnd`
 
 ---
 
@@ -108,73 +120,89 @@ Animation Track 위 우클릭 → Add Animation Clip
 > **클립 길이 기준**: 기준 속도(기본 15 km/h)에서 1.0× 재생됩니다.
 > 실제 구간 거리와 체감 속도에 맞춰 클립 길이를 조정하세요.
 
+### 3-2. 이벤트 트랙 추가
+
+```
+Timeline 창 → + 버튼 →
+  Signal Track       ← 게임 이벤트 (브레이크/경고/자동진행 등)
+  Direction Track    ← 방향 안내 화살표
+  Quiz Track         ← OX 퀴즈
+```
+
+각 트랙의 좌측 바인딩 영역에 대상 컴포넌트를 드래그합니다.
+
+| 트랙 | 바인딩 대상 |
+|------|-------------|
+| Signal Track | 내장 `Signal Receiver` (TimelineDirector) |
+| Direction Track | `GameSignalReceiver` (TimelineDirector) |
+| Quiz Track | `GameSignalReceiver` (TimelineDirector) |
+
 ---
 
-## ④ GameMarker 배치
+## ④ 이벤트 배치
 
-SignalAsset과 Signal Track이 **불필요**합니다.
-Timeline 상단의 글로벌 **Markers 트랙**에 `GameMarker`를 직접 배치합니다.
-
-### 4-1. Markers 트랙 확인
+### 4-1. 게임 이벤트 (Signal Track)
 
 ```
-Timeline 창 상단에 "Markers" 행이 보여야 합니다.
-보이지 않으면 → Timeline 창 우상단 ⋮ → Show Markers
+Signal Track 위 원하는 시간에 우클릭 → Add Signal Emitter
+생성된 Emitter 클릭 → Inspector → Signal Asset 지정
+  (Assets/Signals/ 의 .signal 에셋 선택)
 ```
 
-### 4-2. GameMarker 추가
+내장 `Signal Receiver`(TimelineDirector) Inspector에서 각 Signal Asset을
+`GameSignalReceiver`의 메서드에 연결합니다.
+
+| GameSignalReceiver 메서드 | 동작 | GameState |
+|---------------------------|------|-----------|
+| `TriggerBrakeEvent` | 돌발 브레이크 — Freeze → 브레이크 판정(기본 5초) → 성공 +10점 → Resume | `EventBrake` |
+| `TriggerWarningStop` | 경고 정지 — Freeze → 대기(기본 3초) → Resume | `EventWarning` |
+| `TriggerBicycleStop` | 정지 유지 — Freeze (다른 이벤트가 재개할 때까지) | `BicycleStop` |
+| `TriggerAutoPlayStart` | 자동진행 시작 — 입력 무시, 고정 배속(횡단보도 걷기) | `CrosswalkWalk` |
+| `TriggerAutoPlayEnd` | 자동진행 종료 — 속도 입력 연동 복귀 | `NormalRiding` |
+
+### 4-2. 방향 안내 (Direction Track)
 
 ```
-Markers 행에서 원하는 시간 위치에 우클릭
-→ Add Game Marker
-→ 생성된 마커 클릭 → Inspector에서 설정
+Direction Track 위 원하는 시간에 우클릭 → Add DirectionMarker
+생성된 마커 클릭 → Inspector에서 설정
 ```
-
-### 4-3. Inspector 필드 설명
 
 | 필드 | 설명 |
 |------|------|
-| `Marker Type` | 이벤트 종류 선택 (아래 표 참고) |
-| `Quiz Index` | OXQuiz 타입일 때만 사용 (0~3) |
+| `Direction` | `Normal`(직진) / `Left` / `Right` / `Right45`(우사선) |
 | `Retroactive` | 타임라인 도중 진입 시 이미 지난 마커 재실행 여부 |
 | `Emit Once` | 루프 재생 시 1회만 발화 |
 
-### 4-4. MarkerType 종류
+> 속도 tier에 따라 UI 트리거에 자동 postfix가 붙습니다: `left` → `left_y`(yellow) → `left_r`(red)
 
-| MarkerType | 동작 | 추가 설정 |
-|------------|------|-----------|
-| `BrakeEvent` | 급정거 이벤트 — 타임라인 Freeze, 브레이크 대기 | — |
-| `OXQuiz` | OX 퀴즈 팝업 — 타임라인 Freeze, 12초 후 Resume | `Quiz Index` 설정 |
-| `CrosswalkStart` | 횡단보도 루틴 — AutoPlay 전환, 하차/걷기/탑승 | — |
-| `AutoPlayStart` | 자동진행 시작 — 입력 무시, 고정 배속 진행 | — |
-| `AutoPlayEnd` | 자동진행 종료 — 속도 입력 연동 복귀 | — |
-| `DirectionNormal` | 방향 화살표 → 직진 | — |
-| `DirectionLeft` | 방향 화살표 → 좌회전 | — |
-| `DirectionRight` | 방향 화살표 → 우회전 | — |
-| `DirectionRight45` | 방향 화살표 → 우측 45° | — |
+### 4-3. 퀴즈 (Quiz Track)
 
-### 4-5. 배치 위치 설계 기준
+```
+Quiz Track 위 원하는 시간에 우클릭 → Add QuizMarker
+생성된 마커 클릭 → Inspector에서 Quiz Index 설정
+```
 
-| 구간 | MarkerType | 동작 |
-|------|------------|------|
-| 급정거 직전 | `BrakeEvent` | Freeze → 브레이크 대기(최대 9초) → Resume |
-| 퀴즈 표시 구간 | `OXQuiz` | Freeze → 퀴즈 팝업(12초) → Resume |
-| 횡단보도 진입 직전 | `CrosswalkStart` | 하차/걷기/탑승 루틴 |
-| 입력 없이 진행할 구간 시작 | `AutoPlayStart` | 고정 배속(1.0×) 자동 진행 |
-| 자동진행 구간 끝 | `AutoPlayEnd` | 속도 입력 연동 복귀 |
-| 방향 전환 직전 | `DirectionLeft` 등 | 화살표 UI 변경 |
+| 필드 | 설명 |
+|------|------|
+| `Quiz Index` | 퀴즈 번호 (0~3) |
+| `Retroactive` / `Emit Once` | DirectionMarker와 동일 |
 
-### 4-6. 배치 예시 (60초 코스 기준)
+> 퀴즈 도달 시 타임라인이 Freeze되고 퀴즈 UI가 표시됩니다.
+> **마지막 퀴즈**(`GameManager.FinalQuizIndex`, 기본 3)는 `BlackBoard`의 엔딩 시퀀스가
+> `OnTimelineComplete()`를 호출하여 결과 화면으로 전환합니다.
+
+### 4-4. 배치 예시 (60초 코스 기준)
 
 ```
 T= 0:00  ───── 라이딩 시작 (Play() 호출로 진입)
-T= 0:08  [DirectionRight]    방향 화살표 → 우회전
-T= 0:10  [DirectionNormal]   방향 화살표 → 직진
-T= 0:15  [BrakeEvent]        급정거 이벤트
-T= 0:25  [OXQuiz]  idx=0     퀴즈 0번
-T= 0:40  [CrosswalkStart]    횡단보도
-T= 0:55  [OXQuiz]  idx=1     퀴즈 1번
-T= 1:00  ───── Timeline 끝 → GameResult 자동 전환
+T= 0:08  [Direction] Right     방향 화살표 → 우회전
+T= 0:10  [Direction] Normal    방향 화살표 → 직진
+T= 0:15  [Signal] BrakeEvent   돌발 브레이크
+T= 0:25  [Quiz] idx=0          퀴즈 0번
+T= 0:40  [Signal] AutoPlayStart 횡단보도 자동진행
+T= 0:45  [Signal] AutoPlayEnd  자동진행 종료
+T= 0:55  [Quiz] idx=1          퀴즈 1번
+T= 1:00  ───── Timeline 끝
 ```
 
 ---
@@ -191,24 +219,24 @@ Inspector → Timeline Game Controller
 
   [Speed Mapping]
   Base Speed Kph      : 15    ← 이 속도에서 1.0× 재생
-  Min Speed Kph       : 1     ← 이 속도 미만이면 타임라인 정지
   Max Rate            : 1.5   ← 재생 배속 최대값
   Fixed Auto Speed    : 1.0   ← AutoPlay 구간 고정 배속
 
   [Playback Control]
-  Playback Multiplier : 1.0   ← config.ini 값이 런타임에 덮어씌움
+  Playback Multiplier : 1.0   ← config.ini의 PlaybackMultiplier 값이 런타임에 덮어씌움
 ```
+
+> `Base Speed Kph`와 `Playback Multiplier`는 `Start()`에서 `InputManager`(config.ini) 값으로 덮어씌워집니다.
+> 속도가 1 km/h 미만이면 재생 배속이 사실상 0에 수렴해 타임라인이 멈춥니다.
 
 **속도-배속 대응표 (Base 15 km/h 기준)**
 
 | 자전거 속도 | 재생 배속 |
 |-------------|-----------|
-| 1 km/h 미만 | 0× (정지) |
+| 0 km/h | 0× (정지) |
 | 7.5 km/h | 0.5× |
 | 15 km/h | 1.0× |
-| 22 km/h 이상 | 1.5× (최대) |
-
-> `config.ini`의 `PlaybackMultiplier` 값을 변경하면 전체 배속이 비례 조정됩니다.
+| 22.5 km/h 이상 | 1.5× (최대) |
 
 ### 5-2. GameManager (레벨 씬 루트)
 
@@ -216,10 +244,12 @@ Inspector → Timeline Game Controller
 Inspector → Game Manager
 
   [Timing]
-  Brake Event Sec       : 9    ← 브레이크 대기 제한 시간
+  Delay Start           : 2.5  ← GameReady 후 시작 메뉴 표시까지 대기
+  Brake Event Sec       : 5    ← 브레이크 판정 제한 시간
+  Warning Stop Sec      : 3    ← 경고 정지 유지 시간
   Result Display Sec    : 3    ← 브레이크 결과 표시 시간
-  Crosswalk Sec         : 4    ← 횡단 걷기 시간
-  Quiz Duration Sec     : 12   ← 퀴즈 표시 시간
+  Quiz Duration Sec     : 10   ← 퀴즈 표시 시간
+  Final Quiz Index      : 3    ← 마지막 퀴즈 인덱스 (0-based)
   Final Result Wait Sec : 13   ← 결과 화면 유지 시간
   Total End Wait Sec    : 15   ← 결과 후 홈 씬 전환까지 대기
 ```
@@ -236,20 +266,20 @@ Play 전 아래 항목을 하나씩 확인합니다.
 □ PlayableDirector.Playable = Level1_Timeline (에셋 연결됨)
 □ TimelineGameController.Director 참조가 비어있지 않음
 □ GameSignalReceiver.SpeedUIController 연결됨
-□ Markers 트랙의 각 GameMarker에 MarkerType이 설정됨
-□ OXQuiz 마커에 QuizIndex가 올바르게 설정됨
-□ GameManager가 씬에 1개 존재 (싱글턴)
+□ Signal Track 바인딩 = 내장 Signal Receiver, 각 Emitter에 Signal Asset 지정
+□ 내장 Signal Receiver의 UnityEvent가 GameSignalReceiver.Trigger* 메서드에 연결됨
+□ Direction Track / Quiz Track 바인딩 = GameSignalReceiver
+□ QuizMarker에 Quiz Index가 올바르게 설정됨
+□ GameManager가 씬에 1개 존재
 ```
-
-> ✅ Signal Track, Signal Asset, Signal Emitter는 **사용하지 않습니다.**
 
 ---
 
 ## ⑦ Play 테스트
 
-### 7-1. 화면 좌상단 디버그 HUD (에디터 전용)
+### 7-1. 화면 좌상단 디버그 HUD (DEBUG_GUI 빌드 + debugMode=1)
 
-Play를 누르면 좌상단에 아래 정보가 표시됩니다.
+`debugMode=1`(config.ini)일 때 좌상단에 아래 정보가 표시됩니다.
 
 ```
 [TL] canMove:False  graphValid:True  SpeedKph:0.0  rate:0.00  time:0.00/60.00
@@ -275,25 +305,24 @@ O 버튼 (또는 스페이스 키) 누름
 **2단계 — 이벤트 동작**
 
 ```
-BrakeEvent 마커 도달:
+BrakeEvent 신호 도달:
   → canMove: False (Freeze)
-  → 브레이크 입력 → canMove: True (Resume)
+  → 브레이크 입력 → 판정 후 Resume
 
-OXQuiz 마커 도달:
-  → 퀴즈 팝업 표시
-  → 12초 후 자동 Resume
+Quiz 마커 도달:
+  → 퀴즈 팝업 표시 → 응답/시간 경과 후 진행
 
-CrosswalkStart 마커 도달:
+AutoPlayStart 신호 도달:
   → 자동 진행 모드 전환 (rate = fixedAutoSpeed)
-  → O 버튼 입력 후 속도 연동 복귀
+  → AutoPlayEnd 신호에서 속도 연동 복귀
 ```
 
 **3단계 — 종료 확인**
 
 ```
-Timeline 끝까지 도달 시:
-  → GameResult 상태 전환
-  → 결과 UI 표시 → 홈 씬 전환
+마지막 퀴즈(Final Quiz Index) 응답 →
+  → BlackBoard 엔딩 시퀀스 → OnTimelineComplete()
+  → GameResult 상태 전환 → 결과 UI 표시 → 홈 씬 전환
 ```
 
 ---
@@ -303,10 +332,10 @@ Timeline 끝까지 도달 시:
 | 증상 | 원인 | 해결책 |
 |------|------|--------|
 | Timeline이 전혀 안 움직임 | `canMove=false` 고착 | O버튼 → `StartRiding()` → `Play()` 호출 경로 확인 |
-| Marker가 발화되어도 이벤트 없음 | UpdateMode 오류 | PlayableDirector.UpdateMode = **Game Time** 확인 |
-| 속도 무관하게 일정 속도 진행 | `_autoPlay=true` 고착 | `AutoPlayEnd` 마커 배치 또는 `SetAutoPlay(false)` 확인 |
+| 시그널/마커가 발화 안 됨 | UpdateMode 오류 | PlayableDirector.UpdateMode = **Game Time** 확인 |
+| 게임 이벤트만 발화 안 됨 | Signal Receiver 미연결 | Signal Track 바인딩 + UnityEvent → GameSignalReceiver 연결 확인 |
+| 방향/퀴즈만 발화 안 됨 | 트랙 바인딩 누락 | Direction/Quiz Track 바인딩 = GameSignalReceiver 확인 |
+| 속도 무관하게 일정 속도 진행 | `_autoPlay=true` 고착 | `AutoPlayEnd` 신호 배치 또는 `SetAutoPlay(false)` 확인 |
 | `graphValid:False` | PlayableAsset 미연결 | PlayableDirector.Playable 필드에 .playable 에셋 재연결 |
-| Timeline 끝에서 씬 전환 안 됨 | `OnTimelineComplete()` 미호출 | `director.duration` 값이 실제 클립 끝과 일치하는지 확인 |
-| BrakeEvent 후 타임라인 안 재개 | 코루틴 중단 | `StopAllCoroutines()` 중복 호출 여부 확인 |
 | 방향 화살표가 변경 안 됨 | SpeedUIController 미연결 | GameSignalReceiver.SpeedUIController 드래그 재확인 |
-| 에디터 HUD가 안 보임 | 에디터 전용 빌드 | 빌드에서는 미표시 — 정상 동작 |
+| 디버그 HUD가 안 보임 | DEBUG_GUI 심볼 없음 / debugMode=0 | `Assets/csc.rsp`의 `-define:DEBUG_GUI` 및 config.ini `debugMode=1` 확인 |

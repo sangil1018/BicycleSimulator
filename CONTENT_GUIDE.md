@@ -46,7 +46,7 @@
 | `isActive` | `1` | 진동 사용 여부 (0=비활성화) |
 | `RelayPortName` | `COM3` | 진동 릴레이 연결 포트 (ESP32와 별도 USB 장치) |
 | `RelayBaudRate` | `9600` | 진동 릴레이 통신 속도 |
-| `VibeShortDuration` | `0.15` | 짧은 진동 지속시간(초) — Ready/Walk/Correct/Click |
+| `VibeShortDuration` | `0.2` | 짧은 진동 지속시간(초) — Ready/Walk/Correct/Click |
 | `VibeMediumDuration` | `0.5` | 중간 진동 지속시간(초) — Success |
 | `VibeLongDuration` | `1.5` | 긴 진동 지속시간(초) — Danger/Wrong |
 | `SteeringRange` | `45` | 핸들 최대 조향각 출력 범위 (도, 1~45) |
@@ -66,28 +66,36 @@
 
 ## 3. Timeline 이벤트 설정
 
-Timeline Signal Track에 아래 Signal Asset을 배치하여 이벤트를 구성합니다.
+이벤트는 세 종류의 트랙으로 구성합니다. 모두 `GameSignalReceiver`(PlayableDirector와 같은 오브젝트)로 전달됩니다.
 
-### 3.1 GameEventSignal
+- **게임 이벤트** → Unity 내장 **Signal Track** + Signal Emitter. 같은 오브젝트의 내장 **Signal Receiver**가 각 Signal Asset을 UnityEvent로 받아 `GameSignalReceiver`의 아래 메서드를 호출합니다.
+- **퀴즈** → 커스텀 **Quiz Track**에 **QuizMarker** 배치.
+- **방향 안내** → 커스텀 **Direction Track**에 **DirectionMarker** 배치.
 
-| `eventType` | 설명 |
+### 3.1 게임 이벤트 (Signal Receiver → GameSignalReceiver)
+
+| Signal Receiver가 호출할 메서드 | 동작 |
 | :--- | :--- |
-| `BrakeEvent` | 돌발 브레이크 이벤트 (9초 판정) |
-| `OXQuiz` | OX 퀴즈 (`quizIndex` 0~3 설정) |
-| `CrosswalkStart` | 횡단보도 시퀀스 (자동진행 → 내리기 → 걷기 → 타기) |
-| `AutoPlayStart` | 자동진행 구간 시작 (입력 무시, fixedAutoSpeed로 재생) |
-| `AutoPlayEnd` | 자동진행 구간 종료 (페달 입력 재개) |
+| `TriggerBrakeEvent()` | 돌발 브레이크 이벤트 — Freeze 후 `Brake Event Sec`(기본 5초) 내 브레이크 판정, 성공 시 +10점 |
+| `TriggerWarningStop()` | 경고 정지 — Freeze 후 `Warning Stop Sec`(기본 3초) 대기 후 자동 재개 |
+| `TriggerBicycleStop()` | 정지 유지 — Freeze 상태로 대기(별도 이벤트가 재개할 때까지) |
+| `TriggerAutoPlayStart()` | 자동진행 구간 시작 (입력 무시, `Fixed Auto Speed`로 재생 · 횡단보도 걷기 구간) |
+| `TriggerAutoPlayEnd()` | 자동진행 구간 종료 (페달 입력 재개) |
 
-### 3.2 DirectionSignal
+### 3.2 QuizMarker (Quiz Track)
 
-네비게이션 방향을 변경합니다. `direction` 값을 아래 중 하나로 설정하세요.
+OX 퀴즈를 띄웁니다. 마커의 `Quiz Index`(0~3)로 문제를 지정합니다.
 
-| `direction` 값 | 의미 |
-| :--- | :--- |
-| `normal` | 직진 |
-| `left` | 좌회전 |
-| `right` | 우회전 |
-| `right_45` | 우사선 |
+### 3.3 DirectionMarker (Direction Track)
+
+네비게이션 방향을 변경합니다. 마커의 `Direction` 값을 아래 중 하나로 설정하세요.
+
+| `Direction` | UI 트리거 | 의미 |
+| :--- | :--- | :--- |
+| `Normal` | `normal` | 직진 |
+| `Left` | `left` | 좌회전 |
+| `Right` | `right` | 우회전 |
+| `Right45` | `right_45` | 우사선 |
 
 속도 tier에 따라 트리거에 자동으로 postfix가 붙습니다:  
 기본(`left`) → yellow 이상(`left_y`) → red 이상(`left_r`)
@@ -102,11 +110,11 @@ Inspector에서 아래 값을 조정합니다.
 | :--- | :--- |
 | `Yellow Threshold` | 이 속도(km/h) 이상이면 UI 텍스트가 yellow로 변경 |
 | `Red Threshold` | 이 속도(km/h) 이상이면 red + overSpeedUI 활성화 |
-| `Fade Duration` | Show/Hide 알파 전환 시간 (기본 0.5초) |
+| `Fade Duration` | Show/Hide 알파 전환 시간 (기본 0.3초) |
 
 GameState에 따른 자동 동작:
-- `NormalRiding` → Show (alpha 1)
-- `OXQuiz`, `EventBrake`, `CrosswalkWalk` → Hide (alpha 0)
+- `NormalRiding` → 속도가 `Visible Speed Threshold`(기본 1km/h) 이상일 때 Show
+- `OXQuiz`, `EventBrake`, `EventWarning`, `BicycleStop`, `CrosswalkWalk` → Hide (alpha 0)
 
 ---
 
@@ -124,8 +132,10 @@ GameState에 따른 자동 동작:
 - `IntroManager`, `QuizManager` — 인트로 및 퀴즈
 - `VibrationRelay` — 진동 피드백 (USB 릴레이, ESP32와 별도 포트)
 
-### 5.3 영속 매니저
-`GameManager`, `InputManager`, `QuizManager`, `VibrationRelay`는 ``DontDestroyOnLoad``로 씬 전환 후에도 유지됩니다.  
+### 5.3 매니저 수명
+- **영속(`DontDestroyOnLoad`)**: `InputManager`, `VibrationRelay` — 씬 전환 후에도 유지됩니다.
+- **씬 스코프(`SceneSingleton`)**: `GameManager`, `QuizManager` — 씬마다 새 인스턴스가 존재하므로 각 씬(Home/Level)에 오브젝트가 배치되어 있어야 합니다.
+
 씬 로드 시 `GameManager`가 `TimelineGameController`를 자동으로 탐색합니다.  
 `VibrationRelay`는 `InputManager`(`[DefaultExecutionOrder(-100)]`)보다 나중에 `Awake`되어 `config.ini` 값을 넘겨받습니다.
 
@@ -148,6 +158,6 @@ GameState에 따른 자동 동작:
 
 1. 기존 레벨 씬을 복제합니다.
 2. `PlayableDirector`에 새 Timeline Asset을 연결하고 카메라 애니메이션을 제작합니다.
-3. Timeline Signal Track에 `GameEventSignal` / `DirectionSignal`을 배치합니다.
+3. Signal Track(게임 이벤트) · Direction Track(`DirectionMarker`) · Quiz Track(`QuizMarker`)에 이벤트를 배치합니다. (§3 참고)
 4. `HomeGameManager`에 새 씬 로드를 연결합니다.
 5. **Build Settings**에 새 씬을 등록합니다.

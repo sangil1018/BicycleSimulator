@@ -39,5 +39,6 @@
 ---
 
 ## 5. 주의 사항
-*   **이벤트 정리**: `IntroManager`는 씬 전용이므로, 종료 시 `CleanupEvents()`를 통해 `InputManager`의 이벤트 구독을 해제해야 합니다.
+*   **입력 연동**: O/X 버튼 입력은 UI 버튼 오브젝트가 `IntroManager.HandleSkip()`(건너뛰기) / `HandleHome()`(홈)을 호출하는 방식으로 연결됩니다. `IntroManager`는 `InputManager` 이벤트를 직접 구독하지 않습니다.
+*   **비디오 준비**: `Prepare()` 후 최대 5초까지 `isPrepared`를 기다렸다가 재생하며, 시간 초과 시 영상 없이 인트로 타이머를 진행합니다.
 *   **GameManager 연동**: 인트로가 완료되면 `GameManager.Instance.OnIntroFinished()`를 호출하여 전체 게임 상태를 `GameReady`로 전환합니다.
