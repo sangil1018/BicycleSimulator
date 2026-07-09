@@ -55,14 +55,14 @@ public class HomeGameManager : MonoBehaviour
     public void ShowHome()
     {
         _isTransitioning = false;
-        homePanel?.SetActive(true);
-        homeTransition?.SetActive(false);
+        if (homePanel != null) homePanel.SetActive(true);
+        if (homeTransition != null) homeTransition.SetActive(false);
 
         if (logo != null && InputManager.Instance != null)
             logo.SetActive(InputManager.Instance.ShowLogo);
 
-        beginnerBtn?.ResetToLoop();
-        advancedBtn?.ResetToLoop();
+        if (beginnerBtn != null) beginnerBtn.ResetToLoop();
+        if (advancedBtn != null) advancedBtn.ResetToLoop();
 
         if (bgVideoPlayer != null)
         {
@@ -99,8 +99,6 @@ public class HomeGameManager : MonoBehaviour
     {
         if (_audioSource && clickClip)
             _audioSource.PlayOneShot(clickClip);
-        if (InputManager.Instance != null)
-            InputManager.Instance.SendVibrate(VibeState.Click);
     }
 
     /// <summary>초급 버튼 UI의 oButton.onExecute에서 호출</summary>
@@ -108,8 +106,8 @@ public class HomeGameManager : MonoBehaviour
     {
         if (_isTransitioning) return;
         PlayClickSound();
-        beginnerBtn?.SetSelected(true);
-        advancedBtn?.SetSelected(false);
+        if (beginnerBtn != null) beginnerBtn.SetSelected(true);
+        if (advancedBtn != null) advancedBtn.SetSelected(false);
         StartTransition(1);
     }
 
@@ -118,8 +116,8 @@ public class HomeGameManager : MonoBehaviour
     {
         if (_isTransitioning) return;
         PlayClickSound();
-        beginnerBtn?.SetSelected(false);
-        advancedBtn?.SetSelected(true);
+        if (beginnerBtn != null) beginnerBtn.SetSelected(false);
+        if (advancedBtn != null) advancedBtn.SetSelected(true);
         StartTransition(2);
     }
 

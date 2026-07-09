@@ -36,6 +36,9 @@ public class ExitxButton : MonoBehaviour
     {
         if (!gameObject.activeInHierarchy) return;
 
+        if (InputManager.Instance != null)
+            InputManager.Instance.SendVibrate(VibeState.Click);
+
         onExecute?.Invoke();
     }
 }

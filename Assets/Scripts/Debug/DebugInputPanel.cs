@@ -35,12 +35,17 @@ public class DebugInputPanel : MonoBehaviour
 
     IEnumerator VibrateAllRoutine()
     {
+        // 가장 긴 프리셋(long × VibeMultiplier)만큼 기다려야 다음 패턴과 겹치지 않는다.
+        var im = InputManager.Instance;
+        float interval = im != null ? Mathf.Max(im.VibeLongDuration * im.VibeMultiplier, 0.5f) : 1.5f;
+
         VibeState[] sequence = { VibeState.Ready, VibeState.Danger, VibeState.Success, VibeState.Correct, VibeState.Wrong, VibeState.Walk };
         foreach (var state in sequence)
         {
             Debug.Log($"[VibeTest] 순차 테스트 → {state}");
-            InputManager.Instance?.SendVibrate(state);
-            yield return new WaitForSeconds(1.5f);
+            if (InputManager.Instance != null)
+                InputManager.Instance.SendVibrate(state);
+            yield return new WaitForSeconds(interval);
         }
         Debug.Log("[VibeTest] 전체 패턴 완료");
     }
@@ -104,8 +109,8 @@ public class DebugInputPanel : MonoBehaviour
         y += echoH;
 
         // 재연결 버튼 (릴레이)
-        if (GUI.Button(new Rect(bx, y, bw, connectH), "재연결 (Connect)", connectStyle))
-            relay?.Connect();
+        if (GUI.Button(new Rect(bx, y, bw, connectH), "재연결 (Connect)", connectStyle) && relay != null)
+            relay.Connect();
         y += connectH + pad;
 
         // 진동 버튼 — 미연결 시 비활성화

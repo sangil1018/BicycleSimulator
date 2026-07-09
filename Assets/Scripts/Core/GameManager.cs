@@ -53,7 +53,7 @@ public class GameManager : SceneSingleton<GameManager>
     public bool CanMove { get; private set; } = false;
 
     public int EventScore { get; private set; }
-    public int QuizScore => QuizManager.Instance?.CurrentQuizScore ?? 0;
+    public int QuizScore => QuizManager.Instance != null ? QuizManager.Instance.CurrentQuizScore : 0;
     public int TotalScore => EventScore + QuizScore;
 
     /// <summary>GameState가 변경될 때 발행. SpeedUIController 등에서 구독.</summary>
@@ -276,7 +276,7 @@ public class GameManager : SceneSingleton<GameManager>
     {
         // StopAllCoroutines();
         ChangeState(GameState.GameResult);
-        TimelineController?.Stop();
+        if (TimelineController != null) TimelineController.Stop();
 
         StartCoroutine(FinalResultRoutine(delay));
     }

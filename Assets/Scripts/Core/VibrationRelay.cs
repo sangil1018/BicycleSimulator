@@ -35,7 +35,12 @@ public class VibrationRelay : Singleton<VibrationRelay>
     // 상태확인 명령: 헤더 0xFF만 전송, 릴레이 상태값은 ASCII로 응답
     readonly byte[] statusCmd = { 0xFF };
 
-    const int PollMs = 20; // 스레드 폴링 주기 — 진동 명령 반영 지연 상한
+    const int PollMs = 20;           // 스레드 폴링 주기 — 진동 명령 반영 지연 상한
+    const int ShutdownJoinMs = 1500; // 종료 시 스레드 정리(OFF 전송 + 포트 닫기) 대기 상한
+    const float MinDuration = 0.05f; // 진동 1회 지속시간 하한
+    const float MaxDuration = 5f;    // 진동 1회 지속시간 상한 (config 오타 방어)
+
+    static float ClampDuration(float seconds) => Mathf.Clamp(seconds, MinDuration, MaxDuration);
 
     SerialPort port;                 // 백그라운드 스레드에서만 접근
     Thread _thread;
@@ -75,10 +80,14 @@ public class VibrationRelay : Singleton<VibrationRelay>
         isActive = im.VibrationActive;
         portName = im.RelayPortName;
         baudRate = im.RelayBaudRate;
-        shortDuration = im.VibeShortDuration;
-        mediumDuration = im.VibeMediumDuration;
-        longDuration = im.VibeLongDuration;
-        Debug.Log($"[VibrationRelay] 설정 로드: {portName}@{baudRate}, S={shortDuration:F2} M={mediumDuration:F2} L={longDuration:F2}");
+
+        // 프리셋 길이에 VibeMultiplier(0.5~3.0)를 곱해 전체 진동 시간을 일괄 조절한다.
+        // config 오타로 과도한 값이 들어와도 진동이 오래 켜지지 않도록 최종값에 상한을 둔다.
+        float mul = im.VibeMultiplier;
+        shortDuration = ClampDuration(im.VibeShortDuration * mul);
+        mediumDuration = ClampDuration(im.VibeMediumDuration * mul);
+        longDuration = ClampDuration(im.VibeLongDuration * mul);
+        Debug.Log($"[VibrationRelay] 설정 로드: {portName}@{baudRate}, x{mul:F2} → S={shortDuration:F2} M={mediumDuration:F2} L={longDuration:F2}");
     }
 
     // ── 스레드 수명 관리 ──────────────────────────────────────────────
@@ -94,8 +103,14 @@ public class VibrationRelay : Singleton<VibrationRelay>
     void StopThread()
     {
         _threadRunning = false;
-        _thread?.Join(600);
-        _thread = null;
+        if (_thread != null)
+        {
+            // 최악의 경우 폴링(20ms) + 상태확인 블로킹(ReadTimeout) + 종료 정리 쓰기(WriteTimeout)가
+            // 겹칠 수 있어 넉넉히 기다린다. 여기서 못 빠져나오면 OFF를 못 보내고 진동이 켜진 채 남는다.
+            if (!_thread.Join(ShutdownJoinMs))
+                Debug.LogWarning($"[VibrationRelay] 스레드가 {ShutdownJoinMs}ms 내에 종료되지 않음 — 진동이 켜진 채 남을 수 있음");
+            _thread = null;
+        }
     }
 
     /// <summary>수동 재연결 요청 (DebugInputPanel 버튼 등). 실제 연결은 백그라운드 스레드가 처리.</summary>
@@ -128,14 +143,16 @@ public class VibrationRelay : Singleton<VibrationRelay>
             lock (_cmdLock) { if (_pendingVibe.HasValue) { cmd = _pendingVibe; _pendingVibe = null; } }
             if (cmd.HasValue && ThreadWrite(onCmd))
             {
+                // 진동 중에 새 요청이 오면 남은 시간이 더 길 때 그대로 유지한다.
+                // (예: Danger 1.5초 진동이 뒤이은 Click 0.2초 요청에 잘리지 않도록)
+                long endMs = now + (long)(cmd.Value * 1000f);
+                vibeEndMs = vibeActive ? Math.Max(vibeEndMs, endMs) : endMs;
                 vibeActive = true;
-                vibeEndMs = now + (long)(cmd.Value * 1000f);
             }
+            // OFF 전송이 실패하면 vibeActive를 유지해 다음 폴링에서 다시 시도한다.
+            // (여기서 무조건 false로 내리면 릴레이가 켜진 채 방치된다)
             if (vibeActive && now >= vibeEndMs)
-            {
-                ThreadWrite(offCmd);
-                vibeActive = false;
-            }
+                vibeActive = !ThreadWrite(offCmd);
 
             // 2) 연결 관리 / 주기적 상태확인
             //    미연결 시에도 reconnectInterval 주기로만 재시도해 매 폴링 스팸을 막는다.
@@ -174,8 +191,7 @@ public class VibrationRelay : Singleton<VibrationRelay>
             Thread.Sleep(PollMs);
         }
 
-        // 종료 정리 — OFF 전송 후 포트 닫기
-        if (vibeActive) ThreadWrite(offCmd);
+        // 종료 정리 — ThreadClosePort가 OFF 전송과 포트 닫기를 모두 처리한다.
         ThreadClosePort();
     }
 
@@ -213,6 +229,10 @@ public class VibrationRelay : Singleton<VibrationRelay>
             return false;
         }
 
+        // 이전 실행이 크래시 등으로 OFF를 못 보냈다면 릴레이가 켜진 채 래치되어 있다.
+        // 연결 직후 OFF를 한 번 보내 항상 꺼진 상태에서 시작한다.
+        ThreadWrite(offCmd);
+
         bool ok = ThreadCheckStatus();
         _connected = ok;
         return ok;
@@ -222,9 +242,14 @@ public class VibrationRelay : Singleton<VibrationRelay>
     {
         if (port != null)
         {
-            try { if (port.IsOpen) { port.Write(offCmd, 0, offCmd.Length); port.Close(); } }
-            catch (Exception e) { Debug.LogWarning($"[VibrationRelay] 종료 처리 오류: {e.Message}"); }
-            port = null;
+            // OFF 전송이 실패해도 포트는 반드시 닫는다. 닫지 못하면 포트가 열린 채
+            // 참조를 잃어 이후 재연결이 계속 접근 거부로 실패한다.
+            try { if (port.IsOpen) port.Write(offCmd, 0, offCmd.Length); }
+            catch (Exception e) { Debug.LogWarning($"[VibrationRelay] 종료 OFF 전송 실패: {e.Message}"); }
+
+            try { port.Close(); }
+            catch (Exception e) { Debug.LogWarning($"[VibrationRelay] 포트 종료 오류: {e.Message}"); }
+            finally { try { port.Dispose(); } catch { } port = null; }
         }
         _connected = false;
     }
@@ -265,13 +290,16 @@ public class VibrationRelay : Singleton<VibrationRelay>
     // 커스텀 길이가 필요하면 이것도 그대로 사용 가능. 실제 ON/OFF는 백그라운드 스레드가 수행.
     public void Vibrate(float duration)
     {
+        duration = ClampDuration(duration);
         if (!isActive) return;
         if (!_connected)
         {
             Debug.LogWarning("[VibrationRelay] 포트 미연결 — 진동 무시");
             return;
         }
-        lock (_cmdLock) { _pendingVibe = duration; }
+        // 같은 프레임에 여러 요청이 겹치면 긴 쪽을 남긴다.
+        // (예: 퀴즈 오답 1.5초 진동이 같은 입력의 클릭 0.2초 진동에 잘리지 않도록)
+        lock (_cmdLock) { _pendingVibe = Mathf.Max(_pendingVibe ?? 0f, duration); }
     }
 
     void OnApplicationQuit() => StopThread();

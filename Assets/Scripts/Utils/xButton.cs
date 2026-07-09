@@ -40,6 +40,9 @@ public class xButton : MonoBehaviour
 
         if (selectObject != null) selectObject.SetActive(true);
 
+        if (InputManager.Instance != null)
+            InputManager.Instance.SendVibrate(VibeState.Click);
+
         onExecute?.Invoke();
     }
 

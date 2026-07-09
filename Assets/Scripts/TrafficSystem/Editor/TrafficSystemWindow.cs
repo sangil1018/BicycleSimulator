@@ -595,7 +595,9 @@ public class TrafficSystemWindow : EditorWindow
             if (node && node.StopSignal) sigNode[node.StopSignal] = node.name;
 
         // 현재 선택된 TrafficNode (신호기를 노드에 바로 연결하는 데 사용)
-        var selectedNode = Selection.activeGameObject?.GetComponent<TrafficNode>();
+        var selectedNode = Selection.activeGameObject != null
+            ? Selection.activeGameObject.GetComponent<TrafficNode>()
+            : null;
 
         // ── 차량 신호기 ───────────────────────────────────────────────────
         Header($"신호기 — TrafficSignal  ({_signals.Count}개)");

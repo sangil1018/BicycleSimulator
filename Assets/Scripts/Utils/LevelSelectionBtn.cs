@@ -49,6 +49,7 @@ public class LevelSelectionBtn : MonoBehaviour
 
     public void ResetToLoop()
     {
-        _animator?.SetTrigger("StartLoop");
+        if (_animator == null) return;
+        _animator.SetTrigger("StartLoop");
     }
 }

@@ -47,6 +47,8 @@ public class InputManager : Singleton<InputManager>
     public float VibeShortDuration { get; private set; } = 0.2f;
     public float VibeMediumDuration { get; private set; } = 0.5f;
     public float VibeLongDuration { get; private set; } = 1.5f;
+    /// <summary>진동 지속시간 배율. VibrationRelay가 프리셋 길이에 곱해 사용한다.</summary>
+    public float VibeMultiplier { get; private set; } = 1.0f;
 
     [Header("Keyboard")]
     [SerializeField] bool keyboardEnabled = true;
@@ -99,7 +101,6 @@ public class InputManager : Singleton<InputManager>
     bool _yawCalibrated = false;
     int _expectedStationID = 1;
 
-    float _vibeMultiplier = 1.0f;
     bool? _pendingAnswer;
     InputSystem_Actions _actions;
 
@@ -160,7 +161,7 @@ public class InputManager : Singleton<InputManager>
                     case "fps": if (int.TryParse(val, out int fps)) TargetFps = fps <= 0 ? 0 : Mathf.Clamp(fps, 15, 240); break;
                     case "debugMode": DebugMode = int.TryParse(val, out int dm) && dm != 0; break;
                     case "StationID": int.TryParse(val, out _expectedStationID); break;
-                    case "VibeMultiplier": if (float.TryParse(val, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float vm)) _vibeMultiplier = Mathf.Clamp(vm, 0.5f, 3.0f); break;
+                    case "VibeMultiplier": if (float.TryParse(val, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float vm)) VibeMultiplier = Mathf.Clamp(vm, 0.5f, 3.0f); break;
                     case "isActive": VibrationActive = !int.TryParse(val, out int va) || va != 0; break;
                     case "RelayPortName": RelayPortName = val; break;
                     case "RelayBaudRate": if (int.TryParse(val, out int rb)) RelayBaudRate = rb; break;
@@ -194,8 +195,8 @@ public class InputManager : Singleton<InputManager>
         if (Connect())
         {
             Debug.Log(_connectFailCount > 0
-                ? $"[Input] ESP32 {portName} 연결됨 (VibeScale={_vibeMultiplier:F1}x, {_connectFailCount}회 실패 후 복구)"
-                : $"[Input] ESP32 {portName} 연결됨 (VibeScale={_vibeMultiplier:F1}x)");
+                ? $"[Input] ESP32 {portName} 연결됨 (VibeScale={VibeMultiplier:F1}x, {_connectFailCount}회 실패 후 복구)"
+                : $"[Input] ESP32 {portName} 연결됨 (VibeScale={VibeMultiplier:F1}x)");
             _connectFailCount = 0;
         }
         else
@@ -229,7 +230,7 @@ public class InputManager : Singleton<InputManager>
             _dataStale = false;
             _thread = new Thread(ReadLoop) { IsBackground = true, Name = "BikeSerial" };
             _thread.Start();
-            SendRaw($"P{Mathf.RoundToInt(_vibeMultiplier * 100)}");
+            SendRaw($"P{Mathf.RoundToInt(VibeMultiplier * 100)}");
             return true;
         }
         catch (Exception e)
@@ -399,21 +400,30 @@ public class InputManager : Singleton<InputManager>
         {
             if (line.Contains("DMP Stabilized"))
             {
+                // 타임아웃 폴백이 이미 활성화했다면 캘리브레이션·진동을 다시 실행하지 않는다.
+                bool alreadyReady = _dmpReady;
                 _dmpReady = true;
                 SteerSensorOk = true;
-                SendRaw($"P{Mathf.RoundToInt(_vibeMultiplier * 100)}");
-                SendCalibrate();
-                SendVibrate(VibeState.Ready);
+                if (!alreadyReady)
+                {
+                    SendRaw($"P{Mathf.RoundToInt(VibeMultiplier * 100)}");
+                    SendCalibrate();
+                    SendVibrate(VibeState.Ready);
+                }
             }
             else if (line.Contains("Steer sensor NOT found"))
             {
                 // 펌웨어가 조향 센서 인식 실패 — str=0 고정 송신 모드. 대기 없이 바로 활성화
+                bool alreadyReady = _dmpReady;
                 SteerSensorOk = false;
                 _dmpReady = true;
                 _yawCalibrated = true;
                 _yawOffset = 0f;
-                SendRaw($"P{Mathf.RoundToInt(_vibeMultiplier * 100)}");
-                SendVibrate(VibeState.Ready);
+                if (!alreadyReady)
+                {
+                    SendRaw($"P{Mathf.RoundToInt(VibeMultiplier * 100)}");
+                    SendVibrate(VibeState.Ready);
+                }
                 Debug.LogWarning("[Input] 조향 센서 미인식 — 조향각 0 고정으로 진행 (페달/브레이크/버튼은 정상)");
             }
             OnErrorMessage?.Invoke(line);

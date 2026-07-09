@@ -104,7 +104,9 @@ C\n     ← 조향 캘리브레이션
 
 ### 3-1. P — 진동 세기 배율 ✅ Unity 사용 중
 
-브레이크 진동(및 V 패턴) 지속시간에 곱해지는 배율입니다. 연결 직후·DMP 안정화 완료·조향 센서 미인식 시 Unity가 `config.ini`의 `VibeMultiplier` 값을 `P{배율×100}` 형태로 전송합니다.
+ESP32 쪽 브레이크 진동(및 V 패턴) 지속시간에 곱해지는 배율입니다. 연결 직후·DMP 안정화 완료·조향 센서 미인식 시 Unity가 `config.ini`의 `VibeMultiplier` 값을 `P{배율×100}` 형태로 전송합니다.
+
+> 같은 `VibeMultiplier` 값이 USB 릴레이의 진동 프리셋 길이에도 곱해집니다(§3-6). 즉 이 키 하나로 ESP32 브레이크 진동과 릴레이 이벤트 진동의 길이가 함께 조절됩니다.
 
 | 명령 | 의미 |
 |------|------|
@@ -177,14 +179,22 @@ Unity는 ESP32 포트가 아니라 **별도의 USB 릴레이 포트**(`config.in
 - `InputManager.SendVibrate(VibeState)`가 유일한 진입점이며, 내부에서 `VibrationRelay`의 프리셋 메서드로 위임합니다.
 - Unity가 ESP32로 보내는 명령은 `P` · `B1/B0` · `C` · `M`입니다. 진동은 릴레이가 담당합니다.
 
-| VibeState | 프리셋 | 기본 지속시간 |
-|-----------|--------|---------------|
-| `Ready`, `Walk`, `Correct`, `Click` | Short | 0.2 s |
-| `Success` | Medium | 0.5 s |
-| `Danger`, `Wrong` | Long | 1.5 s |
-| `Stop` | (무시) | - |
+| VibeState | 프리셋 | 기본 지속시간 | 발생 위치 |
+|-----------|--------|---------------|-----------|
+| `Click` | Short | 0.2 s | `oButton`/`xButton`/`ExitxButton` — 모든 O/X UI 버튼 실행 |
+| `Ready` | Short | 0.2 s | `InputManager` — DMP 안정화 완료, 조향 센서 미인식 |
+| `Walk` | Short | 0.2 s | `GameManager.TriggerAutoPlayStart()` — 횡단보도 자동주행 시작 |
+| `Correct` | Short | 0.2 s | `BlackBoard.SubmitAnswer()` — 퀴즈 정답 |
+| `Success` | Medium | 0.5 s | `GameManager` — 브레이크 이벤트 성공, 최종 결과 표시 |
+| `Danger` | Long | 1.5 s | `GameManager` — 경고 정지, 브레이크 이벤트 시작 |
+| `Wrong` | Long | 1.5 s | `BlackBoard.SubmitAnswer()` — 퀴즈 오답 |
+| `Stop` | (무시) | - | 호출하는 곳 없음 |
 
-**연결 확인 / 자동 재연결**: `Awake()`에서 연결 직후 상태확인 명령(`FF`)으로 실제 보드 응답을 검증하고, 이후 `Reconnect Interval`(기본 5초)마다 재확인하여 응답이 없으면 자동으로 재연결을 시도합니다.
+실제 지속시간은 **프리셋 × `VibeMultiplier`**이며, 최종값은 0.05~5초로 제한됩니다(config 오타 방어).
+
+**진동 겹침 처리**: 진동이 나가는 중에 새 요청이 오면 **남은 시간이 더 긴 쪽을 유지**합니다. 예를 들어 `Danger`(1.5초) 도중 X 버튼을 눌러 `Click`(0.2초)이 들어와도 위험 진동이 잘리지 않습니다. 반대로 짧은 진동 뒤에 긴 진동이 오면 종료 시각이 뒤로 밀립니다.
+
+**연결 확인 / 자동 재연결**: `Awake()`에서 포트를 연 직후 **OFF 프레임을 먼저 전송**해(이전 실행이 크래시로 릴레이를 켜둔 채 끝났을 수 있으므로) 항상 꺼진 상태로 시작합니다. 이어서 상태확인 명령(`FF`)으로 실제 보드 응답을 검증하고, 이후 `Reconnect Interval`(기본 5초)마다 재확인하여 응답이 없으면 자동으로 재연결을 시도합니다. OFF 전송이 실패하면 다음 폴링(20 ms)에서 재시도하므로, 일시적인 쓰기 실패로 진동이 켜진 채 남지 않습니다.
 
 **릴레이 단독 점검 (Unity 없이)**: `Hardware/serial_monitor.py`가 ESP32(CH343)와 USB 릴레이(CH340) 포트를 자동 구분해 함께 연결합니다. 모니터 실행 중 키보드 **`v` 키**를 누르면(엔터 불필요) 릴레이로 진동 ON→0.5초 후 OFF 프레임을 직접 전송하므로, Unity를 켜지 않고도 릴레이 배선·전원을 빠르게 확인할 수 있습니다. 포트가 자동 구분되지 않으면 `python serial_monitor.py [ESP32포트] [릴레이포트]`로 직접 지정합니다.
 
@@ -200,6 +210,7 @@ Unity는 ESP32 포트가 아니라 **별도의 USB 릴레이 포트**(`config.in
 | `VibeShortDuration` | `0.2` | 짧은 진동 지속시간(초) |
 | `VibeMediumDuration` | `0.5` | 중간 진동 지속시간(초) |
 | `VibeLongDuration` | `1.5` | 긴 진동 지속시간(초) |
+| `VibeMultiplier` | `1.0` | 위 세 프리셋에 곱해지는 시간 배율 (0.5~3.0). `[Settings]` 섹션에 있음 |
 
 **씬 설정**: `VibrationRelay`는 Singleton이라 씬에 컴포넌트가 붙은 GameObject가 최소 1개 있어야 동작합니다. 현재 Home/Level1/Level2 씬 모두에 배치되어 있습니다.
 
@@ -415,6 +426,8 @@ bike.SetRGBState(1);    // S1: 주행 복귀
 | 브레이크 진동이 약함 | IRF520 게이트 전압 부족 | 3.3V 신호로 동작 확인, 모터 전원 5V 확인 |
 | 이벤트/퀴즈 진동이 작동 안 함 (릴레이 쪽) | 릴레이 포트 미연결 또는 상태확인 실패 | `DebugInputPanel`에서 "● 릴레이 연결됨" 확인, `config.ini`의 `RelayPortName` 점검, USB 케이블/전원(5V) 점검 |
 | `VibrationRelay` 응답 없음 로그 반복 | 릴레이 보드가 상태확인(`FF`) 명령에 응답 안 함 | 릴레이 보드레이트(9600) 및 배선 확인, 다른 프로그램이 같은 포트 점유 중인지 확인 |
+| 게임 종료 후 진동이 계속 켜져 있음 | 크래시·강제 종료·에디터 도메인 리로드로 OFF 프레임을 못 보냄 (릴레이는 마지막 상태를 유지하는 래치 방식) | Unity를 다시 실행하면 연결 직후 OFF를 보내 자동으로 꺼집니다. 즉시 끄려면 릴레이 USB를 뽑거나 `serial_monitor.py`에서 `v` 키로 ON→OFF를 한 번 보내세요 |
+| 게임 실행 중 진동이 안 꺼짐 | OFF 전송 실패 후 포트가 죽은 상태 | `[VibrationRelay] 전송 실패` 로그 확인. 재연결이 성공하면 밀린 OFF가 자동 전송됩니다. `스레드가 1500ms 내에 종료되지 않음` 경고가 보이면 종료 시 정리가 끝나지 않은 것이므로 릴레이 전원을 재인가하세요 |
 
 ---
 

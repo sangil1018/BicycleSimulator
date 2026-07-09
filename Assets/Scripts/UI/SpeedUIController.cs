@@ -19,6 +19,8 @@ public class SpeedUIController : MonoBehaviour
 
     [Header("Over Speed UI")]
     [SerializeField] GameObject overSpeedUI;
+    [Tooltip("과속 UI 애니메이션 길이를 읽지 못했을 때 사용할 표시 시간(초)")]
+    [SerializeField] float overSpeedFallbackDuration = 1f;
 
     [Header("Navigation Animator")]
     [SerializeField] Animator navigationAnimator;
@@ -36,6 +38,8 @@ public class SpeedUIController : MonoBehaviour
     Coroutine _fadeCoroutine;
     bool _stateAllowsShow = false;
     bool _isVisible = false;
+    Animator _overSpeedAnimator;
+    Coroutine _overSpeedCoroutine;
 
     enum SpeedTier { Normal, Yellow, Red }
 
@@ -49,6 +53,9 @@ public class SpeedUIController : MonoBehaviour
                 yellowThreshold = InputManager.Instance.YellowThreshold;
                 redThreshold = InputManager.Instance.RedThreshold;
             }
+
+            if (overSpeedUI != null)
+                _overSpeedAnimator = overSpeedUI.GetComponentInChildren<Animator>(true);
         }
         catch (System.Exception ex)
         {
@@ -75,6 +82,9 @@ public class SpeedUIController : MonoBehaviour
         {
             if (GameManager.Instance != null)
                 GameManager.Instance.OnStateChanged -= OnGameStateChanged;
+
+            // 비활성화되면 코루틴이 중단되므로 핸들을 비워 재활성화 시 다시 재생될 수 있게 한다.
+            _overSpeedCoroutine = null;
         }
         catch (System.Exception ex)
         {
@@ -109,18 +119,75 @@ public class SpeedUIController : MonoBehaviour
 
             if (tier != _currentTier)
             {
+                bool enteredRed = tier == SpeedTier.Red && _currentTier != SpeedTier.Red;
                 _currentTier = tier;
                 UpdateNavigationTrigger();
 
-                // 과속 UI 활성화 상태 제어 — 등급이 바뀔 때만 갱신 (매 프레임 SetActive 방지)
-                if (overSpeedUI != null)
-                    overSpeedUI.SetActive(tier == SpeedTier.Red);
+                // Red 진입 시에만 과속 UI 재생 시작. 재생 중에는 무시하고,
+                // 속도가 떨어져도 애니메이션이 끝날 때까지 유지한다.
+                if (enteredRed)
+                    PlayOverSpeed();
             }
         }
         catch (System.Exception ex)
         {
             Debug.LogError($"SpeedUIController.Update 오류 발생: {ex.Message}");
         }
+    }
+
+    // ── 과속 UI ────────────────────────────────────────────────────
+
+    /// <summary>과속 UI를 표시하고 애니메이션이 끝나면 숨긴다. 재생 중 호출은 무시된다.</summary>
+    void PlayOverSpeed()
+    {
+        try
+        {
+            if (overSpeedUI == null) return;
+            if (_overSpeedCoroutine != null) return; // 재생 중 중복 호출 회피
+
+            _overSpeedCoroutine = StartCoroutine(OverSpeedRoutine());
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"SpeedUIController.PlayOverSpeed 오류 발생: {ex.Message}");
+        }
+    }
+
+    IEnumerator OverSpeedRoutine()
+    {
+        overSpeedUI.SetActive(true);
+
+        float duration = overSpeedFallbackDuration;
+
+        if (_overSpeedAnimator != null && _overSpeedAnimator.runtimeAnimatorController != null)
+        {
+            // SetActive 직후에는 상태 정보가 아직 갱신되지 않으므로 강제로 평가한다.
+            _overSpeedAnimator.Rebind();
+            _overSpeedAnimator.Update(0f);
+
+            var info = _overSpeedAnimator.GetCurrentAnimatorStateInfo(0);
+            float speed = Mathf.Abs(_overSpeedAnimator.speed * info.speed);
+            if (info.length > 0f && !info.loop && speed > 0.0001f)
+                duration = info.length / speed;
+        }
+
+        yield return new WaitForSeconds(duration);
+
+        overSpeedUI.SetActive(false);
+        _overSpeedCoroutine = null;
+    }
+
+    /// <summary>재생 중이던 과속 UI를 즉시 중단하고 숨긴다.</summary>
+    void ResetOverSpeed()
+    {
+        if (_overSpeedCoroutine != null)
+        {
+            StopCoroutine(_overSpeedCoroutine);
+            _overSpeedCoroutine = null;
+        }
+
+        if (overSpeedUI != null)
+            overSpeedUI.SetActive(false);
     }
 
     // ── 네비게이션 트리거 ──────────────────────────────────────────
@@ -238,7 +305,7 @@ public class SpeedUIController : MonoBehaviour
                     _stateAllowsShow = false;
                     _isVisible = false;
                     _currentTier = SpeedTier.Normal;
-                    if (overSpeedUI != null) overSpeedUI.SetActive(false); // 비주행 상태에선 과속 UI off
+                    ResetOverSpeed(); // 비주행 상태에선 과속 UI off
                     Hide();
                     break;
             }

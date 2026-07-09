@@ -33,7 +33,7 @@
 | `BaseSpeedKph` | `15.0` | 1.0× 재생 기준 속도(km/h) |
 | `MetersPerRevolution` | `1.5` | 페달 1회전당 이동 거리(m) — RPM→km/h 환산 |
 | `PlaybackMultiplier` | `1.0` | 영상 재생 배속 승수 |
-| `VibeMultiplier` | `1.0` | 진동 패턴 시간 배율 (0.5~3.0) |
+| `VibeMultiplier` | `1.0` | 진동 시간 배율 (0.5~3.0) — 아래 세 프리셋과 ESP32 브레이크 진동에 모두 곱해짐 |
 | `BrakeStopDuration` | `1.0` | 브레이크 작동 시 완전 정지까지 걸리는 시간(초, 0.05~10). 잡는 순간의 속도에서 선형 감속하며, 잡고 있는 동안 페달 입력 무시 |
 | `debugMode` | `0` | 디버그 GUI 표시 (1=표시) — 빌드에서도 동작 (§2.3) |
 | `fps` | `60` | 목표 프레임레이트 (15~240, 0=제한 없음). VSync는 자동 비활성화 |
@@ -46,7 +46,7 @@
 | `isActive` | `1` | 진동 사용 여부 (0=비활성화) |
 | `RelayPortName` | `COM3` | 진동 릴레이 연결 포트 (ESP32와 별도 USB 장치) |
 | `RelayBaudRate` | `9600` | 진동 릴레이 통신 속도 |
-| `VibeShortDuration` | `0.2` | 짧은 진동 지속시간(초) — Ready/Walk/Correct/Click |
+| `VibeShortDuration` | `0.2` | 짧은 진동 지속시간(초) — Click/Ready/Walk/Correct |
 | `VibeMediumDuration` | `0.5` | 중간 진동 지속시간(초) — Success |
 | `VibeLongDuration` | `1.5` | 긴 진동 지속시간(초) — Danger/Wrong |
 | `SteeringRange` | `45` | 핸들 최대 조향각 출력 범위 (도, 1~45) |
@@ -55,6 +55,8 @@
 | `RedThreshold` | `30.0` | 빨간색 속도 경고 기준(km/h) |
 
 > 위 값은 모두 `InputManager`가 읽어서 각 시스템에 전달합니다. 섹션 헤더(`[Settings]` 등)는 구분용일 뿐이며 키 이름만 파싱됩니다. 상세 프로토콜은 `Hardware/Unity_시리얼_통신_가이드.md` §3-6 참고.
+>
+> 진동 프리셋의 실제 길이는 `프리셋 × VibeMultiplier`이며, 최종값은 0.05~5초로 제한됩니다. O/X 버튼 진동(`Click`)은 `oButton`/`xButton` 컴포넌트가 직접 발생시키므로 Home·Level 모든 씬에서 동일하게 동작합니다.
 
 ### 2.3 디버그 GUI (debugMode)
 

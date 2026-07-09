@@ -70,25 +70,25 @@ namespace TrafficSystem
         public void OverridePedestrianAll(PedestrianState state)
         {
             if (allPedSignals == null) return;
-            foreach (var l in allPedSignals) l?.OverridePedestrianSignal(state);
+            foreach (var l in allPedSignals) if (l != null) l.OverridePedestrianSignal(state);
         }
 
         public void ClearPedestrianOverrideAll()
         {
             if (allPedSignals == null) return;
-            foreach (var l in allPedSignals) l?.ClearPedestrianOverride();
+            foreach (var l in allPedSignals) if (l != null) l.ClearPedestrianOverride();
         }
 
         public void OverrideVehicleAll(SignalState state)
         {
             if (allSignals == null) return;
-            foreach (var s in allSignals) s?.OverrideVehicleSignal(state);
+            foreach (var s in allSignals) if (s != null) s.OverrideVehicleSignal(state);
         }
 
         public void ClearVehicleOverrideAll()
         {
             if (allSignals == null) return;
-            foreach (var s in allSignals) s?.ClearVehicleOverride();
+            foreach (var s in allSignals) if (s != null) s.ClearVehicleOverride();
         }
 
         // 오버라이드 해제 직후 호출 — 현재 신호 상태와 가장 일치하는 페이즈를 찾아
@@ -156,7 +156,7 @@ namespace TrafficSystem
                 // 현재 페이즈의 차량 신호 → 황색, 보행 신호 건드리지 않음 (카운트다운 진행 중)
                 if (phases[currentIdx].vehicleGreen != null)
                     foreach (var s in phases[currentIdx].vehicleGreen)
-                        s?.SetState(SignalState.Yellow);
+                        if (s != null) s.SetState(SignalState.Yellow);
                 inYellow = true;
                 timer = yellowDuration;
             }
@@ -174,23 +174,23 @@ namespace TrafficSystem
 
             // 모든 차량 신호 → 적색
             if (allSignals != null)
-                foreach (var s in allSignals) s?.SetState(SignalState.Red);
+                foreach (var s in allSignals) if (s != null) s.SetState(SignalState.Red);
 
             // 모든 보행 신호 → 적색
             if (allPedSignals != null)
-                foreach (var l in allPedSignals) l?.ForcePedestrianState(PedestrianState.Red);
+                foreach (var l in allPedSignals) if (l != null) l.ForcePedestrianState(PedestrianState.Red);
 
             var phase = phases[idx];
 
             // 이 페이즈의 차량 신호 → 초록
             if (phase.vehicleGreen != null)
                 foreach (var s in phase.vehicleGreen)
-                    s?.SetState(SignalState.Green);
+                    if (s != null) s.SetState(SignalState.Green);
 
             // 이 페이즈의 보행 신호 → 초록 (카운트다운 포함)
             if (phase.pedestrianGreen != null)
                 foreach (var l in phase.pedestrianGreen)
-                    l?.ForcePedestrianState(PedestrianState.Green, phase.pedestrianCountdown);
+                    if (l != null) l.ForcePedestrianState(PedestrianState.Green, phase.pedestrianCountdown);
 
             timer = phase.greenDuration;
         }
