@@ -43,6 +43,14 @@ namespace TrafficSystem
         [Tooltip("N 프레임마다 1회 원거리 BoxCast 실행")]
         [SerializeField] int speedCalcInterval = 4;
 
+        [Header("바퀴")]
+        [Tooltip("이동 거리에 따라 굴러갈 바퀴들. 여기에 등록한 Transform이 회전한다.")]
+        [SerializeField] Transform[] wheels;
+        [Tooltip("바퀴 반지름 (m). 이동 거리 / (2π·r) 만큼 회전한다.")]
+        [SerializeField] float wheelRadius = 0.35f;
+        [Tooltip("바퀴가 굴러가는 로컬 회전축 (보통 X축).")]
+        [SerializeField] Vector3 wheelSpinAxis = Vector3.right;
+
         // ── Runtime ───────────────────────────────────────────────────────────
         TrafficNode    currentNode;
         TrafficNode    pendingNode;
@@ -191,7 +199,22 @@ namespace TrafficSystem
 
         void Move()
         {
-            transform.position += transform.forward * currentSpeed * Time.deltaTime;
+            float delta = currentSpeed * Time.deltaTime;
+            transform.position += transform.forward * delta;
+            SpinWheels(delta);
+        }
+
+        // 이동 거리(m)만큼 바퀴를 굴린다. 회전각(deg) = 거리 / 원주 × 360
+        void SpinWheels(float distance)
+        {
+            if (distance <= 0f || wheels == null || wheels.Length == 0 || wheelRadius <= 0f) return;
+
+            float degrees = distance / (2f * Mathf.PI * wheelRadius) * 360f;
+            for (int i = 0; i < wheels.Length; i++)
+            {
+                if (wheels[i] != null)
+                    wheels[i].Rotate(wheelSpinAxis, degrees, Space.Self);
+            }
         }
 
         void CheckArrival()
@@ -335,6 +358,46 @@ namespace TrafficSystem
                 Gizmos.color = Color.magenta;
                 Gizmos.DrawLine(transform.position + Vector3.up * 0.5f,
                                 _leader.transform.position + Vector3.up * 0.5f);
+            }
+
+            DrawWheelGizmos();
+        }
+
+        // 각 바퀴의 wheelRadius를 굴러가는 평면 위의 원으로 표시 (주황)
+        void DrawWheelGizmos()
+        {
+            if (wheels == null || wheelRadius <= 0f) return;
+
+            Gizmos.color = new Color(1f, 0.55f, 0f); // 주황
+            for (int i = 0; i < wheels.Length; i++)
+            {
+                var w = wheels[i];
+                if (w == null) continue;
+
+                // 회전축(로컬)을 월드로 변환 — 원은 이 축에 수직인 평면에 그린다
+                Vector3 axis = w.TransformDirection(wheelSpinAxis.normalized);
+                if (axis.sqrMagnitude < 0.0001f) continue;
+                axis.Normalize();
+
+                // 축에 수직인 두 기준 벡터
+                Vector3 u = Vector3.Cross(axis, Vector3.up);
+                if (u.sqrMagnitude < 0.0001f) u = Vector3.Cross(axis, Vector3.forward);
+                u.Normalize();
+                Vector3 v = Vector3.Cross(axis, u);
+
+                const int seg = 24;
+                Vector3 center = w.position;
+                Vector3 prev = center + u * wheelRadius;
+                for (int s = 1; s <= seg; s++)
+                {
+                    float ang = s / (float)seg * Mathf.PI * 2f;
+                    Vector3 next = center + (u * Mathf.Cos(ang) + v * Mathf.Sin(ang)) * wheelRadius;
+                    Gizmos.DrawLine(prev, next);
+                    prev = next;
+                }
+
+                // 회전축 표시 (짧은 선)
+                Gizmos.DrawLine(center - axis * wheelRadius * 0.5f, center + axis * wheelRadius * 0.5f);
             }
         }
 #endif

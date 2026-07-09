@@ -203,6 +203,11 @@ MonoBehaviour:
   vehicleHalfLength: 3
   vehicleHalfWidth: 1
   speedCalcInterval: 2
+  wheels:
+  - {fileID: 7803066473078394336}
+  - {fileID: 2180262930450551122}
+  wheelRadius: 0.32
+  wheelSpinAxis: {x: 0, y: 0, z: 1}
 --- !u!1001 &9024286398569509263
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -264,6 +269,16 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 2c472a3598f04da4fa9c09bc781194c7, type: 3}
+--- !u!4 &2180262930450551122 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 7169006302892056797, guid: 2c472a3598f04da4fa9c09bc781194c7, type: 3}
+  m_PrefabInstance: {fileID: 9024286398569509263}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &7803066473078394336 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 1258398994359843951, guid: 2c472a3598f04da4fa9c09bc781194c7, type: 3}
+  m_PrefabInstance: {fileID: 9024286398569509263}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &8842270138890884708 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 2c472a3598f04da4fa9c09bc781194c7, type: 3}

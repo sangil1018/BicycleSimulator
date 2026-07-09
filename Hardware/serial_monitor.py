@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 # ================================================================
 #  자전거 시뮬레이터 ESP32-S3 시리얼 데이터 모니터
-#  사용법: check_serial.bat 더블클릭  또는  python serial_monitor.py [COM포트]
-#  - 115200bps, JSON 라인 수신 (50Hz)
+#  사용법: check_serial.bat 더블클릭  또는  python serial_monitor.py [ESP32포트] [릴레이포트]
+#  - ESP32-S3(CH343) 115200bps, JSON 라인 수신 (50Hz)
+#  - USB 릴레이(CH340) 9600bps 자동 연결 — 키보드 'v' 키로 진동 트리거
 #  - 명령 전송 가능: C(조향 보정), V0~V6(진동), B0/B1(브레이크), S0~S3, P50~P300
 # ================================================================
 import sys
@@ -12,6 +13,13 @@ import time
 import threading
 
 BAUD = 115200
+
+# ── USB 릴레이(진동 모터) 프로토콜 — VibrationRelay.cs와 동일 ──
+# 9600bps, N/8/1. 릴레이1 ON/OFF 명령 (마지막 바이트는 앞 3바이트 합산 체크섬)
+RELAY_BAUD = 9600
+RELAY_ON = bytes([0xA0, 0x01, 0x01, 0xA2])
+RELAY_OFF = bytes([0xA0, 0x01, 0x00, 0xA1])
+RELAY_VIBE_DURATION = 0.5  # 'v' 키 진동 지속시간 (초)
 
 # Windows 콘솔 ANSI 색상 활성화
 os.system("")
@@ -43,33 +51,158 @@ def pick_port(list_ports):
         print(C_RED + "연결된 COM 포트가 없습니다. USB 케이블을 확인하세요." + C_RESET)
         sys.exit(1)
 
-    # ESP32-S3 우선 자동 선택 (USB CDC / CP210x / CH34x 등), 블루투스 가상 포트는 제외
-    esp_keywords = ("cp210", "ch34", "ch910", "usb", "uart", "jtag")
+    # ESP32-S3 우선 자동 선택 (USB CDC / CP210x / CH343 등). CH340은 릴레이이므로 제외,
+    # 블루투스 가상 포트도 제외.
+    esp_keywords = ("cp210", "ch343", "ch910", "usb", "uart", "jtag")
     candidates = [
         p for p in ports
         if "bluetooth" not in (p.description or "").lower()
+        and "ch340" not in (p.description or "").lower()  # CH340 = USB 릴레이
         and any(k in (p.description or "").lower() for k in esp_keywords)
     ]
 
     print(C_BOLD + "사용 가능한 포트:" + C_RESET)
     for i, p in enumerate(ports):
-        mark = " <- ESP32 추정" if p in candidates else ""
+        desc = (p.description or "").lower()
+        if "ch340" in desc:
+            mark = " <- 릴레이 추정"
+        elif p in candidates:
+            mark = " <- ESP32 추정"
+        else:
+            mark = ""
         print(f"  [{i}] {p.device} - {p.description}{C_CYAN}{mark}{C_RESET}")
 
-    if len(ports) == 1:
-        print(f"\n포트가 1개뿐이므로 {ports[0].device} 자동 선택")
-        return ports[0].device
     if len(candidates) == 1:
         print(f"\nESP32로 추정되는 {candidates[0].device} 자동 선택")
         return candidates[0].device
+    if len(ports) == 1:
+        print(f"\n포트가 1개뿐이므로 {ports[0].device} 자동 선택")
+        return ports[0].device
 
     sel = input("\n포트 번호 입력 (엔터 = 0): ").strip()
     idx = int(sel) if sel.isdigit() and int(sel) < len(ports) else 0
     return ports[idx].device
 
 
-def input_thread(ser):
-    """콘솔에서 명령을 입력받아 ESP32로 전송 (예: C, V1, B1)"""
+def pick_relay_port(list_ports, exclude):
+    """USB 릴레이(CH340) 포트 자동 탐지. ESP32 포트(exclude)는 제외."""
+    for p in list_ports.comports():
+        if p.device == exclude:
+            continue
+        if "ch340" in (p.description or "").lower():
+            return p.device
+    return None
+
+
+class Relay:
+    """USB 릴레이(CH340) 진동 제어. 'v' 키 입력 시 ON→duration 후 OFF."""
+
+    def __init__(self, serial_mod, port, baud=RELAY_BAUD, duration=RELAY_VIBE_DURATION):
+        self._serial = serial_mod
+        self.port = port
+        self.baud = baud
+        self.duration = duration
+        self.ser = None
+        self._lock = threading.Lock()
+
+    @property
+    def connected(self):
+        return self.ser is not None and self.ser.is_open
+
+    def connect(self):
+        if not self.port:
+            print(C_YELLOW + "USB 릴레이(CH340) 포트를 찾지 못했습니다 — 'v' 진동 비활성" + C_RESET)
+            return False
+        try:
+            self.ser = self._serial.Serial(self.port, self.baud, timeout=0.3)
+            print(C_GREEN + f"릴레이 연결됨: {self.port} @ {self.baud}bps ('v' 키로 진동)" + C_RESET)
+            return True
+        except Exception as e:
+            print(C_RED + f"릴레이 포트 열기 실패({self.port}): {e}" + C_RESET)
+            self.ser = None
+            return False
+
+    def vibrate(self):
+        if not self.connected:
+            print(C_YELLOW + ">> 릴레이 미연결 — 진동 무시 (v)" + C_RESET)
+            return
+        try:
+            with self._lock:
+                self.ser.write(RELAY_ON)
+            print(C_CYAN + f">> 릴레이 진동 ON ({self.duration:.1f}s)" + C_RESET)
+            threading.Timer(self.duration, self._off).start()
+        except Exception as e:
+            print(C_RED + f"릴레이 전송 실패: {e}" + C_RESET)
+
+    def _off(self):
+        try:
+            with self._lock:
+                if self.connected:
+                    self.ser.write(RELAY_OFF)
+        except Exception:
+            pass
+
+    def close(self):
+        try:
+            if self.connected:
+                with self._lock:
+                    self.ser.write(RELAY_OFF)
+                    self.ser.close()
+        except Exception:
+            pass
+
+
+def _send_esp(ser, cmd):
+    cmd = cmd.strip()
+    if not cmd:
+        return
+    if cmd.lower() in ("q", "quit", "exit"):
+        os._exit(0)
+    try:
+        ser.write((cmd + "\n").encode())
+        print(C_CYAN + f">> 전송: {cmd}" + C_RESET)
+    except Exception as e:
+        print(C_RED + f"전송 실패: {e}" + C_RESET)
+
+
+def input_thread(ser, relay):
+    """실시간 키 입력. 'v'=릴레이 진동(즉시), 그 외 문자는 버퍼에 모아 Enter 시 ESP32로 전송.
+    Windows에서는 msvcrt로 단일 키를 감지하고, 그 외 OS는 줄 단위 입력으로 대체한다."""
+    try:
+        import msvcrt
+    except ImportError:
+        _line_input_loop(ser, relay)
+        return
+
+    buf = ""
+    while True:
+        ch = msvcrt.getwch()
+        if ch in ("\x00", "\xe0"):   # 특수키(화살표/기능키) 프리픽스 — 다음 바이트 버림
+            msvcrt.getwch()
+            continue
+        if ch == "\x03":             # Ctrl+C
+            if relay:
+                relay.close()
+            os._exit(0)
+        if ch == "v":                # 릴레이 진동 트리거 (실시간, Enter 불필요)
+            relay.vibrate()
+            continue
+        if ch in ("\r", "\n"):       # Enter → 버퍼를 ESP32로 전송
+            print()
+            _send_esp(ser, buf)
+            buf = ""
+            continue
+        if ch in ("\x08", "\x7f"):   # Backspace
+            if buf:
+                buf = buf[:-1]
+                print("\b \b", end="", flush=True)
+            continue
+        buf += ch                    # 일반 문자 → 버퍼 누적 + 에코
+        print(ch, end="", flush=True)
+
+
+def _line_input_loop(ser, relay):
+    """비 Windows 대체: 줄 단위 입력. 'v' 단독 입력 시 릴레이 진동."""
     while True:
         try:
             cmd = input()
@@ -78,13 +211,10 @@ def input_thread(ser):
         cmd = cmd.strip()
         if not cmd:
             continue
-        if cmd.lower() in ("q", "quit", "exit"):
-            os._exit(0)
-        try:
-            ser.write((cmd + "\n").encode())
-            print(C_CYAN + f">> 전송: {cmd}" + C_RESET)
-        except Exception as e:
-            print(C_RED + f"전송 실패: {e}" + C_RESET)
+        if cmd.lower() == "v":
+            relay.vibrate()
+            continue
+        _send_esp(ser, cmd)
 
 
 def fmt_flag(name, val, on_color=C_RED):
@@ -106,13 +236,19 @@ def main():
         print("Unity나 아두이노 시리얼 모니터가 포트를 점유 중인지 확인하세요.")
         sys.exit(1)
 
+    # USB 릴레이(CH340) 연결 — 인자로 지정하거나 자동 탐지 (ESP32 포트는 제외)
+    relay_port = sys.argv[2] if len(sys.argv) > 2 else pick_relay_port(list_ports, port)
+    relay = Relay(serial, relay_port)
+    relay.connect()
+
     print(C_GREEN + "연결됨!" + C_RESET)
     print(C_DIM + "-" * 70 + C_RESET)
     print("명령 입력 후 엔터로 전송 가능: C=조향보정  V1~V6=진동  V0=진동정지")
     print("                              B1/B0=브레이크진동  q=종료")
+    print(C_YELLOW + "  [v] 키 = USB 릴레이 진동 (엔터 없이 즉시)" + C_RESET)
     print(C_DIM + "-" * 70 + C_RESET)
 
-    threading.Thread(target=input_thread, args=(ser,), daemon=True).start()
+    threading.Thread(target=input_thread, args=(ser, relay), daemon=True).start()
 
     last_stat = time.time()
     count = 0

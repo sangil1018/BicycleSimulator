@@ -126,7 +126,7 @@ PedestrianSpawner ──► PedestrianController (보행자 AI)
 ### 2-2. 씬 뷰 배치
 
 - 신호기 오브젝트를 교차로 각 방향의 정지선 위치에 배치합니다
-- 콜라이더 불필요 — 차량은 SphereCast가 아닌 직접 참조로 신호를 확인합니다
+- 콜라이더 불필요 — 차량은 BoxCast가 아닌 직접 참조로 신호를 확인합니다
 
 ---
 
@@ -279,30 +279,46 @@ TrafficVehicle 컴포넌트
 │   ├── Turn Speed: 5            ← 조향 속도 (Slerp 강도)
 │   └── Reach Distance: 1.5      ← 노드 도달 판정 거리 (m)
 ├── 신호 정지
-│   └── Signal Check Dist: 6     ← 정지선 노드에서 이 거리부터 신호·큐 검사 시작 (m)
-├── 차량 감지
-│   ├── Brake Distance: 8        ← 원거리 사전 감속 범위, N프레임마다 SphereCast (m)
-│   ├── Emergency Dist: 5        ← 근접 긴급 감속 범위, 매 프레임 SphereCast (m)
-│   ├── Min Follow Dist: 2.5     ← 최소 안전거리 — 이 이내이면 무조건 정지 (m)
+│   ├── Signal Check Dist: 8     ← 정지선 노드에서 이 거리부터 신호·큐 검사 시작 (m)
+│   └── Stop Line Offset: 1.0    ← 정지선 노드에서 앞 범퍼까지 남길 거리 (m)
+├── 차량 간격 제어
+│   ├── Follow Gap: 5            ← 앞차와 유지할 목표 범퍼~범퍼 거리 (m)
+│   ├── Min Follow Dist: 2.0     ← 절대 최소 안전거리 — 이 이내이면 무조건 정지 (m)
 │   ├── Acceleration: 6          ← 가속도 (m/s²)
 │   ├── Deceleration: 20         ← 제동력 (m/s²) — Acceleration보다 크게 설정
-│   ├── Detection Radius: 0.4    ← 차량 SphereCast 반경 (m)
 │   └── Vehicle Layer            ← 차량 콜라이더 레이어
-└── 성능
-    └── Speed Calc Interval: 4   ← N 물리프레임마다 원거리 SphereCast 실행 (4 권장)
+├── 차량 감지 범위 (BoxCast)
+│   ├── Brake Distance: 12       ← 원거리 사전 감속 범위, N프레임마다 BoxCast (m)
+│   └── Emergency Dist: 6        ← 근접 긴급 감속 범위, 매 프레임 BoxCast (m)
+├── 차량 크기 (BoxCast 기준)
+│   ├── Vehicle Half Length: 2.0 ← 차량 중심~앞 범퍼 거리 (m)
+│   └── Vehicle Half Width: 0.8  ← 차량 좌우 반폭 (m)
+├── 성능
+│   └── Speed Calc Interval: 4   ← N 물리프레임마다 원거리 BoxCast 실행 (4 권장)
+└── 바퀴
+    ├── Wheels[]                 ← 이동 거리에 따라 굴러갈 바퀴 Transform 목록
+    ├── Wheel Radius: 0.35       ← 바퀴 반지름 (m) — 이동거리/(2π·r)만큼 회전
+    └── Wheel Spin Axis: (1,0,0) ← 바퀴가 굴러가는 로컬 회전축 (보통 X축)
 ```
 
 **차량 콜라이더**: Is Trigger = **OFF** (solid)
 
-> `Signal Check Dist`는 Reach Distance(1.5m)보다 충분히 크게 설정하세요 (기본 6m).
+> `Signal Check Dist`는 Reach Distance(1.5m)보다 충분히 크게 설정하세요 (기본 8m).
 
 **차량 감지 3단계 구조**
 
 | 단계 | 범위 | 실행 주기 | 역할 |
 |---|---|---|---|
-| 원거리 추종 (`Brake Distance`) | 8m | N프레임마다 | 앞차를 미리 감지해 부드럽게 감속 |
-| 긴급 감속 (`Emergency Dist`) | 5m | 매 프레임 | 겹침 직전 강제 감속 — N프레임 지연 보완 |
-| 완전 정지 (`Min Follow Dist`) | 2.5m | 매 프레임 | 이 이내이면 즉시 정지 |
+| 원거리 추종 (`Brake Distance`) | 12m | N프레임마다 | 앞차를 미리 감지해 부드럽게 감속 |
+| 긴급 감속 (`Emergency Dist`) | 6m | 매 프레임 | 겹침 직전 강제 감속 — N프레임 지연 보완 |
+| 완전 정지 (`Min Follow Dist`) | 2.0m | 매 프레임 | 이 이내이면 즉시 정지 |
+
+**바퀴 굴림 설정**
+
+- **Wheels**에 등록한 각 Transform은 차량이 이동한 거리에 정확히 비례해 회전합니다 (미끄러짐 없음).
+- 차량이 완전히 정지(속도 0)한 동안에는 회전 계산을 건너뛰어 불필요한 Transform 갱신을 막습니다. 감속 중(정지 직전)에는 속도에 비례해 계속 굴러갑니다.
+- 바퀴가 엉뚱한 축으로 돌면 `Wheel Spin Axis`를 `(0,1,0)`·`(0,0,1)` 등으로 바꿔 실제 회전축에 맞춥니다. 방향이 반대면 음수 축(예: `(-1,0,0)`)으로 설정합니다.
+- 차량을 선택하면 Scene 뷰에 각 바퀴의 `Wheel Radius`가 **주황색 원**(굴러가는 평면)으로 표시됩니다 — 바퀴 메시 크기와 원이 맞도록 반지름을 조정하세요.
 
 **Node Queue — 신호 구역 안전거리·순차 출발**
 
@@ -310,7 +326,7 @@ TrafficVehicle 컴포넌트
 
 - **빨간불**: 선두 차량만 신호로 정지 / 후속 차량은 앞차와의 **경로 거리**로 순서대로 정지
 - **초록불**: 선두 차량 즉시 출발 → 간격이 벌어지면 2번째 차 출발 → 3번째 차 출발 (파도형 순차 출발)
-- SphereCast 방향에 의존하지 않으므로 커브·합류 구간에서도 정확하게 동작
+- BoxCast 방향에 의존하지 않으므로 커브·합류 구간에서도 정확하게 동작
 
 ---
 
@@ -429,7 +445,7 @@ junction.ClearPedestrianOverrideAll();
 
 1. **신호기 탭**에서 정지선 노드 선택 → 신호기의 **`노드 연결`** 상태 확인
 2. **교차로 탭**에서 해당 TrafficSignal이 `vehicleGreen`에 등록됐는지 확인
-3. `Signal Check Dist`가 너무 작지 않은지 확인 (기본 6m, Reach Distance 1.5m보다 크게)
+3. `Signal Check Dist`가 너무 작지 않은지 확인 (기본 8m, Reach Distance 1.5m보다 크게)
 4. Play 중 TrafficSignal Inspector 상태 바에서 현재 `Red` 인지 직접 확인
 
 ### 교차로 안에서 멈춰요
@@ -442,9 +458,11 @@ junction.ClearPedestrianOverrideAll();
 
 1. 차량 콜라이더 **Is Trigger = OFF** 확인
 2. `Vehicle Layer` 마스크가 차량에 적용됐는지 확인
-3. `Min Follow Dist` 증가 (기본 2.5m) — 완전 정지 최소 거리
-4. `Emergency Dist` 증가 (기본 5m) — 근접 긴급 감속 구간 확대
-5. `Deceleration` 증가 (기본 20) — 제동력 강화
+3. `Min Follow Dist` 증가 (기본 2.0m) — 완전 정지 최소 거리
+4. `Follow Gap` 증가 (기본 5m) — 앞차와 유지할 목표 간격 확대
+5. `Emergency Dist` 증가 (기본 6m) — 근접 긴급 감속 구간 확대
+6. `Deceleration` 증가 (기본 20) — 제동력 강화
+7. `Vehicle Half Length` / `Vehicle Half Width`가 실제 차량 크기와 맞는지 확인 (BoxCast 기준)
 
 ### 신호 구역에서 차량끼리 겹쳐요
 

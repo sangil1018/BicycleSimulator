@@ -186,10 +186,15 @@ Unity는 ESP32 포트가 아니라 **별도의 USB 릴레이 포트**(`config.in
 
 **연결 확인 / 자동 재연결**: `Awake()`에서 연결 직후 상태확인 명령(`FF`)으로 실제 보드 응답을 검증하고, 이후 `Reconnect Interval`(기본 5초)마다 재확인하여 응답이 없으면 자동으로 재연결을 시도합니다.
 
+**릴레이 단독 점검 (Unity 없이)**: `Hardware/serial_monitor.py`가 ESP32(CH343)와 USB 릴레이(CH340) 포트를 자동 구분해 함께 연결합니다. 모니터 실행 중 키보드 **`v` 키**를 누르면(엔터 불필요) 릴레이로 진동 ON→0.5초 후 OFF 프레임을 직접 전송하므로, Unity를 켜지 않고도 릴레이 배선·전원을 빠르게 확인할 수 있습니다. 포트가 자동 구분되지 않으면 `python serial_monitor.py [ESP32포트] [릴레이포트]`로 직접 지정합니다.
+
 **config.ini 키** (모두 `InputManager`가 읽어서 `VibrationRelay`에 전달 — 릴레이 스크립트는 파일을 직접 읽지 않음)
+
+> `config.ini`에서 릴레이 관련 키는 `[Vibration]` 섹션에 있습니다.
 
 | 키 | 기본값 | 설명 |
 |----|--------|------|
+| `isActive` | `1` | 진동 사용 여부 (1=활성화, 0=비활성화 시 릴레이 연결 안 함) |
 | `RelayPortName` | `COM3` | 릴레이 연결 포트 |
 | `RelayBaudRate` | `9600` | 릴레이 통신 속도 |
 | `VibeShortDuration` | `0.2` | 짧은 진동 지속시간(초) |
@@ -248,7 +253,7 @@ Unity는 ESP32 포트가 아니라 **별도의 USB 릴레이 포트**(`config.in
 | X 버튼 | X 버튼 누름 | `x` | 0 → 1 |
 | 진동 패턴 (테스트용) | `V1\n` 전송 | 체감 진동 | 펌웨어 단독 테스트용, Unity는 미사용 (§3-1b 참고) |
 | RGB LED | `S2\n` 전송 | LED 색상 | 빨간색 |
-| 진동 릴레이 | Unity 실행 후 `DebugInputPanel`에서 진동 버튼 클릭 | 릴레이 클릭음 + 체감 진동 | 프리셋 길이만큼 ON |
+| 진동 릴레이 | Unity 실행 후 `DebugInputPanel`에서 진동 버튼 클릭 (또는 `serial_monitor.py`에서 `v` 키) | 릴레이 클릭음 + 체감 진동 | 프리셋 길이만큼 ON |
 
 #### STEP 4 — 초기 상태 설정
 
