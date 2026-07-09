@@ -359,7 +359,7 @@ void loop()
 
     float rpm  = calcCadenceRPM();
     float spd  = rpm * CADENCE_TO_KPH;
-    bool  brk  = !digitalRead(PIN_BRK);
+    bool  brk  = digitalRead(PIN_BRK);   // 브레이크는 normally-closed 스위치 — 눌리면 열려서 풀업으로 HIGH
     bool  btnO = !digitalRead(PIN_BTN_O);
     bool  btnX = !digitalRead(PIN_BTN_X);
 
