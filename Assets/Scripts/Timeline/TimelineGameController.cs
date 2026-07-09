@@ -16,7 +16,7 @@ public class TimelineGameController : MonoBehaviour
     [Header("Speed Mapping")]
     [Tooltip("이 속도(km/h)에서 1.0× 재생")]
     [SerializeField] float baseSpeedKph = 15f;
-    [Tooltip("최대 재생 배속")]
+    [Tooltip("최대 재생 배속. config.ini의 MaxRate 값으로 덮어씌워짐")]
     [SerializeField] float maxRate = 1.5f;
     [Tooltip("자동진행 구간 재생 배속 (CrosswalkWalk 등)")]
     [SerializeField] float fixedAutoSpeed = 1.0f;
@@ -51,6 +51,7 @@ public class TimelineGameController : MonoBehaviour
         {
             baseSpeedKph = InputManager.Instance.BaseSpeedKph;
             playbackMultiplier = InputManager.Instance.PlaybackMultiplier;
+            maxRate = InputManager.Instance.MaxRate;
         }
         bool hasAsset = director != null && director.playableAsset != null;
         Debug.Log($"[TimelineGameController] Start — director:{director != null}  asset:{hasAsset}  duration:{(director != null ? director.duration : 0):F2}");

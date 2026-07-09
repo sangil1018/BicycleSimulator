@@ -34,6 +34,7 @@ public class InputManager : Singleton<InputManager>
     public float YellowThreshold { get; private set; } = 20f;
     public float RedThreshold { get; private set; } = 30f;
     public float PlaybackMultiplier { get; private set; } = 1f;
+    public float MaxRate { get; private set; } = 1.5f;
     public float CameraSteerSmoothTime { get; private set; } = 0.12f;
     public float BrakeStopDuration { get; private set; } = 1.0f;
     public int TargetFps { get; private set; } = 60;
@@ -153,6 +154,7 @@ public class InputManager : Singleton<InputManager>
                     case "YellowThreshold": if (float.TryParse(val, out float yt)) YellowThreshold = yt; break;
                     case "RedThreshold": if (float.TryParse(val, out float rt)) RedThreshold = rt; break;
                     case "PlaybackMultiplier": if (float.TryParse(val, out float pm)) PlaybackMultiplier = Mathf.Max(0.01f, pm); break;
+                    case "MaxRate": if (float.TryParse(val, out float mr)) MaxRate = Mathf.Max(0.01f, mr); break;
                     case "CameraSteerSmoothTime": if (float.TryParse(val, out float ct)) CameraSteerSmoothTime = Mathf.Max(0f, ct); break;
                     case "BrakeStopDuration": if (float.TryParse(val, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float bsd)) BrakeStopDuration = Mathf.Clamp(bsd, 0.05f, 10f); break;
                     case "fps": if (int.TryParse(val, out int fps)) TargetFps = fps <= 0 ? 0 : Mathf.Clamp(fps, 15, 240); break;
