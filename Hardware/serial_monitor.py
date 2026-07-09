@@ -10,6 +10,8 @@ import sys
 import os
 import json
 import time
+import atexit
+import shutil
 import threading
 
 BAUD = 115200
@@ -33,6 +35,63 @@ C_CYAN   = "\033[96m"
 C_BOLD   = "\033[1m"
 
 
+class Header:
+    """터미널 상단에 포트 정보를 고정 표시.
+
+    ANSI 스크롤 영역(DECSTBM, ESC[top;bottom r)으로 헤더 아래쪽만 스크롤되게 만든다.
+    터미널이 아니거나 화면이 너무 좁으면 그냥 한 번 출력하고 넘어간다.
+    """
+
+    def __init__(self):
+        self.lines = []
+        self.rows = 0
+        self.active = False
+
+    def set(self, lines):
+        self.lines = lines
+        if not sys.stdout.isatty():
+            for l in lines:
+                print(l)
+            return
+        self.draw()
+
+    def draw(self):
+        rows = shutil.get_terminal_size((80, 25)).lines
+        n = len(self.lines)
+        if rows < n + 4:          # 헤더 + 로그 3줄도 안 나오면 고정 포기
+            self.disable()
+            for l in self.lines:
+                print(l)
+            return
+        self.rows = rows
+        out = ["\033[r", "\033[2J", "\033[H"]        # 영역 해제 → 전체 지우기 → 홈
+        out += [l + "\033[K\n" for l in self.lines]
+        out.append(f"\033[{n + 1};{rows}r")          # 스크롤 영역 = 헤더 아래 ~ 맨 밑줄
+        out.append(f"\033[{n + 1};1H")               # 커서를 영역 첫 줄로
+        sys.stdout.write("".join(out))
+        sys.stdout.flush()
+        self.active = True
+
+    def refresh_if_resized(self):
+        """터미널 높이가 바뀌면 스크롤 영역이 깨지므로 다시 그린다. 다시 그렸으면 True."""
+        if not self.active:
+            return False
+        if shutil.get_terminal_size((80, 25)).lines != self.rows:
+            self.draw()
+            return True
+        return False
+
+    def disable(self):
+        if self.active:
+            sys.stdout.write("\033[r")               # 스크롤 영역 해제
+            sys.stdout.flush()
+            self.active = False
+
+
+HEADER = Header()
+atexit.register(HEADER.disable)
+
+
 def ensure_pyserial():
     try:
         import serial  # noqa: F401
@@ -45,21 +104,22 @@ def ensure_pyserial():
     return serial, list_ports
 
 
-def pick_port(list_ports):
-    ports = list(list_ports.comports())
+def is_esp_candidate(p):
+    """ESP32-S3 추정 포트 판별 (USB CDC / CP210x / CH343 등).
+    CH340은 릴레이, 블루투스 가상 포트는 제외."""
+    desc = (p.description or "").lower()
+    esp_keywords = ("cp210", "ch343", "ch910", "usb", "uart", "jtag")
+    return ("bluetooth" not in desc
+            and "ch340" not in desc
+            and any(k in desc for k in esp_keywords))
+
+
+def pick_port(ports):
     if not ports:
         print(C_RED + "연결된 COM 포트가 없습니다. USB 케이블을 확인하세요." + C_RESET)
         sys.exit(1)
 
-    # ESP32-S3 우선 자동 선택 (USB CDC / CP210x / CH343 등). CH340은 릴레이이므로 제외,
-    # 블루투스 가상 포트도 제외.
-    esp_keywords = ("cp210", "ch343", "ch910", "usb", "uart", "jtag")
-    candidates = [
-        p for p in ports
-        if "bluetooth" not in (p.description or "").lower()
-        and "ch340" not in (p.description or "").lower()  # CH340 = USB 릴레이
-        and any(k in (p.description or "").lower() for k in esp_keywords)
-    ]
+    candidates = [p for p in ports if is_esp_candidate(p)]
 
     print(C_BOLD + "사용 가능한 포트:" + C_RESET)
     for i, p in enumerate(ports):
@@ -84,14 +144,40 @@ def pick_port(list_ports):
     return ports[idx].device
 
 
-def pick_relay_port(list_ports, exclude):
+def pick_relay_port(ports, exclude):
     """USB 릴레이(CH340) 포트 자동 탐지. ESP32 포트(exclude)는 제외."""
-    for p in list_ports.comports():
+    for p in ports:
         if p.device == exclude:
             continue
         if "ch340" in (p.description or "").lower():
             return p.device
     return None
+
+
+def build_header(ports, port, relay):
+    """상단 고정 표시할 포트 체크 정보 (6줄)."""
+    width = min(shutil.get_terminal_size((80, 25)).columns - 1, 78)
+    bar = C_DIM + "─" * width + C_RESET
+
+    desc = next((p.description for p in ports if p.device == port), "")
+    esp_line = f"{C_GREEN}{port}{C_RESET} @{BAUD}bps  {C_DIM}{desc}{C_RESET}"
+
+    plist = "  ".join(
+        p.device + (C_CYAN + "(릴레이)" + C_RESET if "ch340" in (p.description or "").lower()
+                    else C_CYAN + "(ESP32)" + C_RESET if p.device == port
+                    else "")
+        for p in ports
+    )
+
+    return [
+        bar,
+        f" {C_BOLD}ESP32 {C_RESET} {esp_line}",
+        f" {C_BOLD}릴레이{C_RESET} {relay.status}",
+        f" {C_BOLD}포트  {C_RESET} {plist}",
+        f" {C_BOLD}명령  {C_RESET} C=조향보정  V0~V6=진동  B0/B1=브레이크진동  "
+        f"{C_YELLOW}[v]=릴레이진동(즉시){C_RESET}  q=종료",
+        bar,
+    ]
 
 
 class Relay:
@@ -103,6 +189,7 @@ class Relay:
         self.baud = baud
         self.duration = duration
         self.ser = None
+        self.status = ""      # 헤더에 표시할 연결 상태 한 줄
         self._lock = threading.Lock()
 
     @property
@@ -111,14 +198,14 @@ class Relay:
 
     def connect(self):
         if not self.port:
-            print(C_YELLOW + "USB 릴레이(CH340) 포트를 찾지 못했습니다 — 'v' 진동 비활성" + C_RESET)
+            self.status = C_YELLOW + "미탐지 (CH340 없음) — 'v' 진동 비활성" + C_RESET
             return False
         try:
             self.ser = self._serial.Serial(self.port, self.baud, timeout=0.3)
-            print(C_GREEN + f"릴레이 연결됨: {self.port} @ {self.baud}bps ('v' 키로 진동)" + C_RESET)
+            self.status = f"{C_GREEN}{self.port}{C_RESET} @{self.baud}bps  {C_GREEN}연결됨{C_RESET}"
             return True
         except Exception as e:
-            print(C_RED + f"릴레이 포트 열기 실패({self.port}): {e}" + C_RESET)
+            self.status = C_RED + f"{self.port} 열기 실패: {e}" + C_RESET
             self.ser = None
             return False
 
@@ -157,6 +244,7 @@ def _send_esp(ser, cmd):
     if not cmd:
         return
     if cmd.lower() in ("q", "quit", "exit"):
+        HEADER.disable()      # os._exit는 atexit를 건너뛰므로 직접 해제
         os._exit(0)
     try:
         ser.write((cmd + "\n").encode())
@@ -183,6 +271,7 @@ def input_thread(ser, relay):
         if ch == "\x03":             # Ctrl+C
             if relay:
                 relay.close()
+            HEADER.disable()
             os._exit(0)
         if ch == "v":                # 릴레이 진동 트리거 (실시간, Enter 불필요)
             relay.vibrate()
@@ -226,7 +315,8 @@ def fmt_flag(name, val, on_color=C_RED):
 def main():
     serial, list_ports = ensure_pyserial()
 
-    port = sys.argv[1] if len(sys.argv) > 1 else pick_port(list_ports)
+    ports = list(list_ports.comports())
+    port = sys.argv[1] if len(sys.argv) > 1 else pick_port(ports)
 
     print(f"\n{port} @ {BAUD}bps 연결 중...")
     try:
@@ -237,16 +327,12 @@ def main():
         sys.exit(1)
 
     # USB 릴레이(CH340) 연결 — 인자로 지정하거나 자동 탐지 (ESP32 포트는 제외)
-    relay_port = sys.argv[2] if len(sys.argv) > 2 else pick_relay_port(list_ports, port)
+    relay_port = sys.argv[2] if len(sys.argv) > 2 else pick_relay_port(ports, port)
     relay = Relay(serial, relay_port)
     relay.connect()
 
-    print(C_GREEN + "연결됨!" + C_RESET)
-    print(C_DIM + "-" * 70 + C_RESET)
-    print("명령 입력 후 엔터로 전송 가능: C=조향보정  V1~V6=진동  V0=진동정지")
-    print("                              B1/B0=브레이크진동  q=종료")
-    print(C_YELLOW + "  [v] 키 = USB 릴레이 진동 (엔터 없이 즉시)" + C_RESET)
-    print(C_DIM + "-" * 70 + C_RESET)
+    # 포트 체크 정보를 화면 상단에 고정 (아래쪽만 스크롤)
+    HEADER.set(build_header(ports, port, relay))
 
     threading.Thread(target=input_thread, args=(ser, relay), daemon=True).start()
 
@@ -282,6 +368,8 @@ def main():
             hz = count / (now - last_stat)
             count = 0
             last_stat = now
+            if HEADER.refresh_if_resized():
+                line_open = False   # 화면을 지웠으므로 상태 줄도 초기화
 
         ts = time.strftime("%H:%M:%S")
         try:
@@ -335,4 +423,5 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
+        HEADER.disable()
         print("\n종료합니다.")
