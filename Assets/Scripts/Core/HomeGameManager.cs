@@ -26,6 +26,14 @@ public class HomeGameManager : MonoBehaviour
     [SerializeField] private AudioClip clickClip;
     private AudioSource _audioSource;
 
+    [Header("Transition Timing")]
+    [Tooltip("버튼 클릭 후 트랜지션 시작까지의 최소 시간(초) — 버튼 선택 애니메이션 연출용 (로딩과 동시 진행)")]
+    [SerializeField] private float selectFeedbackDelay = 0.5f;
+    [Tooltip("트랜지션 애니메이션 시작 후 씬을 활성화하는 시점(초) — 스파크가 화면을 완전히 덮는 순간 (클립 2.6s 기준 1.6s)")]
+    [SerializeField] private float sceneRevealDelay = 1.6f;
+    [Tooltip("씬 활성화 후 트랜지션 잔여 연출이 끝나 Home 씬을 언로드하기까지 대기(초)")]
+    [SerializeField] private float homeUnloadDelay = 1.0f;
+
     private bool _isTransitioning = false;
 
     void Awake()
@@ -36,6 +44,10 @@ public class HomeGameManager : MonoBehaviour
             _audioSource = gameObject.AddComponent<AudioSource>();
             _audioSource.playOnAwake = false;
         }
+
+        // 레벨 대형 에셋 백그라운드 프리로드 — 씬 파일 수정 없이 코드로 부착
+        if (GetComponent<PreloadManager>() == null)
+            gameObject.AddComponent<PreloadManager>();
     }
 
     void Start()
@@ -124,21 +136,35 @@ public class HomeGameManager : MonoBehaviour
     private void StartTransition(int level)
     {
         _isTransitioning = true;
+        // 프리로드가 점유 중일 수 있는 백그라운드 로딩 우선순위를 끌어올려 씬 로드를 가속
+        PreloadManager.BoostLoadingPriority();
         StartCoroutine(LoadLevelSequence(level));
     }
 
     private IEnumerator LoadLevelSequence(int level)
     {
+        var loadTimer = System.Diagnostics.Stopwatch.StartNew();
         string sceneName = level == 1 ? "Level1" : "Level2";
         AsyncOperation asyncLoad = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
         asyncLoad.allowSceneActivation = false;
 
-        yield return new WaitForSeconds(0.5f);
+        // 로드가 활성화 대기 상태(progress 0.9)에 도달할 때까지 홈 화면을 유지한다.
+        // selectFeedbackDelay는 버튼 선택 애니메이션이 보일 최소 시간 (로딩과 동시 진행).
+        float elapsed = 0f;
+        while (asyncLoad.progress < 0.9f || elapsed < selectFeedbackDelay)
+        {
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
 
+        Debug.Log($"[HomeGameManager] {sceneName} 로드 준비 완료: {loadTimer.Elapsed.TotalSeconds:F2}s (버튼 입력 기준)");
+
+        // 로드 완료 후에야 트랜지션 재생 — 2.6s 원샷 클립이 처음부터 온전히 보이도록.
+        // 스파크가 화면을 완전히 덮는 시점(sceneRevealDelay)에 씬을 활성화해 전환을 숨긴다.
         if (homeTransition)
         {
             homeTransition.SetActive(true);
-            yield return new WaitForSeconds(1.6f);
+            yield return new WaitForSeconds(sceneRevealDelay);
         }
 
         if (GameManager.Instance != null)
@@ -160,7 +186,8 @@ public class HomeGameManager : MonoBehaviour
         if (newScene.IsValid())
             DisableDuplicateSceneServices(newScene);
 
-        yield return new WaitForSeconds(1.0f);
+        // 트랜지션 잔여 연출(클립 후반부)이 끝날 때까지 대기 후 Home 언로드
+        yield return new WaitForSeconds(homeUnloadDelay);
 
         Debug.Log("[Home] Unloading Home scene after transition complete.");
         SceneManager.UnloadSceneAsync("Home");

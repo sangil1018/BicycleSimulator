@@ -5,7 +5,9 @@
 #  - ESP32-S3(CH343) 115200bps, JSON 라인 수신 (50Hz)
 #  - USB 릴레이(CH340) 9600bps 자동 연결 — 'v' 키로 수동 진동, 'r' 키로 포트 재스캔
 #  - 릴레이 자동 연동: 브레이크는 누른 동안 계속, O/X 버튼은 누르는 순간 짧게 진동
-#  - 명령 전송: C(조향 보정), q(종료)
+#  - 명령 전송: C(조향 보정), H(하트비트 에코 테스트), q(종료)
+#  - 연결 유지: Unity InputManager와 동일하게 10초 주기 'H' keep-alive 송신,
+#    5초 무수신 시 좀비 포트로 판단해 자동 재연결 (펌웨어 v5.9)
 # ================================================================
 import sys
 import os
@@ -19,6 +21,11 @@ import threading
 import unicodedata
 
 BAUD = 115200
+
+# ── 연결 유지 (Unity InputManager와 동일 정책) ──
+HEARTBEAT_INTERVAL = 10.0    # 'H' keep-alive 송신 주기 (초) — USB 절전 방지 + 왕복 확인
+STALE_RECONNECT_SEC = 5.0    # 무수신이 이 시간 지속되면 좀비 포트로 판단, 재연결
+RECONNECT_RETRY_SEC = 5.0    # 재연결 실패 시 재시도 주기 (초)
 
 # ── USB 릴레이(진동 모터) 프로토콜 — VibrationRelay.cs와 동일 ──
 # 9600bps, N/8/1. 릴레이1 ON/OFF 명령 (마지막 바이트는 앞 3바이트 합산 체크섬)
@@ -266,7 +273,7 @@ def build_header(ports, port, relay):
         f" {C_ESP}{C_BOLD}ESP32 {C_RESET} {esp_line}",
         f" {C_RELAY}{C_BOLD}릴레이{C_RESET} {relay.status}",
         f" {C_BOLD}포트  {C_RESET} {plist}",
-        f" {C_BOLD}명령  {C_RESET} C=조향보정  q=종료  "
+        f" {C_BOLD}명령  {C_RESET} C=조향보정  H=하트비트  q=종료  "
         f"{C_YELLOW}[v]=수동진동{C_RESET}  {C_GREEN}[r]=포트재스캔{C_RESET}  "
         f"{C_DIM}brk/O/X=자동진동{C_RESET}",
         bar,
@@ -391,6 +398,54 @@ class Relay:
             self.ser = None
 
 
+class EspLink:
+    """ESP32 시리얼 포트 래퍼.
+
+    .NET SerialPort와 마찬가지로 pyserial도 장치가 죽어도(USB 절전/재열거/보드 리셋)
+    포트가 열린 것처럼 보이는 좀비 상태가 될 수 있다. Unity InputManager와 동일하게
+    무수신 지속 시 포트를 닫고 다시 열어 복구한다. 재연결 시 DTR 재개방으로
+    보드가 리셋되어 부팅 메시지부터 다시 나오는 것이 정상이다.
+    """
+
+    def __init__(self, serial_mod, port, baud=BAUD):
+        self._serial = serial_mod
+        self.port = port
+        self.baud = baud
+        self.ser = None
+
+    @property
+    def connected(self):
+        return self.ser is not None and self.ser.is_open
+
+    def open(self):
+        """실패 시 예외 전파 — 최초 연결은 호출부에서 안내 후 종료 처리."""
+        self.ser = self._serial.Serial(self.port, self.baud, timeout=1)
+
+    def readline(self):
+        if not self.connected:
+            raise OSError("포트 닫힘")
+        return self.ser.readline()
+
+    def write_line(self, cmd):
+        if not self.connected:
+            raise OSError("포트 닫힘")
+        self.ser.write((cmd + "\n").encode())
+
+    def reconnect(self):
+        """포트를 닫고 다시 연다. 성공 여부 반환."""
+        try:
+            if self.ser is not None:
+                self.ser.close()
+        except Exception:
+            pass
+        self.ser = None
+        try:
+            self.open()
+            return True
+        except Exception:
+            return False
+
+
 RELAY = None            # 종료 핸들러에서 릴레이를 끄기 위한 전역 참조
 _CONSOLE_HANDLER = None  # 콘솔 컨트롤 콜백 — GC되면 안 되므로 전역 보관
 
@@ -451,27 +506,27 @@ def install_exit_handlers():
         pass   # 콘솔이 없는 환경(pythonw 등)에서는 무시
 
 
-def _send_esp(ser, cmd):
+def _send_esp(esp, cmd):
     cmd = cmd.strip()
     if not cmd:
         return
     if cmd.lower() in ("q", "quit", "exit"):
         exit_now(0)
     try:
-        ser.write((cmd + "\n").encode())
+        esp.write_line(cmd)
         print(C_CYAN + f">> 전송: {cmd}" + C_RESET)
     except Exception as e:
         print(C_RED + f"전송 실패: {e}" + C_RESET)
 
 
-def input_thread(ser, relay, rescan):
+def input_thread(esp, relay, rescan):
     """실시간 키 입력. 'v'=릴레이 진동, 'r'=포트 재스캔(둘 다 즉시).
     그 외 문자는 버퍼에 모아 Enter 시 ESP32로 전송.
     Windows에서는 msvcrt로 단일 키를 감지하고, 그 외 OS는 줄 단위 입력으로 대체한다."""
     try:
         import msvcrt
     except ImportError:
-        _line_input_loop(ser, relay, rescan)
+        _line_input_loop(esp, relay, rescan)
         return
 
     buf = ""
@@ -490,7 +545,7 @@ def input_thread(ser, relay, rescan):
             continue
         if ch in ("\r", "\n"):       # Enter → 버퍼를 ESP32로 전송
             print()
-            _send_esp(ser, buf)
+            _send_esp(esp, buf)
             buf = ""
             continue
         if ch in ("\x08", "\x7f"):   # Backspace
@@ -502,7 +557,7 @@ def input_thread(ser, relay, rescan):
         print(ch, end="", flush=True)
 
 
-def _line_input_loop(ser, relay, rescan):
+def _line_input_loop(esp, relay, rescan):
     """비 Windows 대체: 줄 단위 입력. 'v'=릴레이 진동, 'r'=포트 재스캔."""
     while True:
         try:
@@ -518,7 +573,7 @@ def _line_input_loop(ser, relay, rescan):
         if cmd.lower() == "r":
             rescan()
             continue
-        _send_esp(ser, cmd)
+        _send_esp(esp, cmd)
 
 
 def fmt_flag(name, val, on_color=C_RED):
@@ -535,8 +590,9 @@ def main():
     port = sys.argv[1] if len(sys.argv) > 1 else pick_port(ports)
 
     print(f"\n{port} @ {BAUD}bps 연결 중...")
+    esp = EspLink(serial, port)
     try:
-        ser = serial.Serial(port, BAUD, timeout=1)
+        esp.open()
     except Exception as e:
         print(C_RED + f"포트 열기 실패: {e}" + C_RESET)
         print("Unity나 아두이노 시리얼 모니터가 포트를 점유 중인지 확인하세요.")
@@ -550,6 +606,8 @@ def main():
 
     # 포트 체크 정보를 화면 상단에 고정 (아래쪽만 스크롤)
     HEADER.set(build_header(ports, port, relay))
+    # ESP32 헤더 줄 원본 — PAS 진단(pc/pl)을 1초 주기로 덧붙일 때 기준이 된다
+    esp_hdr_base = HEADER.lines[1] if len(HEADER.lines) > 1 else ""
 
     def rescan():
         """'r' 키 — COM 포트를 다시 훑고 헤더를 갱신. 릴레이가 새로 꽂혔으면 연결한다.
@@ -557,6 +615,7 @@ def main():
         입력 스레드에서 호출된다. ESP32 포트는 이미 열려 있으므로 건드리지 않고,
         미연결 상태인 릴레이만 다시 찾는다.
         """
+        nonlocal esp_hdr_base
         found = list(list_ports.comports())
         msg = f">> 포트 재스캔: {len(found)}개 발견"
 
@@ -570,6 +629,7 @@ def main():
         # 화면 전체를 다시 그리면 쌓인 로그가 지워지므로 헤더 줄만 제자리 갱신.
         # 상태 줄(STATUS_ROW)은 데이터 루프가 계속 쓰고 있으니 덮지 않는다.
         lines = build_header(found, port, relay)
+        esp_hdr_base = lines[1]
         if HEADER.active:
             for i, l in enumerate(lines):
                 if i != STATUS_ROW:
@@ -579,7 +639,7 @@ def main():
                 print(l)
         print(C_CYAN + msg + C_RESET)
 
-    threading.Thread(target=input_thread, args=(ser, relay, rescan), daemon=True).start()
+    threading.Thread(target=input_thread, args=(esp, relay, rescan), daemon=True).start()
 
     last_stat = time.time()
     last_draw = 0.0
@@ -588,6 +648,11 @@ def main():
     steer_ok = True     # 조향 센서 인식 여부 (펌웨어 v5.8: 실패 시 str=0 고정 송신)
     line_open = False   # (헤더 고정 실패 시) 상태 줄이 \r 덮어쓰기 중인지
     prev_brk = prev_o = prev_x = False   # 릴레이 연동용 이전 프레임 버튼 상태
+    last_rx = time.time()      # 마지막 유효 수신 시각 — 무수신/좀비 포트 감지 기준
+    last_hb = 0.0              # 마지막 keep-alive 송신 시각
+    next_retry = 0.0           # 다음 재연결 시도 가능 시각
+    read_err_notified = False  # 수신 예외 메시지 중복 출력 방지
+    pas_pc = pas_pl = None     # PAS 진단 (펌웨어 v6.0: 누적 펄스 수 / 핀 레벨)
 
     def print_msg(msg):
         """상태 줄 덮어쓰기 중이면 줄바꿈 후 메시지 출력 (출력 섞임 방지)"""
@@ -609,25 +674,63 @@ def main():
         line_open = True
 
     while True:
+        now = time.time()
+
+        # keep-alive — Unity와 동일하게 10초 주기 'H' 송신 (USB 절전 방지 + 왕복 확인)
+        if esp.connected and now - last_hb >= HEARTBEAT_INTERVAL:
+            last_hb = now
+            try:
+                esp.write_line("H")
+            except Exception:
+                pass   # 송신 실패는 아래 무수신 감지가 재연결로 처리한다
+
         try:
-            raw = ser.readline()
+            raw = esp.readline()
         except Exception as e:
-            print(C_RED + f"\n수신 오류: {e} (케이블 분리?)" + C_RESET)
-            sys.exit(1)
+            # 포트가 죽으면 readline이 timeout 없이 즉시 예외를 던져 루프가 폭주할 수
+            # 있다 — 메시지는 한 번만 찍고, 무수신 상태로 전환해 재연결 경로를 태운다.
+            if not read_err_notified:
+                read_err_notified = True
+                print_msg(C_RED + f"수신 오류: {e} — 자동 재연결로 전환" + C_RESET)
+            last_rx = min(last_rx, time.time() - STALE_RECONNECT_SEC)
+            raw = b""
+            time.sleep(0.2)
+
         if not raw:
+            # 무수신 — 좀비 포트(USB 절전/재열거/보드 리셋) 감지 및 자동 재연결.
+            # readline timeout(1초) 주기로 돌므로 상태 줄이 1Hz로 갱신된다.
+            now = time.time()
+            stale = now - last_rx
+            if stale >= STALE_RECONNECT_SEC:
+                show_status(C_RED + C_BOLD +
+                            f" 무수신 {stale:3.0f}s — {port} 재연결 시도 중..." + C_RESET)
+                if now >= next_retry:
+                    next_retry = now + RECONNECT_RETRY_SEC
+                    if esp.reconnect():
+                        print_msg(C_GREEN + f">> {port} 재연결 성공 — 보드 리셋, 부팅 메시지 대기" + C_RESET)
+                        last_rx = time.time()
+                    else:
+                        print_msg(C_RED + f">> {port} 재연결 실패 — {RECONNECT_RETRY_SEC:.0f}초 후 재시도" + C_RESET)
             continue
+
         line = raw.decode(errors="replace").strip()
         if not line:
             continue
 
-        count += 1
         now = time.time()
+        last_rx = now
+        read_err_notified = False
+        count += 1
         if now - last_stat >= 1.0:
             hz = count / (now - last_stat)
             count = 0
             last_stat = now
             if HEADER.refresh_if_resized():
                 line_open = False   # 화면을 지웠으므로 상태 줄도 초기화
+            # PAS 진단 — 헤더의 ESP32 줄에 1초 주기로 덧붙인다 (v6.0 미만 펌웨어는 필드 없음).
+            # 페달을 돌려도 펄스가 늘지 않으면 센서 전원/배선, 늘는데 RPM=0이면 펌웨어 문제.
+            if pas_pc is not None:
+                HEADER.set_line(1, f"{esp_hdr_base}  {C_DIM}PAS펄스:{pas_pc} lv:{pas_pl}{C_RESET}")
 
         ts = time.strftime("%H:%M:%S")
         try:
@@ -647,6 +750,9 @@ def main():
             elif "DMP Stabilized" in msg:
                 steer_ok = True
                 print_msg(C_GREEN + f"[{ts}] DEBUG: {msg}" + C_RESET)
+            elif msg == "hb":
+                # keep-alive 에코 (펌웨어 v5.9) — 10초마다 오므로 어둡게 한 줄만
+                print_msg(C_DIM + f"[{ts}] HB 응답 — 링크 왕복 정상" + C_RESET)
             else:
                 print_msg(C_CYAN + f"[{ts}] DEBUG: {msg}" + C_RESET)
         elif "calibrated" in d:
@@ -655,6 +761,8 @@ def main():
             rpm = d.get("rpm", 0)
             spd = d.get("spd", 0)
             strv = d.get("str", 0)
+            pas_pc = d.get("pc", pas_pc)   # PAS 진단 (v6.0+)
+            pas_pl = d.get("pl", pas_pl)
             spd_c = C_GREEN if spd > 1 else C_DIM
             brk, o, x = bool(d.get("brk")), bool(d.get("o")), bool(d.get("x"))
 

@@ -95,6 +95,13 @@ public class InputManager : Singleton<InputManager>
     int _connectFailCount = 0;         // 연속 연결 실패 횟수 (재시도마다 로그 표기)
     string _lastConnectError = "";     // 마지막 연결 실패 예외 메시지
     const float RECONNECT_INTERVAL = 5f; // 미연결 시 재연결 시도 주기 (초)
+    // SerialPort.IsOpen은 장치가 죽어도 true를 유지하므로(좀비 포트),
+    // 무수신 지속 시간을 기준으로 포트를 강제로 닫고 재연결한다.
+    const float STALE_RECONNECT_SEC = 5f;  // 수신 끊김이 이 시간 지속되면 강제 재연결
+    const float FIRST_DATA_TIMEOUT = 10f;  // 연결 후 첫 데이터가 이 시간 안에 없으면 재연결 (보드 부팅 3초 고려)
+    const float HEARTBEAT_INTERVAL = 10f;  // Unity→ESP32 keep-alive 주기 — USB OUT 트래픽 유지 (H 명령)
+    float _lastHeartbeatTime = -999f;
+    float _lastHbAckTime = -1f;            // 펌웨어 하트비트 응답 수신 시각 (진단용)
     bool _wasBraking = false;
     float _brakeDecelRate = 0f; // 브레이크 시작 시점 속도 / BrakeStopDuration (km/h per sec)
     float _yawOffset = 0f;
@@ -330,6 +337,27 @@ public class InputManager : Singleton<InputManager>
             _prevO = _prevX = _prevBrk = false;
             Debug.LogWarning($"[Input] ESP32 데이터 {DATA_TIMEOUT:F1}s 무수신 — 입력값 0으로 리셋");
         }
+        else if (_dataStale && Time.time - _lastDataTime >= STALE_RECONNECT_SEC)
+        {
+            // IsOpen=true인데 데이터가 오지 않는 좀비 포트 (USB 절전/재열거/보드 리셋)
+            // — 포트를 강제로 닫고 재연결. 실패하면 기존 RECONNECT_INTERVAL 루틴이 이어받는다.
+            Debug.LogWarning($"[Input] {STALE_RECONNECT_SEC:F0}s 무수신 지속 — 좀비 포트로 판단, 강제 재연결");
+            AttemptConnect();
+        }
+        else if (IsConnected && _lastDataTime < 0f && Time.time - _lastConnectAttempt >= FIRST_DATA_TIMEOUT)
+        {
+            // 포트는 열렸지만 첫 데이터가 오지 않음 (다른 장치가 같은 포트로 재열거된 경우 등)
+            Debug.LogWarning($"[Input] 연결 후 {FIRST_DATA_TIMEOUT:F0}s 동안 데이터 없음 — 강제 재연결");
+            AttemptConnect();
+        }
+
+        // Unity→ESP32 keep-alive — USB 링크의 OUT 방향 트래픽을 유지해 절전 진입을 막고,
+        // 펌웨어 에코({"debug":"hb"})로 왕복 상태를 확인한다.
+        if (IsConnected && Time.time - _lastHeartbeatTime >= HEARTBEAT_INTERVAL)
+        {
+            _lastHeartbeatTime = Time.time;
+            SendRaw("H");
+        }
 
         if (keyboardEnabled) UpdateKeyboard();
 
@@ -393,6 +421,13 @@ public class InputManager : Singleton<InputManager>
 
     void ProcessSpecialMessage(string line)
     {
+        // 하트비트 에코 — 10초마다 오므로 로그 없이 수신 시각만 기록
+        if (line.Contains("\"hb\""))
+        {
+            _lastHbAckTime = Time.time;
+            return;
+        }
+
         Debug.Log($"[Input] {line}");
         if (line.Contains("\"calibrated\"")) OnCalibrated?.Invoke();
         else if (line.Contains("\"magcal\"")) OnMagCalMessage?.Invoke(line);
@@ -540,7 +575,7 @@ public class InputManager : Singleton<InputManager>
         if (!DebugMode) return;
         if (_debugStyle == null)
         {
-            _debugStyle = new GUIStyle(GUI.skin.box) { fontSize = 34, alignment = TextAnchor.UpperLeft };
+            _debugStyle = new GUIStyle(GUI.skin.box) { fontSize = 32, alignment = TextAnchor.UpperLeft };
             _debugStyle.normal.textColor = Color.white;
         }
         string text =
@@ -553,8 +588,9 @@ public class InputManager : Singleton<InputManager>
             $"Speed     : {SpeedKph:F1} km/h\n" +
             $"Cadence   : {CadenceRPM:F0} RPM\n" +
             $"Brake     : {Brake}  O:{BtnOHeld}  X:{BtnXHeld}\n" +
-            $"YawCalib  : {(_yawCalibrated ? "완료" : "대기중")}";
-        GUI.Box(new Rect(10, 160, 560, 420), text, _debugStyle);
+            $"YawCalib  : {(_yawCalibrated ? "완료" : "대기중")}\n" +
+            $"HB Ack    : {(_lastHbAckTime < 0f ? "없음" : $"{Time.time - _lastHbAckTime:F0}s 전")}";
+        GUI.Box(new Rect(10, 160, 560, 480), text, _debugStyle);
     }
 #endif
 }

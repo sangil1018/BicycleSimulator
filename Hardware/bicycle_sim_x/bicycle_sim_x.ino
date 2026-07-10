@@ -1,7 +1,11 @@
 // ================================================================
-//  자전거 안전체험 시뮬레이터  ESP32-S3 펌웨어 v5.8
-//  빛고을국민안전체험관 / FLUXION / 2026.06
+//  자전거 안전체험 시뮬레이터  ESP32-S3 펌웨어 v6.0
+//  빛고을국민안전체험관 / FLUXION / 2026.07
 //  v5.8: 진동 제어 ESP32 통합 (IRF520 모듈, GPIO2 PWM)
+//  v5.9: 하트비트(H) 에코 추가, PAS micros() 랩어라운드 가드
+//  v6.0: PAS 진단 필드 추가 — pc(누적 펄스 수)/pl(핀 레벨).
+//        "PAS만 무반응" 현장 진단용: 페달을 돌려도 pc가 늘지 않으면
+//        센서 전원/배선 문제, pc는 느는데 rpm=0이면 펌웨어 문제.
 // ================================================================
 
 #include <Wire.h>
@@ -47,6 +51,7 @@ void setRGB(uint8_t, uint8_t, uint8_t) {}
 // ── 전역 변수 ────────────────────────────────────────────────────
 volatile uint32_t g_lastPulseUs    = 0;
 volatile uint32_t g_pulseIntervalUs = UINT32_MAX;
+volatile uint32_t g_pulseCount     = 0;   // 부팅 후 누적 PAS 펄스 수 (진단용)
 float    g_steerAngle  = 0.0f;
 float    g_lastRawYaw  = 0.0f;
 float    g_yawOffset   = 0.0f;
@@ -142,6 +147,7 @@ void IRAM_ATTR onPasPulse()
     uint32_t now = micros();
     g_pulseIntervalUs = now - g_lastPulseUs;
     g_lastPulseUs = now;
+    g_pulseCount++;
 }
 
 // ── DMP Yaw 조향 처리 ────────────────────────────────────────────
@@ -196,7 +202,17 @@ float calcCadenceRPM()
     uint32_t interval = g_pulseIntervalUs;
     uint32_t last     = g_lastPulseUs;
     portENABLE_INTERRUPTS();
-    if (micros() - last > PAS_TIMEOUT || interval == 0) return 0.0f;
+    if (micros() - last > PAS_TIMEOUT || interval == 0)
+    {
+        // 타임아웃 시 interval 무효화 — micros() 32비트 랩(약 71.6분 주기)으로
+        // 오래된 타임스탬프가 유효 창에 다시 들어와 유령 속도가 튀는 것을 방지.
+        // 사이에 새 펄스가 들어왔으면(g_lastPulseUs 변경) 건드리지 않는다.
+        portDISABLE_INTERRUPTS();
+        if (g_lastPulseUs == last) g_pulseIntervalUs = UINT32_MAX;
+        portENABLE_INTERRUPTS();
+        return 0.0f;
+    }
+    if (interval == UINT32_MAX) return 0.0f; // 무효화 직후 첫 펄스 대기 상태
     return constrain(60.0f / ((float)interval / 1e6f * (float)PAS_MAGNETS), 0.0f, RPM_MAX);
 }
 
@@ -232,6 +248,7 @@ void handleCommand(const String &cmd)
     switch (t)
     {
     case 'C': calibrateSteering(); break;
+    case 'H': Serial.println("{\"debug\":\"hb\"}"); break; // Unity keep-alive 에코 (10초 주기)
     case 'M': Serial.println("{\"magcal\":\"not_required_in_dmp\"}"); break;
     case 'S': g_rgbState = (RgbState)constrain(v, 0, 3); break;
     case 'B': setBrake(v == 1); break;
@@ -365,9 +382,11 @@ void loop()
 
     updateRGB(spd, brk);
 
+    // pc/pl은 PAS 진단용 — Unity JsonUtility는 모르는 필드를 무시하므로 게임에 영향 없음
     Serial.printf("{\"id\":%d,\"rpm\":%.1f,\"spd\":%.1f,\"str\":%.1f,"
-                  "\"brk\":%d,\"o\":%d,\"x\":%d}\n",
+                  "\"brk\":%d,\"o\":%d,\"x\":%d,\"pc\":%lu,\"pl\":%d}\n",
                   STATION_ID, rpm, spd,
                   constrain(g_steerAngle, -STEER_RANGE_DEG, STEER_RANGE_DEG),
-                  brk ? 1 : 0, btnO ? 1 : 0, btnX ? 1 : 0);
+                  brk ? 1 : 0, btnO ? 1 : 0, btnX ? 1 : 0,
+                  (unsigned long)g_pulseCount, digitalRead(PIN_PAS) ? 1 : 0);
 }

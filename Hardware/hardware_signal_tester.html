@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32-S3 자전거 하드웨어 신호 테스트기</title>
+    <!--
+      자전거 시뮬레이터 하드웨어 신호 테스트기 (Web Serial)
+      - serial_monitor.py와 동일한 기능의 브라우저판: Chrome/Edge에서 파일을 열어 사용
+      - ESP32-S3(115200bps) JSON 수신 + 명령 전송 (C/H/V1~V6)
+      - USB 릴레이(CH340, 9600bps) 진동 체크: 수동 펄스 + 브레이크/버튼 자동 연동
+      - 연결 유지: 10초 주기 'H' keep-alive, 5초 무수신 경고, 재삽입 시 자동 재연결
+    -->
+    <style>
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 680px;
+        }
+        h1 {
+            color: #1a73e8;
+            font-size: 22px;
+            margin: 0 0 16px;
+            text-align: center;
+        }
+        h2 {
+            font-size: 14px;
+            color: #3c4043;
+            margin: 22px 0 10px;
+            padding-top: 14px;
+            border-top: 1px solid #eee;
+        }
+        .conn-bar {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .conn-cell { display: flex; align-items: center; gap: 8px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; background: #d93025; flex: none; }
+        .dot.on { background: #1e8e3e; }
+        .dot.stale { background: #f9ab00; }
+        .conn-label { font-size: 0.85em; color: #5f6368; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .monitor {
+            background: #202124;
+            color: #00ff41;
+            padding: 14px 16px;
+            border-radius: 10px;
+            font-family: 'Courier New', Courier, monospace;
+            margin-bottom: 14px;
+            font-size: 1.0em;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+            white-space: pre;
+            overflow-x: auto;
+        }
+        .monitor.stale { color: #f28b82; }
+        .log {
+            background: #202124;
+            color: #9aa0a6;
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.82em;
+            height: 150px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .log .ok    { color: #81c995; }
+        .log .warn  { color: #fdd663; }
+        .log .err   { color: #f28b82; }
+        .log .dim   { color: #5f6368; }
+        .log .send  { color: #8ab4f8; }
+        .button-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .button-grid.two { grid-template-columns: 1fr 1fr; }
+        .btn {
+            padding: 12px 8px;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-align: center;
+            user-select: none;
+            background: #f1f3f4;
+            color: #3c4043;
+        }
+        .btn:hover:not(:disabled) { filter: brightness(0.95); }
+        .btn:active:not(:disabled) { transform: scale(0.97); }
+        .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .btn-primary { background: #1a73e8; color: white; }
+        .btn-relay   { background: #fce8d6; color: #b3541e; }
+        .btn-relay.on { background: #e8710a; color: white; }
+        .btn-vibe    { background: #e8f0fe; color: #1a73e8; }
+        .btn-danger  { background: #fce8e6; color: #d93025; }
+        .toggle-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 0.88em; color: #3c4043; }
+        .visuals {
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end;
+            margin: 16px 0 4px;
+        }
+        .visual-cell { text-align: center; font-size: 0.82em; color: #5f6368; }
+        .wheel {
+            width: 56px; height: 56px;
+            border: 5px solid #3c4043;
+            border-radius: 50%;
+            display: inline-block;
+            position: relative;
+            margin-bottom: 6px;
+        }
+        .wheel::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 50%; width: 2px; height: 100%;
+            background: #3c4043;
+        }
+        .steering {
+            width: 76px; height: 38px;
+            border: 4px solid #1a73e8;
+            border-radius: 38px 38px 0 0;
+            display: inline-block;
+            transition: transform 0.1s;
+            margin-bottom: 6px;
+        }
+        .flag {
+            display: inline-block;
+            min-width: 52px;
+            padding: 8px 6px;
+            border-radius: 8px;
+            background: #f1f3f4;
+            color: #9aa0a6;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .flag.on-brk { background: #d93025; color: white; }
+        .flag.on-o   { background: #1e8e3e; color: white; }
+        .flag.on-x   { background: #f9ab00; color: white; }
+        .info-text { font-size: 0.8em; color: #70757a; margin-top: 14px; line-height: 1.55; }
+        #unsupported {
+            display: none;
+            background: #fce8e6; color: #d93025;
+            padding: 12px; border-radius: 10px; margin-bottom: 14px;
+            font-size: 0.9em;
+        }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>자전거 하드웨어 신호 테스트기</h1>
+
+    <div id="unsupported">
+        이 브라우저는 Web Serial을 지원하지 않습니다. <strong>Chrome 또는 Edge</strong>에서 열어주세요.
+    </div>
+
+    <div class="conn-bar">
+        <div class="conn-cell">
+            <span class="dot" id="esp-dot"></span>
+            <button class="btn btn-primary" id="btn-esp-connect">ESP32 연결</button>
+            <span class="conn-label" id="esp-label">미연결 (115200bps)</span>
+        </div>
+        <div class="conn-cell">
+            <span class="dot" id="relay-dot"></span>
+            <button class="btn btn-relay" id="btn-relay-connect">릴레이 연결</button>
+            <span class="conn-label" id="relay-label">미연결 (9600bps)</span>
+        </div>
+    </div>
+
+    <div class="monitor" id="status-line">데이터 대기 중... ESP32를 연결하세요</div>
+
+    <div class="visuals">
+        <div class="visual-cell"><div class="wheel" id="wheel-visual"></div><div>바퀴 회전</div></div>
+        <div class="visual-cell"><div class="steering" id="steering-visual"></div><div>핸들 방향</div></div>
+        <div class="visual-cell"><div class="flag" id="flag-brk">brk</div><div>브레이크</div></div>
+        <div class="visual-cell"><div class="flag" id="flag-o">O</div><div>O 버튼</div></div>
+        <div class="visual-cell"><div class="flag" id="flag-x">X</div><div>X 버튼</div></div>
+    </div>
+
+    <h2>진동 체크 — USB 릴레이 (Unity VibrationRelay와 동일 프로토콜)</h2>
+    <div class="button-grid">
+        <button class="btn btn-vibe" id="btn-vibe-pulse" disabled>수동 진동 (0.5s)</button>
+        <button class="btn btn-relay" id="btn-relay-on" disabled>릴레이 ON (유지)</button>
+        <button class="btn" id="btn-relay-off" disabled>릴레이 OFF</button>
+    </div>
+    <div class="toggle-row">
+        <input type="checkbox" id="chk-autolink" checked>
+        <label for="chk-autolink" style="display:inline; margin:0; font-weight:normal;">
+            자동 연동 — 브레이크는 누른 <strong>동안</strong>, O/X 버튼은 누르는 <strong>순간</strong> 진동
+        </label>
+    </div>
+
+    <h2>진동 체크 — ESP32 내장 모터 패턴 (V 명령)</h2>
+    <div class="button-grid">
+        <button class="btn esp-cmd" data-cmd="V1">V1 위험</button>
+        <button class="btn esp-cmd" data-cmd="V2">V2 성공</button>
+        <button class="btn esp-cmd" data-cmd="V3">V3 정답</button>
+        <button class="btn esp-cmd" data-cmd="V4">V4 오답</button>
+        <button class="btn esp-cmd" data-cmd="V5">V5 보행</button>
+        <button class="btn btn-danger esp-cmd" data-cmd="V0">V0 정지</button>
+    </div>
+
+    <h2>ESP32 명령</h2>
+    <div class="button-grid two">
+        <button class="btn esp-cmd" data-cmd="C">C — 조향 보정</button>
+        <button class="btn esp-cmd" data-cmd="H">H — 하트비트 에코 (v5.9)</button>
+    </div>
+
+    <h2>로그</h2>
+    <div class="log" id="log"></div>
+
+    <div class="info-text">
+        * Chrome/Edge에서 파일을 직접 열어 사용합니다 (Web Serial). <strong>최초 1회만</strong> 연결 버튼으로
+          포트를 선택하면, 다음부터는 페이지를 열자마자 자동 연결됩니다 (브라우저 보안상 첫 허용은 수동 필수).<br>
+        * ESP32는 10초 주기로 <strong>H</strong> keep-alive를 자동 송신하며, 5초 무수신 시 상태 줄이 붉게 바뀝니다.
+          케이블을 다시 꽂으면 자동 재연결됩니다.<br>
+        * Unity가 같은 포트를 점유 중이면 열리지 않습니다 — 게임을 끄고 테스트하세요.<br>
+        * <strong>PAS펄스</strong>(펌웨어 v6.0+): 페달을 돌려도 숫자가 늘지 않으면 센서 전원/배선 문제,
+          숫자는 느는데 RPM이 0이면 펌웨어 문제입니다.
+    </div>
+</div>
+
+<script>
+    'use strict';
+
+    // ── 상수 (serial_monitor.py / VibrationRelay.cs와 동일) ──
+    const ESP_BAUD = 115200;
+    const RELAY_BAUD = 9600;
+    const RELAY_ON  = new Uint8Array([0xA0, 0x01, 0x01, 0xA2]);
+    const RELAY_OFF = new Uint8Array([0xA0, 0x01, 0x00, 0xA1]);
+    const RELAY_VIBE_MS = 500;          // 수동/버튼 펄스 지속시간
+    const HEARTBEAT_INTERVAL_MS = 10000; // Unity InputManager와 동일 keep-alive 주기
+    const STALE_MS = 5000;               // 무수신 경고 기준
+
+    const $ = id => document.getElementById(id);
+    const logEl = $('log');
+
+    function log(msg, cls) {
+        const ts = new Date().toTimeString().slice(0, 8);
+        const line = document.createElement('div');
+        if (cls) line.className = cls;
+        line.textContent = `[${ts}] ${msg}`;
+        logEl.appendChild(line);
+        while (logEl.childNodes.length > 300) logEl.removeChild(logEl.firstChild);
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    if (!('serial' in navigator)) {
+        $('unsupported').style.display = 'block';
+        $('btn-esp-connect').disabled = true;
+        $('btn-relay-connect').disabled = true;
+    }
+
+    // ── 포트 역할 기억/추정 — serial_monitor.py의 자동 탐지와 같은 규칙 ──
+    // Web Serial은 시스템 포트를 임의로 열 수 없고, 사용자가 한 번 허용한 포트만
+    // getPorts()로 다시 열 수 있다. 수동 연결 시 VID/PID별 역할을 기억해 두고,
+    // 다음 실행부터는 로드 직후 자동 연결한다.
+    const ROLE_KEY = 'bike_tester_port_roles';
+    const portKey = info => `${info.usbVendorId || 0}:${info.usbProductId || 0}`;
+    function loadRoles() {
+        try { return JSON.parse(localStorage.getItem(ROLE_KEY)) || {}; } catch (_) { return {}; }
+    }
+    function saveRole(info, role) {
+        if (!info) return;
+        const r = loadRoles();
+        r[portKey(info)] = role;
+        localStorage.setItem(ROLE_KEY, JSON.stringify(r));
+    }
+    // VID/PID → 칩 이름 (Web Serial은 COM 번호/장치관리자 이름을 노출하지 않으므로
+    // 칩 이름으로 어떤 장치에 붙었는지 알아볼 수 있게 한다)
+    function chipName(info) {
+        if (!info || info.usbVendorId == null) return '알 수 없는 장치';
+        const hex = n => n.toString(16).toUpperCase().padStart(4, '0');
+        const v = info.usbVendorId, p = info.usbProductId;
+        if (v === 0x1A86) {   // QinHeng (WCH)
+            const m = { 0x7523: 'CH340', 0x55D2: 'CH342', 0x55D3: 'CH343', 0x55D4: 'CH9102' };
+            return m[p] || `CH34x(${hex(p)})`;
+        }
+        if (v === 0x303A) return 'ESP32 네이티브 USB';
+        if (v === 0x10C4) return 'CP210x';
+        if (v === 0x0403) return 'FTDI';
+        return `VID:${hex(v)} PID:${hex(p)}`;
+    }
+
+    function guessRole(info) {
+        const saved = loadRoles()[portKey(info)];
+        if (saved) return saved;
+        if (info.usbProductId === 0x7523) return 'relay';   // CH340 = USB 릴레이
+        if (info.usbVendorId === 0x303A) return 'esp';      // Espressif 네이티브 USB CDC
+        if ([0x55D2, 0x55D3, 0x55D4].includes(info.usbProductId)) return 'esp'; // CH342/343/9102
+        return null;
+    }
+
+    async function autoConnectGranted() {
+        if (!('serial' in navigator)) return;
+        const granted = await navigator.serial.getPorts();
+        if (granted.length === 0) {
+            log('이전에 허용한 포트 없음 — 최초 1회는 연결 버튼으로 포트를 선택하세요', 'dim');
+            return;
+        }
+        for (const p of granted) {
+            const role = guessRole(p.getInfo());
+            try {
+                if (role === 'esp' && !esp.connected) {
+                    log('허용된 포트 자동 연결 — ESP32', 'ok');
+                    await openEsp(p);
+                } else if (role === 'relay' && !relay.connected) {
+                    log('허용된 포트 자동 연결 — 릴레이', 'ok');
+                    await openRelay(p);
+                }
+            } catch (e) {
+                log(`자동 연결 실패(${role === 'esp' ? 'ESP32' : '릴레이'}): ${e.message} — Unity/모니터가 점유 중인지 확인`, 'warn');
+            }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  ESP32 연결 (JSON 수신 + 명령 송신 + keep-alive)
+    // ════════════════════════════════════════════════════════════
+    const esp = { port: null, reader: null, connected: false, info: null };
+    let lastRx = 0;          // 마지막 유효 수신 시각
+    let lastHbAck = 0;       // 마지막 하트비트 에코 수신 시각
+    let rxCount = 0, hz = 0;
+    let steerOk = true;
+    let prevBrk = false, prevO = false, prevX = false;
+
+    async function connectEsp() {
+        try {
+            const port = await navigator.serial.requestPort();
+            await openEsp(port);
+        } catch (e) {
+            if (e.name !== 'NotFoundError') log(`ESP32 연결 실패: ${e.message}`, 'err');
+        }
+    }
+
+    async function openEsp(port) {
+        await port.open({ baudRate: ESP_BAUD });
+        esp.port = port;
+        esp.info = port.getInfo();   // 재삽입 시 자동 재연결 매칭용 (usbVendorId/ProductId)
+        saveRole(esp.info, 'esp');   // 다음 실행부터 로드 즉시 자동 연결
+        esp.connected = true;
+        lastRx = Date.now();
+        updateConnUi();
+        log(`ESP32 연결됨 — ${chipName(esp.info)} @${ESP_BAUD}bps`, 'ok');
+        readLoop(port);
+    }
+
+    async function readLoop(port) {
+        const decoder = new TextDecoder();
+        let buf = '';
+        while (esp.connected && port.readable) {
+            esp.reader = port.readable.getReader();
+            try {
+                for (;;) {
+                    const { value, done } = await esp.reader.read();
+                    if (done) break;
+                    buf += decoder.decode(value, { stream: true });
+                    let i;
+                    while ((i = buf.indexOf('\n')) >= 0) {
+                        const line = buf.slice(0, i).trim();
+                        buf = buf.slice(i + 1);
+                        if (line) handleEspLine(line);
+                    }
+                }
+            } catch (e) {
+                log(`수신 오류: ${e.message}`, 'err');
+            } finally {
+                try { esp.reader.releaseLock(); } catch (_) {}
+            }
+        }
+        await closeEsp('수신 종료');
+    }
+
+    async function closeEsp(reason) {
+        if (!esp.port) return;
+        const port = esp.port;
+        esp.port = null;
+        esp.connected = false;
+        // reader가 readable을 잠그고 있으면 close()가 실패한다 — cancel로 먼저 풀어준다
+        try { await esp.reader?.cancel(); } catch (_) {}
+        await new Promise(r => setTimeout(r, 50));   // readLoop의 releaseLock이 돌 시간
+        try { await port.close(); } catch (_) {}
+        updateConnUi();
+        if (reason) log(`ESP32 연결 해제 (${reason}) — 케이블 재삽입 시 자동 재연결`, 'warn');
+    }
+
+    async function sendEsp(cmd) {
+        if (!esp.connected || !esp.port?.writable) {
+            log(`전송 무시 (${cmd}) — ESP32 미연결`, 'warn');
+            return;
+        }
+        const w = esp.port.writable.getWriter();
+        try {
+            await w.write(new TextEncoder().encode(cmd + '\n'));
+            if (cmd !== 'H') log(`>> 전송: ${cmd}`, 'send');
+        } catch (e) {
+            log(`전송 실패 (${cmd}): ${e.message}`, 'err');
+        } finally {
+            w.releaseLock();
+        }
+    }
+
+    function handleEspLine(line) {
+        lastRx = Date.now();
+        let d;
+        try { d = JSON.parse(line); }
+        catch (_) { log(`RAW: ${line}`, 'warn'); return; }
+
+        if ('debug' in d) {
+            const msg = d.debug;
+            if (msg === 'hb') {
+                lastHbAck = Date.now();
+                log('HB 응답 — 링크 왕복 정상', 'dim');
+            } else if (msg.includes('Steer sensor NOT found')) {
+                steerOk = false;
+                log('경고: 조향 센서 미인식 — 조향값 0 고정 모드', 'err');
+            } else if (msg.includes('DMP Stabilized')) {
+                steerOk = true;
+                log(`DEBUG: ${msg}`, 'ok');
+            } else {
+                log(`DEBUG: ${msg}`);
+            }
+            return;
+        }
+        if ('calibrated' in d) {
+            log(`조향 보정 완료 (center=${d.center})`, 'ok');
+            return;
+        }
+        if ('rpm' in d) {
+            rxCount++;
+            applyData(d);
+        }
+    }
+
+    // ── 수신 데이터 → 화면 + 릴레이 자동 연동 ──
+    const statusEl = $('status-line');
+    const wheel = $('wheel-visual');
+    const steeringEl = $('steering-visual');
+    let lastDraw = 0;
+
+    function applyData(d) {
+        const brk = !!d.brk, o = !!d.o, x = !!d.x;
+
+        // 릴레이 자동 연동 (serial_monitor.py와 동일): 브레이크=hold, O/X=상승 에지 펄스
+        if ($('chk-autolink').checked) {
+            if (brk !== prevBrk) relayHold(brk);
+            if (!brk && ((o && !prevO) || (x && !prevX))) relayPulse();
+        }
+        prevBrk = brk; prevO = o; prevX = x;
+
+        // 화면 갱신은 20Hz로 제한 (50Hz 전부 그리면 깜빡임)
+        const now = performance.now();
+        if (now - lastDraw < 50) return;
+        lastDraw = now;
+
+        const strTxt = steerOk ? `${(+d.str).toFixed(1).padStart(6)}°` : ' 없음(0)';
+        // PAS 진단 (펌웨어 v6.0+): 페달을 돌려도 펄스가 늘지 않으면 센서 전원/배선 문제
+        const pasTxt = ('pc' in d) ? `  PAS펄스:${d.pc} lv:${d.pl}` : '';
+        statusEl.classList.remove('stale');
+        $('esp-dot').className = 'dot on';   // 무수신(노란 점)에서 복귀
+        statusEl.textContent =
+            `RPM:${(+d.rpm).toFixed(1).padStart(6)}  속도:${(+d.spd).toFixed(1).padStart(5)}km/h  조향:${strTxt}  ` +
+            `brk:${brk ? 'ON ' : 'off'}  O:${o ? 'ON ' : 'off'}  X:${x ? 'ON ' : 'off'}  ${String(hz).padStart(3)}Hz` + pasTxt;
+
+        const sec = d.rpm > 0 ? Math.max(0.15, 60 / d.rpm) : 0;
+        wheel.style.animation = sec > 0 ? `spin ${sec}s linear infinite` : 'none';
+        steeringEl.style.transform = `rotate(${Math.max(-45, Math.min(45, d.str))}deg)`;
+
+        $('flag-brk').classList.toggle('on-brk', brk);
+        $('flag-o').classList.toggle('on-o', o);
+        $('flag-x').classList.toggle('on-x', x);
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  USB 릴레이 (진동 모터) — pulse/hold 의미는 serial_monitor.py와 동일
+    // ════════════════════════════════════════════════════════════
+    const relay = { port: null, connected: false, info: null, held: false, timer: null };
+
+    async function connectRelay() {
+        try {
+            const port = await navigator.serial.requestPort();
+            await openRelay(port);
+        } catch (e) {
+            if (e.name !== 'NotFoundError') log(`릴레이 연결 실패: ${e.message}`, 'err');
+        }
+    }
+
+    async function openRelay(port) {
+        await port.open({ baudRate: RELAY_BAUD });
+        relay.port = port;
+        relay.info = port.getInfo();
+        saveRole(relay.info, 'relay');   // 다음 실행부터 로드 즉시 자동 연결
+        relay.connected = true;
+        // 릴레이는 마지막 상태를 유지하는 래치 방식 — 연결 직후 무조건 OFF로 상태를 맞춘다
+        await relayWrite(RELAY_OFF);
+        updateConnUi();
+        log(`릴레이 연결됨 — ${chipName(relay.info)} @${RELAY_BAUD}bps (시작 시 OFF)`, 'ok');
+    }
+
+    async function relayWrite(bytes) {
+        if (!relay.connected || !relay.port?.writable) return false;
+        const w = relay.port.writable.getWriter();
+        try { await w.write(bytes); return true; }
+        catch (e) { log(`릴레이 전송 실패: ${e.message}`, 'err'); return false; }
+        finally { w.releaseLock(); }
+    }
+
+    function relayPulse() {
+        if (!relay.connected || relay.held) return;   // 켜져 있으면 끄는 주체는 브레이크
+        if (relay.timer) clearTimeout(relay.timer);   // 연타 시 이전 타이머가 끊지 않도록
+        relayWrite(RELAY_ON);
+        relay.timer = setTimeout(() => {
+            relay.timer = null;
+            if (!relay.held) relayWrite(RELAY_OFF);
+        }, RELAY_VIBE_MS);
+    }
+
+    function relayHold(on) {
+        if (!relay.connected) return;
+        if (relay.timer) { clearTimeout(relay.timer); relay.timer = null; }
+        relay.held = on;
+        relayWrite(on ? RELAY_ON : RELAY_OFF);
+        $('btn-relay-on').classList.toggle('on', on);
+    }
+
+    async function closeRelay(reason) {
+        if (!relay.connected) return;
+        relay.connected = false;
+        if (relay.timer) { clearTimeout(relay.timer); relay.timer = null; }
+        try { await relay.port?.close(); } catch (_) {}
+        relay.port = null;
+        relay.held = false;
+        updateConnUi();
+        if (reason) log(`릴레이 연결 해제 (${reason})`, 'warn');
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  연결 유지 — keep-alive / 무수신 경고 / 재삽입 자동 재연결
+    // ════════════════════════════════════════════════════════════
+    setInterval(() => { if (esp.connected) sendEsp('H'); }, HEARTBEAT_INTERVAL_MS);
+
+    setInterval(() => {
+        // Hz 계산 (1초 창)
+        hz = rxCount; rxCount = 0;
+
+        if (esp.connected && Date.now() - lastRx > STALE_MS) {
+            const sec = Math.floor((Date.now() - lastRx) / 1000);
+            statusEl.classList.add('stale');
+            statusEl.textContent = `무수신 ${sec}s — 케이블/전원/Unity 포트 점유 확인 (재삽입 시 자동 재연결)`;
+            $('esp-dot').className = 'dot stale';
+        }
+    }, 1000);
+
+    // 케이블 분리 감지 — 스트림 오류보다 먼저 오는 경우가 있어 양쪽 다 처리한다
+    navigator.serial?.addEventListener('disconnect', e => {
+        if (e.target === esp.port) closeEsp('장치 분리');
+        if (e.target === relay.port) closeRelay('장치 분리');
+    });
+
+    // 재삽입 시 이전에 권한을 준 포트면 사용자 클릭 없이 자동으로 다시 연다.
+    // 이번 세션에서 쓰던 포트가 아니어도 기억/추정된 역할(guessRole)로 연결한다.
+    navigator.serial?.addEventListener('connect', async e => {
+        const role = guessRole(e.target.getInfo());
+        try {
+            if (!esp.connected && role === 'esp') {
+                log('ESP32 재삽입 감지 — 자동 재연결 시도', 'ok');
+                await openEsp(e.target);
+            } else if (!relay.connected && role === 'relay') {
+                log('릴레이 재삽입 감지 — 자동 재연결 시도', 'ok');
+                await openRelay(e.target);
+            }
+        } catch (err) {
+            log(`자동 재연결 실패: ${err.message}`, 'err');
+        }
+    });
+
+    // ════════════════════════════════════════════════════════════
+    //  UI 배선
+    // ════════════════════════════════════════════════════════════
+    function updateConnUi() {
+        $('esp-dot').className = 'dot' + (esp.connected ? ' on' : '');
+        $('esp-label').textContent = esp.connected
+            ? `${chipName(esp.info)} (${ESP_BAUD}bps)` : `미연결 (${ESP_BAUD}bps)`;
+        $('esp-label').title = esp.connected ? `연결됨 — ${chipName(esp.info)}` : '';
+        $('btn-esp-connect').textContent = esp.connected ? 'ESP32 해제' : 'ESP32 연결';
+
+        $('relay-dot').className = 'dot' + (relay.connected ? ' on' : '');
+        $('relay-label').textContent = relay.connected
+            ? `${chipName(relay.info)} (${RELAY_BAUD}bps)` : `미연결 (${RELAY_BAUD}bps)`;
+        $('relay-label').title = relay.connected ? `연결됨 — ${chipName(relay.info)}` : '';
+        $('btn-relay-connect').textContent = relay.connected ? '릴레이 해제' : '릴레이 연결';
+
+        for (const id of ['btn-vibe-pulse', 'btn-relay-on', 'btn-relay-off'])
+            $(id).disabled = !relay.connected;
+        for (const b of document.querySelectorAll('.esp-cmd'))
+            b.disabled = !esp.connected;
+
+        if (!esp.connected) {
+            statusEl.classList.remove('stale');
+            statusEl.textContent = '데이터 대기 중... ESP32를 연결하세요';
+        }
+    }
+
+    $('btn-esp-connect').addEventListener('click', () =>
+        esp.connected ? closeEsp('사용자 해제') : connectEsp());
+    $('btn-relay-connect').addEventListener('click', () =>
+        relay.connected ? closeRelay('사용자 해제') : connectRelay());
+
+    $('btn-vibe-pulse').addEventListener('click', () => {
+        log(`릴레이 진동 ON (${RELAY_VIBE_MS / 1000}s)`, 'send');
+        relayPulse();
+    });
+    $('btn-relay-on').addEventListener('click', () => { log('릴레이 ON (유지)', 'send'); relayHold(true); });
+    $('btn-relay-off').addEventListener('click', () => { log('릴레이 OFF', 'send'); relayHold(false); });
+
+    for (const b of document.querySelectorAll('.esp-cmd'))
+        b.addEventListener('click', () => sendEsp(b.dataset.cmd));
+
+    // 페이지를 닫을 때 릴레이가 ON으로 남지 않도록 (래치 방식 안전망)
+    window.addEventListener('beforeunload', () => {
+        if (relay.connected) { try { relayWrite(RELAY_OFF); } catch (_) {} }
+    });
+
+    updateConnUi();
+    autoConnectGranted();   // 이전에 허용한 포트가 있으면 로드 즉시 자동 연결
+</script>
+
+</body>
+</html>
