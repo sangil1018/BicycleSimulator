@@ -10,9 +10,12 @@ import sys
 import os
 import json
 import time
+import re
 import atexit
 import shutil
+import signal
 import threading
+import unicodedata
 
 BAUD = 115200
 
@@ -34,6 +37,42 @@ C_RED    = "\033[91m"
 C_CYAN   = "\033[96m"
 C_BOLD   = "\033[1m"
 
+_ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
+
+
+def _char_width(c):
+    """한글·한자 등은 콘솔에서 두 칸을 차지한다."""
+    return 2 if unicodedata.east_asian_width(c) in ("W", "F") else 1
+
+
+def disp_width(s):
+    """ANSI 색상 코드를 뺀 실제 표시 폭(칸 수)."""
+    return sum(_char_width(c) for c in _ANSI_RE.sub("", s))
+
+
+def fit(s, width):
+    """색상 코드는 유지한 채, 표시 폭이 width를 넘지 않도록 자른다.
+
+    상태 줄이 터미널 폭을 넘으면 자동 줄바꿈이 일어나 '\\r' 덮어쓰기가 무너지고
+    화면이 계속 밀려나므로 반드시 잘라내야 한다.
+    """
+    if disp_width(s) <= width:
+        return s
+    out, w, i = [], 0, 0
+    while i < len(s):
+        m = _ANSI_RE.match(s, i)
+        if m:                       # 색상 코드는 폭을 차지하지 않으므로 그대로 통과
+            out.append(m.group())
+            i = m.end()
+            continue
+        cw = _char_width(s[i])
+        if w + cw > width:
+            break
+        out.append(s[i])
+        w += cw
+        i += 1
+    return "".join(out) + C_RESET
+
 
 class Header:
     """터미널 상단에 포트 정보를 고정 표시.
@@ -45,10 +84,11 @@ class Header:
     def __init__(self):
         self.lines = []
         self.rows = 0
+        self.cols = 80
         self.active = False
 
     def set(self, lines):
-        self.lines = lines
+        self.lines = list(lines)
         if not sys.stdout.isatty():
             for l in lines:
                 print(l)
@@ -56,27 +96,42 @@ class Header:
         self.draw()
 
     def draw(self):
-        rows = shutil.get_terminal_size((80, 25)).lines
-        n = len(self.lines)
+        size = shutil.get_terminal_size((80, 25))
+        rows, n = size.lines, len(self.lines)
         if rows < n + 4:          # 헤더 + 로그 3줄도 안 나오면 고정 포기
             self.disable()
             for l in self.lines:
                 print(l)
             return
-        self.rows = rows
+        self.rows, self.cols = rows, size.columns
         out = ["\033[r", "\033[2J", "\033[H"]        # 영역 해제 → 전체 지우기 → 홈
-        out += [l + "\033[K\n" for l in self.lines]
+        out += [fit(l, self.cols - 1) + "\033[K\n" for l in self.lines]
         out.append(f"\033[{n + 1};{rows}r")          # 스크롤 영역 = 헤더 아래 ~ 맨 밑줄
         out.append(f"\033[{n + 1};1H")               # 커서를 영역 첫 줄로
         sys.stdout.write("".join(out))
         sys.stdout.flush()
         self.active = True
 
-    def refresh_if_resized(self):
-        """터미널 높이가 바뀌면 스크롤 영역이 깨지므로 다시 그린다. 다시 그렸으면 True."""
+    def set_line(self, idx, text):
+        """헤더의 특정 줄만 제자리에서 갱신. 고정에 실패한 상태면 False."""
+        if idx < len(self.lines):
+            self.lines[idx] = text       # 리사이즈로 다시 그릴 때를 대비해 보관
         if not self.active:
             return False
-        if shutil.get_terminal_size((80, 25)).lines != self.rows:
+        # 커서 저장(DECSC) → 해당 행으로 이동해 덮어쓰기 → 커서 복원(DECRC).
+        # 스크롤 영역 밖의 행이라 로그 출력 위치에는 영향이 없다.
+        sys.stdout.write(
+            f"\0337\033[{idx + 1};1H{fit(text, self.cols - 1)}\033[K\0338"
+        )
+        sys.stdout.flush()
+        return True
+
+    def refresh_if_resized(self):
+        """터미널 크기가 바뀌면 스크롤 영역과 잘라낸 폭이 어긋나므로 다시 그린다."""
+        if not self.active:
+            return False
+        size = shutil.get_terminal_size((80, 25))
+        if (size.lines, size.columns) != (self.rows, self.cols):
             self.draw()
             return True
         return False
@@ -89,7 +144,6 @@ class Header:
 
 
 HEADER = Header()
-atexit.register(HEADER.disable)
 
 
 def ensure_pyserial():
@@ -154,8 +208,11 @@ def pick_relay_port(ports, exclude):
     return None
 
 
+STATUS_ROW = 6   # build_header()가 만드는 줄 중 실시간 상태 줄의 인덱스
+
+
 def build_header(ports, port, relay):
-    """상단 고정 표시할 포트 체크 정보 (6줄)."""
+    """상단 고정 영역: 포트 체크 정보 + 실시간 상태 줄 (총 8줄)."""
     width = min(shutil.get_terminal_size((80, 25)).columns - 1, 78)
     bar = C_DIM + "─" * width + C_RESET
 
@@ -177,6 +234,8 @@ def build_header(ports, port, relay):
         f" {C_BOLD}명령  {C_RESET} C=조향보정  V0~V6=진동  B0/B1=브레이크진동  "
         f"{C_YELLOW}[v]=릴레이진동(즉시){C_RESET}  q=종료",
         bar,
+        C_DIM + " 데이터 대기 중..." + C_RESET,   # STATUS_ROW — 매 프레임 제자리 갱신
+        bar,
     ]
 
 
@@ -190,6 +249,7 @@ class Relay:
         self.duration = duration
         self.ser = None
         self.status = ""      # 헤더에 표시할 연결 상태 한 줄
+        self._timer = None    # 진행 중인 OFF 예약 타이머
         self._lock = threading.Lock()
 
     @property
@@ -202,7 +262,11 @@ class Relay:
             return False
         try:
             self.ser = self._serial.Serial(self.port, self.baud, timeout=0.3)
-            self.status = f"{C_GREEN}{self.port}{C_RESET} @{self.baud}bps  {C_GREEN}연결됨{C_RESET}"
+            # 릴레이는 마지막 상태를 유지하는 래치 방식이라, 이전 실행이 강제 종료됐다면
+            # ON인 채로 남아있을 수 있다. 연결 직후 무조건 OFF를 보내 상태를 맞춘다.
+            with self._lock:
+                self.ser.write(RELAY_OFF)
+            self.status = f"{C_GREEN}{self.port}{C_RESET} @{self.baud}bps  {C_GREEN}연결됨{C_RESET} {C_DIM}(시작 시 OFF){C_RESET}"
             return True
         except Exception as e:
             self.status = C_RED + f"{self.port} 열기 실패: {e}" + C_RESET
@@ -215,28 +279,102 @@ class Relay:
             return
         try:
             with self._lock:
+                # 연타 시 이전 타이머가 새 진동을 중간에 끊어버리지 않도록 취소 후 재예약
+                if self._timer:
+                    self._timer.cancel()
                 self.ser.write(RELAY_ON)
+                self._timer = threading.Timer(self.duration, self._off)
+                self._timer.daemon = True
+                self._timer.start()
             print(C_CYAN + f">> 릴레이 진동 ON ({self.duration:.1f}s)" + C_RESET)
-            threading.Timer(self.duration, self._off).start()
         except Exception as e:
             print(C_RED + f"릴레이 전송 실패: {e}" + C_RESET)
 
     def _off(self):
-        try:
-            with self._lock:
+        with self._lock:
+            self._timer = None
+            try:
                 if self.connected:
                     self.ser.write(RELAY_OFF)
-        except Exception:
-            pass
+            except Exception:
+                pass
 
     def close(self):
-        try:
-            if self.connected:
-                with self._lock:
+        """릴레이 OFF 후 포트 닫기. 여러 번, 여러 스레드에서 호출해도 안전."""
+        with self._lock:
+            if self._timer:
+                self._timer.cancel()   # cancel()은 join하지 않으므로 락 안에서 안전
+                self._timer = None
+            if self.ser is None:
+                return
+            try:
+                if self.ser.is_open:
                     self.ser.write(RELAY_OFF)
+                    self.ser.flush()   # 프로세스가 죽기 전에 OFF가 실제로 나가도록
                     self.ser.close()
-        except Exception:
-            pass
+            except Exception:
+                pass
+            self.ser = None
+
+
+RELAY = None            # 종료 핸들러에서 릴레이를 끄기 위한 전역 참조
+_CONSOLE_HANDLER = None  # 콘솔 컨트롤 콜백 — GC되면 안 되므로 전역 보관
+
+
+def cleanup():
+    """릴레이 OFF + 스크롤 영역 해제. 모든 종료 경로에서 호출되며 중복 호출해도 안전."""
+    if RELAY is not None:
+        RELAY.close()
+    HEADER.disable()
+
+
+def exit_now(code=0):
+    """os._exit는 atexit를 건너뛰므로 반드시 cleanup을 먼저 부른다."""
+    cleanup()
+    sys.stdout.write("\n")   # 상태 줄에 프롬프트가 붙지 않도록
+    sys.stdout.flush()
+    os._exit(code)
+
+
+def install_exit_handlers():
+    """Ctrl+C, Ctrl+Break, taskkill(정상), 콘솔 창 [X], 로그오프/종료 시 릴레이를 끈다.
+
+    taskkill /F 나 정전처럼 프로세스가 정리 코드를 돌 기회조차 없는 경우는 막을 수 없다.
+    그런 경우는 connect()가 시작할 때 보내는 OFF가 안전망 역할을 한다.
+    """
+    atexit.register(cleanup)
+
+    def on_signal(signum, frame):
+        exit_now(0)
+
+    for name in ("SIGINT", "SIGTERM", "SIGBREAK"):
+        sig = getattr(signal, name, None)
+        if sig is None:
+            continue
+        try:
+            signal.signal(sig, on_signal)
+        except (ValueError, OSError):
+            pass   # 메인 스레드가 아니거나 지원하지 않는 시그널
+
+    if os.name != "nt":
+        return
+
+    # 콘솔 창 닫기(X)/로그오프/시스템 종료는 시그널로 오지 않는다 — Win32 핸들러가 필요.
+    global _CONSOLE_HANDLER
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        routine = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.DWORD)
+
+        def handler(ctrl_type):
+            cleanup()
+            return False   # 기본 핸들러가 프로세스를 종료하도록 넘긴다
+
+        _CONSOLE_HANDLER = routine(handler)
+        ctypes.windll.kernel32.SetConsoleCtrlHandler(_CONSOLE_HANDLER, True)
+    except Exception:
+        pass   # 콘솔이 없는 환경(pythonw 등)에서는 무시
 
 
 def _send_esp(ser, cmd):
@@ -244,8 +382,7 @@ def _send_esp(ser, cmd):
     if not cmd:
         return
     if cmd.lower() in ("q", "quit", "exit"):
-        HEADER.disable()      # os._exit는 atexit를 건너뛰므로 직접 해제
-        os._exit(0)
+        exit_now(0)
     try:
         ser.write((cmd + "\n").encode())
         print(C_CYAN + f">> 전송: {cmd}" + C_RESET)
@@ -268,11 +405,8 @@ def input_thread(ser, relay):
         if ch in ("\x00", "\xe0"):   # 특수키(화살표/기능키) 프리픽스 — 다음 바이트 버림
             msvcrt.getwch()
             continue
-        if ch == "\x03":             # Ctrl+C
-            if relay:
-                relay.close()
-            HEADER.disable()
-            os._exit(0)
+        if ch == "\x03":             # Ctrl+C (getwch는 raw 입력이라 SIGINT가 안 뜬다)
+            exit_now(0)
         if ch == "v":                # 릴레이 진동 트리거 (실시간, Enter 불필요)
             relay.vibrate()
             continue
@@ -313,6 +447,7 @@ def fmt_flag(name, val, on_color=C_RED):
 
 
 def main():
+    install_exit_handlers()
     serial, list_ports = ensure_pyserial()
 
     ports = list(list_ports.comports())
@@ -328,7 +463,8 @@ def main():
 
     # USB 릴레이(CH340) 연결 — 인자로 지정하거나 자동 탐지 (ESP32 포트는 제외)
     relay_port = sys.argv[2] if len(sys.argv) > 2 else pick_relay_port(ports, port)
-    relay = Relay(serial, relay_port)
+    global RELAY
+    relay = RELAY = Relay(serial, relay_port)
     relay.connect()
 
     # 포트 체크 정보를 화면 상단에 고정 (아래쪽만 스크롤)
@@ -337,10 +473,11 @@ def main():
     threading.Thread(target=input_thread, args=(ser, relay), daemon=True).start()
 
     last_stat = time.time()
+    last_draw = 0.0
     count = 0
     hz = 0
     steer_ok = True     # 조향 센서 인식 여부 (펌웨어 v5.8: 실패 시 str=0 고정 송신)
-    line_open = False   # 데이터 상태 줄이 \r 덮어쓰기 중인지
+    line_open = False   # (헤더 고정 실패 시) 상태 줄이 \r 덮어쓰기 중인지
 
     def print_msg(msg):
         """상태 줄 덮어쓰기 중이면 줄바꿈 후 메시지 출력 (출력 섞임 방지)"""
@@ -349,6 +486,17 @@ def main():
             print()
             line_open = False
         print(msg)
+
+    def show_status(text):
+        """상태 줄은 항상 같은 자리에서 갱신한다 (스크롤 없음)."""
+        nonlocal line_open
+        if HEADER.set_line(STATUS_ROW, text):
+            return
+        # 폴백: 헤더 고정 불가(비 TTY/좁은 화면) → 예전처럼 \r 덮어쓰기.
+        # 잘라내지 않으면 줄바꿈이 일어나 화면이 밀린다.
+        cols = shutil.get_terminal_size((80, 25)).columns
+        print("\r" + fit(text, cols - 1) + "\033[K", end="", flush=True)
+        line_open = True
 
     while True:
         try:
@@ -399,22 +547,24 @@ def main():
             strv = d.get("str", 0)
             spd_c = C_GREEN if spd > 1 else C_DIM
             if steer_ok:
-                str_out = f"조향:{strv:6.1f}°"
+                str_out = f"조향:{strv:6.1f}°"        # 12칸
             else:
-                str_out = C_RED + "조향:센서없음(0)" + C_RESET
+                str_out = C_RED + "조향:없음(0)" + C_RESET   # 위와 같은 12칸
+            # 80칸 콘솔에서 줄바꿈되지 않도록 간격과 라벨을 압축했다 (전체 74칸)
             line_out = (
                 f"[{ts}] "
-                f"RPM:{rpm:6.1f}  "
-                f"{spd_c}속도:{spd:5.1f}km/h{C_RESET}  "
-                f"{str_out}  "
-                f"{fmt_flag('브레이크', d.get('brk'))}  "
-                f"{fmt_flag('O버튼', d.get('o'), C_GREEN)}  "
-                f"{fmt_flag('X버튼', d.get('x'), C_YELLOW)}  "
-                f"{C_DIM}{hz:4.0f}Hz{C_RESET}"
+                f"RPM:{rpm:5.1f} "
+                f"{spd_c}속도:{spd:5.1f}km/h{C_RESET} "
+                f"{str_out} "
+                f"{fmt_flag('brk', d.get('brk'))} "
+                f"{fmt_flag('O', d.get('o'), C_GREEN)} "
+                f"{fmt_flag('X', d.get('x'), C_YELLOW)} "
+                f"{C_DIM}{hz:3.0f}Hz{C_RESET}"
             )
-            # 같은 줄에 덮어쓰기 (스크롤 방지), 상태 변화 시에만 새 줄
-            print("\r" + line_out + " " * 4, end="", flush=True)
-            line_open = True
+            # 50Hz 수신 전부를 그리면 깜빡이므로 20Hz로 제한 (최대 지연 50ms)
+            if now - last_draw >= 0.05:
+                last_draw = now
+                show_status(line_out)
         else:
             print_msg(f"[{ts}] {line}")
 
@@ -423,5 +573,5 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        HEADER.disable()
+        cleanup()
         print("\n종료합니다.")
