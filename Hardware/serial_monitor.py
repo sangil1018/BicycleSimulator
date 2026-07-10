@@ -3,8 +3,9 @@
 #  자전거 시뮬레이터 ESP32-S3 시리얼 데이터 모니터
 #  사용법: check_serial.bat 더블클릭  또는  python serial_monitor.py [ESP32포트] [릴레이포트]
 #  - ESP32-S3(CH343) 115200bps, JSON 라인 수신 (50Hz)
-#  - USB 릴레이(CH340) 9600bps 자동 연결 — 키보드 'v' 키로 진동 트리거
-#  - 명령 전송 가능: C(조향 보정), V0~V6(진동), B0/B1(브레이크), S0~S3, P50~P300
+#  - USB 릴레이(CH340) 9600bps 자동 연결 — 'v' 키로 수동 진동, 'r' 키로 포트 재스캔
+#  - 릴레이 자동 연동: 브레이크는 누른 동안 계속, O/X 버튼은 누르는 순간 짧게 진동
+#  - 명령 전송: C(조향 보정), q(종료)
 # ================================================================
 import sys
 import os
@@ -26,8 +27,30 @@ RELAY_ON = bytes([0xA0, 0x01, 0x01, 0xA2])
 RELAY_OFF = bytes([0xA0, 0x01, 0x00, 0xA1])
 RELAY_VIBE_DURATION = 0.5  # 'v' 키 진동 지속시간 (초)
 
-# Windows 콘솔 ANSI 색상 활성화
-os.system("")
+def _init_console():
+    """Windows 콘솔의 ANSI 색상과 UTF-8 출력을 활성화한다.
+
+    cmd의 기본 코드페이지(한국어 윈도우는 cp949)에서는 '—', '─' 같은 문자를 찍는 순간
+    UnicodeEncodeError로 죽는다. check_serial.bat은 chcp 65001을 하지만,
+    python serial_monitor.py를 직접 실행하는 경우를 위해 여기서도 맞춰준다.
+    """
+    os.system("")               # VT(ANSI 이스케이프) 처리 활성화
+    if os.name == "nt":
+        try:
+            import ctypes
+            ctypes.windll.kernel32.SetConsoleOutputCP(65001)
+            ctypes.windll.kernel32.SetConsoleCP(65001)
+        except Exception:
+            pass
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            # errors='replace' — 코드페이지 변경에 실패해도 죽지 않고 '?'로 대체
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass                # 리다이렉트된 파이프 등 reconfigure 불가한 스트림
+
+
+_init_console()
 
 C_RESET  = "\033[0m"
 C_DIM    = "\033[90m"
@@ -35,7 +58,13 @@ C_GREEN  = "\033[92m"
 C_YELLOW = "\033[93m"
 C_RED    = "\033[91m"
 C_CYAN   = "\033[96m"
+C_MAGENTA = "\033[95m"
+C_ORANGE = "\033[38;5;208m"
 C_BOLD   = "\033[1m"
+
+# 두 장치의 COM 포트를 한눈에 구분하기 위한 역할별 색
+C_ESP    = C_CYAN      # ESP32-S3 (센서 데이터)
+C_RELAY  = C_ORANGE    # USB 릴레이 (진동)
 
 _ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 
@@ -158,6 +187,11 @@ def ensure_pyserial():
     return serial, list_ports
 
 
+def is_relay(p):
+    """USB 릴레이(CH340) 포트인지."""
+    return "ch340" in (p.description or "").lower()
+
+
 def is_esp_candidate(p):
     """ESP32-S3 추정 포트 판별 (USB CDC / CP210x / CH343 등).
     CH340은 릴레이, 블루투스 가상 포트는 제외."""
@@ -177,14 +211,13 @@ def pick_port(ports):
 
     print(C_BOLD + "사용 가능한 포트:" + C_RESET)
     for i, p in enumerate(ports):
-        desc = (p.description or "").lower()
-        if "ch340" in desc:
-            mark = " <- 릴레이 추정"
+        if is_relay(p):
+            color, mark = C_RELAY, " <- 릴레이 추정"
         elif p in candidates:
-            mark = " <- ESP32 추정"
+            color, mark = C_ESP, " <- ESP32 추정"
         else:
-            mark = ""
-        print(f"  [{i}] {p.device} - {p.description}{C_CYAN}{mark}{C_RESET}")
+            color, mark = C_DIM, ""
+        print(f"  [{i}] {color}{p.device}{C_RESET} - {p.description}{color}{mark}{C_RESET}")
 
     if len(candidates) == 1:
         print(f"\nESP32로 추정되는 {candidates[0].device} 자동 선택")
@@ -203,7 +236,7 @@ def pick_relay_port(ports, exclude):
     for p in ports:
         if p.device == exclude:
             continue
-        if "ch340" in (p.description or "").lower():
+        if is_relay(p):
             return p.device
     return None
 
@@ -217,22 +250,25 @@ def build_header(ports, port, relay):
     bar = C_DIM + "─" * width + C_RESET
 
     desc = next((p.description for p in ports if p.device == port), "")
-    esp_line = f"{C_GREEN}{port}{C_RESET} @{BAUD}bps  {C_DIM}{desc}{C_RESET}"
+    esp_line = f"{C_ESP}{port}{C_RESET} @{BAUD}bps  {C_DIM}{desc}{C_RESET}"
 
-    plist = "  ".join(
-        p.device + (C_CYAN + "(릴레이)" + C_RESET if "ch340" in (p.description or "").lower()
-                    else C_CYAN + "(ESP32)" + C_RESET if p.device == port
-                    else "")
-        for p in ports
-    )
+    def colored(p):
+        if is_relay(p):
+            return f"{C_RELAY}{p.device}(릴레이){C_RESET}"
+        if p.device == port:
+            return f"{C_ESP}{p.device}(ESP32){C_RESET}"
+        return f"{C_DIM}{p.device}{C_RESET}"
+
+    plist = "  ".join(colored(p) for p in ports)
 
     return [
         bar,
-        f" {C_BOLD}ESP32 {C_RESET} {esp_line}",
-        f" {C_BOLD}릴레이{C_RESET} {relay.status}",
+        f" {C_ESP}{C_BOLD}ESP32 {C_RESET} {esp_line}",
+        f" {C_RELAY}{C_BOLD}릴레이{C_RESET} {relay.status}",
         f" {C_BOLD}포트  {C_RESET} {plist}",
-        f" {C_BOLD}명령  {C_RESET} C=조향보정  V0~V6=진동  B0/B1=브레이크진동  "
-        f"{C_YELLOW}[v]=릴레이진동(즉시){C_RESET}  q=종료",
+        f" {C_BOLD}명령  {C_RESET} C=조향보정  q=종료  "
+        f"{C_YELLOW}[v]=수동진동{C_RESET}  {C_GREEN}[r]=포트재스캔{C_RESET}  "
+        f"{C_DIM}brk/O/X=자동진동{C_RESET}",
         bar,
         C_DIM + " 데이터 대기 중..." + C_RESET,   # STATUS_ROW — 매 프레임 제자리 갱신
         bar,
@@ -240,7 +276,13 @@ def build_header(ports, port, relay):
 
 
 class Relay:
-    """USB 릴레이(CH340) 진동 제어. 'v' 키 입력 시 ON→duration 후 OFF."""
+    """USB 릴레이(CH340) 진동 제어.
+
+    두 가지 방식이 있다:
+      - pulse(): O/X 버튼처럼 누르는 '순간' → duration 후 자동 OFF
+      - hold():  브레이크처럼 누르는 '동안' → 뗄 때까지 계속 ON
+    미연결 상태에서는 모두 조용히 무시한다(50Hz 데이터에 맞춰 호출되므로).
+    """
 
     def __init__(self, serial_mod, port, baud=RELAY_BAUD, duration=RELAY_VIBE_DURATION):
         self._serial = serial_mod
@@ -250,6 +292,7 @@ class Relay:
         self.ser = None
         self.status = ""      # 헤더에 표시할 연결 상태 한 줄
         self._timer = None    # 진행 중인 OFF 예약 타이머
+        self._held = False    # 브레이크가 잡고 있는 중인지 (타이머보다 우선)
         self._lock = threading.Lock()
 
     @property
@@ -258,7 +301,7 @@ class Relay:
 
     def connect(self):
         if not self.port:
-            self.status = C_YELLOW + "미탐지 (CH340 없음) — 'v' 진동 비활성" + C_RESET
+            self.status = C_RED + "미탐지 (CH340 없음) — 진동 비활성" + C_RESET
             return False
         try:
             self.ser = self._serial.Serial(self.port, self.baud, timeout=0.3)
@@ -266,19 +309,22 @@ class Relay:
             # ON인 채로 남아있을 수 있다. 연결 직후 무조건 OFF를 보내 상태를 맞춘다.
             with self._lock:
                 self.ser.write(RELAY_OFF)
-            self.status = f"{C_GREEN}{self.port}{C_RESET} @{self.baud}bps  {C_GREEN}연결됨{C_RESET} {C_DIM}(시작 시 OFF){C_RESET}"
+            self.status = (f"{C_RELAY}{self.port}{C_RESET} @{self.baud}bps  "
+                           f"{C_GREEN}연결됨{C_RESET} {C_DIM}(시작 시 OFF){C_RESET}")
             return True
         except Exception as e:
-            self.status = C_RED + f"{self.port} 열기 실패: {e}" + C_RESET
+            self.status = f"{C_RELAY}{self.port}{C_RESET} {C_RED}열기 실패: {e}{C_RESET}"
             self.ser = None
             return False
 
-    def vibrate(self):
+    def pulse(self):
+        """짧은 진동. 브레이크가 잡고 있는 중이면 건드리지 않는다."""
         if not self.connected:
-            print(C_YELLOW + ">> 릴레이 미연결 — 진동 무시 (v)" + C_RESET)
-            return
+            return False
         try:
             with self._lock:
+                if self._held:      # 이미 켜져 있고, 끄는 주체는 브레이크다
+                    return True
                 # 연타 시 이전 타이머가 새 진동을 중간에 끊어버리지 않도록 취소 후 재예약
                 if self._timer:
                     self._timer.cancel()
@@ -286,13 +332,40 @@ class Relay:
                 self._timer = threading.Timer(self.duration, self._off)
                 self._timer.daemon = True
                 self._timer.start()
-            print(C_CYAN + f">> 릴레이 진동 ON ({self.duration:.1f}s)" + C_RESET)
+            return True
         except Exception as e:
             print(C_RED + f"릴레이 전송 실패: {e}" + C_RESET)
+            return False
+
+    def hold(self, on):
+        """브레이크 연동. on=True면 뗄 때(on=False)까지 계속 ON을 유지한다."""
+        if not self.connected:
+            return False
+        try:
+            with self._lock:
+                if self._timer:     # 유지 상태가 펄스 타이머보다 우선
+                    self._timer.cancel()
+                    self._timer = None
+                self._held = bool(on)
+                self.ser.write(RELAY_ON if on else RELAY_OFF)
+            return True
+        except Exception as e:
+            print(C_RED + f"릴레이 전송 실패: {e}" + C_RESET)
+            return False
+
+    def vibrate(self):
+        """'v' 키 수동 진동. 여기서만 미연결을 사용자에게 알린다."""
+        if not self.connected:
+            print(C_YELLOW + ">> 릴레이 미연결 — 진동 무시 (v)" + C_RESET)
+            return
+        if self.pulse():
+            print(C_CYAN + f">> 릴레이 진동 ON ({self.duration:.1f}s)" + C_RESET)
 
     def _off(self):
         with self._lock:
             self._timer = None
+            if self._held:          # 브레이크가 계속 잡고 있으면 끄지 않는다
+                return
             try:
                 if self.connected:
                     self.ser.write(RELAY_OFF)
@@ -305,6 +378,7 @@ class Relay:
             if self._timer:
                 self._timer.cancel()   # cancel()은 join하지 않으므로 락 안에서 안전
                 self._timer = None
+            self._held = False
             if self.ser is None:
                 return
             try:
@@ -390,13 +464,14 @@ def _send_esp(ser, cmd):
         print(C_RED + f"전송 실패: {e}" + C_RESET)
 
 
-def input_thread(ser, relay):
-    """실시간 키 입력. 'v'=릴레이 진동(즉시), 그 외 문자는 버퍼에 모아 Enter 시 ESP32로 전송.
+def input_thread(ser, relay, rescan):
+    """실시간 키 입력. 'v'=릴레이 진동, 'r'=포트 재스캔(둘 다 즉시).
+    그 외 문자는 버퍼에 모아 Enter 시 ESP32로 전송.
     Windows에서는 msvcrt로 단일 키를 감지하고, 그 외 OS는 줄 단위 입력으로 대체한다."""
     try:
         import msvcrt
     except ImportError:
-        _line_input_loop(ser, relay)
+        _line_input_loop(ser, relay, rescan)
         return
 
     buf = ""
@@ -409,6 +484,9 @@ def input_thread(ser, relay):
             exit_now(0)
         if ch == "v":                # 릴레이 진동 트리거 (실시간, Enter 불필요)
             relay.vibrate()
+            continue
+        if ch in ("r", "R"):         # 포트 재스캔 (ESP32 명령에 R은 없으므로 대소문자 모두)
+            rescan()
             continue
         if ch in ("\r", "\n"):       # Enter → 버퍼를 ESP32로 전송
             print()
@@ -424,8 +502,8 @@ def input_thread(ser, relay):
         print(ch, end="", flush=True)
 
 
-def _line_input_loop(ser, relay):
-    """비 Windows 대체: 줄 단위 입력. 'v' 단독 입력 시 릴레이 진동."""
+def _line_input_loop(ser, relay, rescan):
+    """비 Windows 대체: 줄 단위 입력. 'v'=릴레이 진동, 'r'=포트 재스캔."""
     while True:
         try:
             cmd = input()
@@ -436,6 +514,9 @@ def _line_input_loop(ser, relay):
             continue
         if cmd.lower() == "v":
             relay.vibrate()
+            continue
+        if cmd.lower() == "r":
+            rescan()
             continue
         _send_esp(ser, cmd)
 
@@ -470,7 +551,35 @@ def main():
     # 포트 체크 정보를 화면 상단에 고정 (아래쪽만 스크롤)
     HEADER.set(build_header(ports, port, relay))
 
-    threading.Thread(target=input_thread, args=(ser, relay), daemon=True).start()
+    def rescan():
+        """'r' 키 — COM 포트를 다시 훑고 헤더를 갱신. 릴레이가 새로 꽂혔으면 연결한다.
+
+        입력 스레드에서 호출된다. ESP32 포트는 이미 열려 있으므로 건드리지 않고,
+        미연결 상태인 릴레이만 다시 찾는다.
+        """
+        found = list(list_ports.comports())
+        msg = f">> 포트 재스캔: {len(found)}개 발견"
+
+        if not relay.connected:
+            relay.port = pick_relay_port(found, port)
+            if relay.connect():
+                msg += f" — 릴레이 {relay.port} 연결됨"
+            else:
+                msg += " — 릴레이 없음"
+
+        # 화면 전체를 다시 그리면 쌓인 로그가 지워지므로 헤더 줄만 제자리 갱신.
+        # 상태 줄(STATUS_ROW)은 데이터 루프가 계속 쓰고 있으니 덮지 않는다.
+        lines = build_header(found, port, relay)
+        if HEADER.active:
+            for i, l in enumerate(lines):
+                if i != STATUS_ROW:
+                    HEADER.set_line(i, l)
+        else:
+            for l in lines[1:5]:     # 헤더 고정 실패 시엔 정보 줄만 그대로 출력
+                print(l)
+        print(C_CYAN + msg + C_RESET)
+
+    threading.Thread(target=input_thread, args=(ser, relay, rescan), daemon=True).start()
 
     last_stat = time.time()
     last_draw = 0.0
@@ -478,6 +587,7 @@ def main():
     hz = 0
     steer_ok = True     # 조향 센서 인식 여부 (펌웨어 v5.8: 실패 시 str=0 고정 송신)
     line_open = False   # (헤더 고정 실패 시) 상태 줄이 \r 덮어쓰기 중인지
+    prev_brk = prev_o = prev_x = False   # 릴레이 연동용 이전 프레임 버튼 상태
 
     def print_msg(msg):
         """상태 줄 덮어쓰기 중이면 줄바꿈 후 메시지 출력 (출력 섞임 방지)"""
@@ -546,6 +656,16 @@ def main():
             spd = d.get("spd", 0)
             strv = d.get("str", 0)
             spd_c = C_GREEN if spd > 1 else C_DIM
+            brk, o, x = bool(d.get("brk")), bool(d.get("o")), bool(d.get("x"))
+
+            # 릴레이 연동 — 미연결이면 hold/pulse가 조용히 무시하므로 별도 분기 불필요.
+            # 브레이크는 눌린 '동안' 유지, O/X는 눌리는 '순간'(상승 에지)에만 짧게.
+            if brk != prev_brk:
+                relay.hold(brk)
+            if not brk and ((o and not prev_o) or (x and not prev_x)):
+                relay.pulse()
+            prev_brk, prev_o, prev_x = brk, o, x
+
             if steer_ok:
                 str_out = f"조향:{strv:6.1f}°"        # 12칸
             else:
@@ -556,9 +676,9 @@ def main():
                 f"RPM:{rpm:5.1f} "
                 f"{spd_c}속도:{spd:5.1f}km/h{C_RESET} "
                 f"{str_out} "
-                f"{fmt_flag('brk', d.get('brk'))} "
-                f"{fmt_flag('O', d.get('o'), C_GREEN)} "
-                f"{fmt_flag('X', d.get('x'), C_YELLOW)} "
+                f"{fmt_flag('brk', brk)} "
+                f"{fmt_flag('O', o, C_GREEN)} "
+                f"{fmt_flag('X', x, C_YELLOW)} "
                 f"{C_DIM}{hz:3.0f}Hz{C_RESET}"
             )
             # 50Hz 수신 전부를 그리면 깜빡이므로 20Hz로 제한 (최대 지연 50ms)
