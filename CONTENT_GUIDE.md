@@ -137,6 +137,7 @@ GameState에 따른 자동 동작:
 ### 5.3 매니저 수명
 - **영속(`DontDestroyOnLoad`)**: `InputManager`, `VibrationRelay` — 씬 전환 후에도 유지됩니다.
 - **씬 스코프(`SceneSingleton`)**: `GameManager`, `QuizManager` — 씬마다 새 인스턴스가 존재하므로 각 씬(Home/Level)에 오브젝트가 배치되어 있어야 합니다.
+- **코드 부착**: `PreloadManager` — Home 씬에서 `HomeGameManager.Awake()`가 자동 부착 (씬 배치 불필요). 레벨 에셋 전체를 백그라운드 프리로드해 상주시킵니다 (`HOME_GUIDE.md` §3-1). **레벨 씬 에셋 변경 시 `Tools → Build Preload Manifests` 재실행 필수.**
 
 씬 로드 시 `GameManager`가 `TimelineGameController`를 자동으로 탐색합니다.  
 `VibrationRelay`는 `InputManager`(`[DefaultExecutionOrder(-100)]`)보다 나중에 `Awake`되어 `config.ini` 값을 넘겨받습니다.

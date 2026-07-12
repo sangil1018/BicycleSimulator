@@ -4,20 +4,28 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// 레벨 씬의 대형 에셋 의존성을 수집해 프리로드 매니페스트 프리팹을 생성한다.
-/// (Assets/Resources/Preload/LevelN_Preload.prefab — PreloadManager가 Home에서 로드)
+/// 레벨 씬의 에셋 의존성 "전체"를 수집해 프리로드 매니페스트 프리팹을 생성한다.
+/// (Assets/Resources/Preload/LevelN_Preload_XXX.prefab — PreloadManager가 Home에서 로드)
+///
+/// 크기/유형 필터 없이 전부 상주시키는 이유: 빌드에서는 GoHome의 LoadScene(Single)이
+/// 미사용 에셋을 언로드해 매 진입마다 재로드가 반복된다. 셰이더 변형 역직렬화처럼
+/// 파일은 작아도 재로드 비용이 큰 에셋이 있어(빌드 실측), 선별하느니 전부 잡아두는 것이
+/// 단순하고 확실하다. 총량은 레벨당 수백 MB 수준으로 키오스크 PC 메모리에서 감당 가능.
+///
 /// 레벨 씬의 에셋 구성이 바뀌면 다시 실행해 목록을 갱신한다.
 /// </summary>
 public static class PreloadManifestBuilder
 {
-    // 이 크기 이상인 씬 의존성 에셋만 매니페스트에 포함 (원본 파일 크기 기준)
-    const long SizeThresholdBytes = 512 * 1024;
     const string OutputFolder = "Assets/Resources/Preload";
+    // 청크당 에셋 수 — Unity 비동기 로딩 큐는 순차 처리라, 레벨 씬 로드가 진행 중인
+    // 매니페스트 로드 뒤에 줄을 선다. 청크 단위로 발행을 멈출 수 있게 나누되,
+    // 너무 잘게 나누면 청크당 오버헤드로 프리로드 총 시간이 늘어난다 (150개 ≈ 수백 ms 단위).
+    const int ChunkSize = 150;
 
-    static readonly (string scenePath, string animPath, string outputName)[] Levels =
+    static readonly (string scenePath, string outputName)[] Levels =
     {
-        ("Assets/Scenes/Level1.unity", "Assets/Animation/level1/lvl1.anim", "Level1_Preload"),
-        ("Assets/Scenes/Level2.unity", "Assets/Animation/level2/lvl2.anim", "Level2_Preload"),
+        ("Assets/Scenes/Level1.unity", "Level1_Preload"),
+        ("Assets/Scenes/Level2.unity", "Level2_Preload"),
     };
 
     [MenuItem("Tools/Build Preload Manifests")]
@@ -28,13 +36,13 @@ public static class PreloadManifestBuilder
         if (!AssetDatabase.IsValidFolder(OutputFolder))
             AssetDatabase.CreateFolder("Assets/Resources", "Preload");
 
-        foreach (var (scenePath, animPath, outputName) in Levels)
-            BuildManifest(scenePath, animPath, outputName);
+        foreach (var (scenePath, outputName) in Levels)
+            BuildManifest(scenePath, outputName);
 
         AssetDatabase.SaveAssets();
     }
 
-    static void BuildManifest(string scenePath, string animPath, string outputName)
+    static void BuildManifest(string scenePath, string outputName)
     {
         if (!File.Exists(scenePath))
         {
@@ -46,72 +54,50 @@ public static class PreloadManifestBuilder
         var seen = new HashSet<string>();
         long totalBytes = 0;
 
-        // 씬 의존성 중 대형 에셋 (텍스처/오디오/모델/폰트)
+        // 씬 의존성 전체 — 스크립트/씬 파일만 제외하고 모두 포함
+        // (애니메이션 클립을 통한 네비게이션 스프라이트, 셰이더/머티리얼, 프리팹까지 커버됨)
         foreach (string dep in AssetDatabase.GetDependencies(scenePath, true))
         {
             if (!seen.Add(dep) || dep == scenePath) continue;
-            var info = new FileInfo(dep);
-            if (!info.Exists || info.Length < SizeThresholdBytes) continue;
-            if (!IsPreloadableType(dep)) continue;
+
+            var type = AssetDatabase.GetMainAssetTypeAtPath(dep);
+            if (type == null || type == typeof(MonoScript) || type == typeof(SceneAsset)) continue;
 
             var asset = AssetDatabase.LoadMainAssetAtPath(dep);
             if (asset == null) continue;
             assets.Add(asset);
-            totalBytes += info.Length;
+
+            var info = new FileInfo(dep);
+            if (info.Exists) totalBytes += info.Length;
         }
 
-        // 네비게이션 애니메이션 스프라이트 — 개별 크기는 작지만 수백 장이라 전부 포함
-        if (File.Exists(animPath))
+        // 기존 매니페스트 제거 — 청크 수가 줄었을 때의 잔재와 구버전 파일 정리
+        foreach (string guid in AssetDatabase.FindAssets("t:Prefab", new[] { OutputFolder }))
         {
-            foreach (string dep in AssetDatabase.GetDependencies(animPath, true))
-            {
-                if (!seen.Add(dep)) continue;
-                if (!typeof(Texture).IsAssignableFrom(AssetDatabase.GetMainAssetTypeAtPath(dep))) continue;
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            if (Path.GetFileNameWithoutExtension(path).StartsWith(outputName))
+                AssetDatabase.DeleteAsset(path);
+        }
 
-                var asset = AssetDatabase.LoadMainAssetAtPath(dep);
-                if (asset == null) continue;
-                assets.Add(asset);
-                var info = new FileInfo(dep);
-                if (info.Exists) totalBytes += info.Length;
+        int chunkCount = (assets.Count + ChunkSize - 1) / ChunkSize;
+        for (int c = 0; c < chunkCount; c++)
+        {
+            string chunkName = $"{outputName}_{c:000}";
+            var go = new GameObject(chunkName);
+            try
+            {
+                go.SetActive(false);
+                go.AddComponent<PreloadManifest>().assets = assets
+                    .GetRange(c * ChunkSize, Mathf.Min(ChunkSize, assets.Count - c * ChunkSize))
+                    .ToArray();
+                PrefabUtility.SaveAsPrefabAsset(go, $"{OutputFolder}/{chunkName}.prefab");
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
             }
         }
-        else
-        {
-            Debug.LogWarning($"[PreloadManifestBuilder] 애니메이션 클립 없음: {animPath}");
-        }
 
-        var go = new GameObject(outputName);
-        try
-        {
-            go.SetActive(false);
-            go.AddComponent<PreloadManifest>().assets = assets.ToArray();
-            PrefabUtility.SaveAsPrefabAsset(go, $"{OutputFolder}/{outputName}.prefab");
-        }
-        finally
-        {
-            Object.DestroyImmediate(go);
-        }
-
-        Debug.Log($"[PreloadManifestBuilder] {outputName}: 에셋 {assets.Count}개, 원본 {totalBytes / (1024f * 1024f):F1} MB");
-    }
-
-    static bool IsPreloadableType(string path)
-    {
-        var type = AssetDatabase.GetMainAssetTypeAtPath(path);
-        if (type == null) return false;
-
-        if (typeof(Texture).IsAssignableFrom(type)) return true;
-        if (type == typeof(AudioClip)) return true;
-        if (type == typeof(Font)) return true;
-
-        // 모델 파일(.fbx 등)의 메인 에셋은 GameObject — 메시/아바타가 함께 로드됨.
-        // 씬/프리팹의 GameObject는 제외하고 모델 파일만 포함한다.
-        if (type == typeof(GameObject))
-        {
-            string ext = Path.GetExtension(path).ToLowerInvariant();
-            return ext == ".fbx" || ext == ".obj" || ext == ".blend" || ext == ".dae";
-        }
-
-        return false;
+        Debug.Log($"[PreloadManifestBuilder] {outputName}: 에셋 {assets.Count}개 → 청크 {chunkCount}개, 원본 {totalBytes / (1024f * 1024f):F1} MB");
     }
 }

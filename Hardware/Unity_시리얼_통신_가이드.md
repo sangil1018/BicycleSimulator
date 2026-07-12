@@ -1,11 +1,14 @@
 # 자전거 시뮬레이터 — Unity 시리얼 통신 가이드
 
-**펌웨어**: bicycle_sim_x v5.8 (ESP32-S3, 센서 담당)  
+**펌웨어**: bicycle_sim_x v6.0 (ESP32-S3, 센서 담당)  
 **대상**: 빛고을국민안전체험관 / FLUXION
 
 ESP32는 센서(케이던스·조향·브레이크·버튼) 입출력과 브레이크 진동 피드백을 담당합니다.
 이벤트/퀴즈 진동은 별도 USB 릴레이(§3-6)가 처리합니다.
 조향 센서(ICM-20948)는 부팅 시 인식 실패해도 `str=0` 고정으로 정상 송신합니다(§2-4).
+
+**v5.9~v6.0 추가 사항**: `H` keep-alive 에코(§3-1c), 좀비 포트 자동 재연결(§2-5),
+PAS 진단 필드 `pc`/`pl`(§2-2), PAS micros() 랩어라운드 가드.
 
 ---
 
@@ -46,7 +49,7 @@ Unity는 **COM 포트 2개**를 사용합니다 — ① ESP32(센서), ② USB �
 매 20 ms마다 ESP32가 아래 JSON 한 줄을 전송합니다.
 
 ```
-{"id":1,"rpm":80.0,"spd":20.0,"str":-5.2,"brk":0,"o":0,"x":0}
+{"id":1,"rpm":80.0,"spd":20.0,"str":-5.2,"brk":0,"o":0,"x":0,"pc":1234,"pl":1}
 ```
 
 줄 끝은 `\n`(LF) 한 문자입니다. `\r\n`이 아닙니다.
@@ -62,12 +65,18 @@ Unity는 **COM 포트 2개**를 사용합니다 — ① ESP32(센서), ② USB �
 | `brk` | int | 0 / 1 | 브레이크 (1 = 당김) |
 | `o` | int | 0 / 1 | O 버튼 (1 = 눌림) |
 | `x` | int | 0 / 1 | X 버튼 (1 = 눌림) |
+| `pc` | uint | 0 ~ | **PAS 진단** (v6.0+) — 부팅 후 누적 펄스 수. 페달을 돌려도 늘지 않으면 센서 전원/배선 문제, 늘는데 `rpm`=0이면 펌웨어 문제 |
+| `pl` | int | 0 / 1 | **PAS 진단** (v6.0+) — PAS 핀(GPIO1)의 현재 레벨. 단선 시 풀업으로 1 고정 |
+
+> `pc`/`pl`은 진단 전용 필드로, Unity `JsonUtility`는 모르는 필드를 무시하므로 게임 동작에 영향이 없습니다.
+> `serial_monitor.py`(헤더 ESP32 줄)와 `hardware_signal_tester.html`(상태 줄)이 이 값을 표시합니다.
 
 ### 2-3. 특수 출력 (이벤트성)
 
 | 메시지 | 발생 시점 |
 |--------|-----------|
-| `{"debug":"DMP v5.8 Ready. Stabilizing for 3s..."}` | 부팅 완료, DMP 안정화 시작 |
+| `{"debug":"DMP v6.0 Ready. Stabilizing for 3s..."}` | 부팅 완료, DMP 안정화 시작 |
+| `{"debug":"hb"}` | `H`(keep-alive) 명령 수신 에코 (§3-1c) — Unity·모니터가 10초 주기로 송신 |
 | `{"debug":"DMP Stabilized"}` | DMP 안정화 완료 (부팅 후 약 3초) |
 | `{"debug":"Connect failed"}` | IMU 연결 실패 (재시도 중 반복 출력될 수 있음) |
 | `{"debug":"DMP Init failed. Check ICM_20948_USE_DMP in library."}` | DMP 초기화 실패 |
@@ -86,7 +95,24 @@ Unity는 **COM 포트 2개**를 사용합니다 — ① ESP32(센서), ② USB �
 - Unity(InputManager)는 이 메시지를 받으면 3초 안정화 대기 없이 즉시 수신을 시작하고, `SteerSensorOk=false`로 표시 (디버그 GUI에서 "미인식(0고정)" 확인 가능)
 - `Hardware/serial_monitor.py`도 이 상태를 감지해 상태 줄에 빨간색 `조향:센서없음(0)`으로 표시
 
-> 참고: Unity는 연결 상태에서 0.5초 이상 데이터가 끊기면 모든 입력값을 0으로 리셋합니다 (케이블 반탈거 등으로 이전 입력이 남는 것 방지). 수신이 재개되면 자동 복구됩니다.
+### 2-5. 연결 유지 및 자동 재연결 (Unity InputManager, v6.0 연동)
+
+장시간 무인 운영(키오스크)에서 USB 절전·재열거·보드 리셋으로 링크가 죽는 것에 대비한 3중 방어입니다.
+.NET `SerialPort.IsOpen`은 장치가 죽어도 `true`를 유지하므로(좀비 포트) **무수신 시간**을 기준으로 판단합니다.
+
+| 정책 | 조건 | 동작 |
+|------|------|------|
+| 입력값 리셋 | 0.5초 무수신 | 모든 입력값 0으로 리셋 (이전 입력 잔류 방지). 수신 재개 시 자동 복구 |
+| 좀비 포트 재연결 | 5초 무수신 지속 | 포트를 강제로 닫고 재연결 (재연결 시 DTR로 보드가 리셋되어 3초 재안정화) |
+| 첫 데이터 감시 | 연결 후 10초간 무데이터 | 강제 재연결 (다른 장치가 같은 COM 번호로 재열거된 경우 등) |
+| keep-alive | 10초 주기 | `H` 송신 → 펌웨어 `{"debug":"hb"}` 에코로 왕복 확인, USB OUT 트래픽 유지 |
+
+미연결 상태에서는 5초 주기로 재연결을 시도합니다. 관련 로그는 빌드 `Player.log`에도 남습니다
+(`[Input] ... 좀비 포트로 판단, 강제 재연결` 등).
+
+> 배포 PC는 `Hardware/kiosk_power_setup.bat`(더블클릭, 관리자 자동 승격)으로 Windows의
+> USB 선택적 절전·장치 전원 관리·시스템 대기를 반드시 해제하세요. 장시간 유휴 후
+> 무반응의 예방책입니다.
 
 ---
 
@@ -94,12 +120,13 @@ Unity는 **COM 포트 2개**를 사용합니다 — ① ESP32(센서), ② USB �
 
 모든 명령은 **같은 COM 포트**로 전송합니다. 형식: `ASCII + 숫자 + \n`
 
-펌웨어는 `P` `B` `C` `M` `S` `V` 명령을 처리하며, **Unity(InputManager)가 실제로 보내는 명령은 `P` · `B1/B0` · `C` · `M`** 입니다. `S`(LED 상태)와 `V`(진동 패턴)는 펌웨어 단독 테스트용으로만 남아 있습니다.
+펌웨어는 `P` `B` `C` `H` `M` `S` `V` 명령을 처리하며, **Unity(InputManager)가 실제로 보내는 명령은 `P` · `B1/B0` · `C` · `H` · `M`** 입니다. `S`(LED 상태)와 `V`(진동 패턴)는 펌웨어 단독 테스트용으로만 남아 있습니다.
 
 ```
 P100\n  ← 진동 세기 배율 (100 = 1.0x)
 B1\n    ← 브레이크 ON
 C\n     ← 조향 캘리브레이션
+H\n     ← keep-alive (10초 주기 자동 송신)
 ```
 
 ### 3-1. P — 진동 세기 배율 ✅ Unity 사용 중
@@ -128,6 +155,14 @@ ESP32 쪽 브레이크 진동(및 V 패턴) 지속시간에 곱해지는 배율�
 | `V4\n` | WRONG | 강진동 1회 | 650 ms |
 | `V5\n` | WALK | 강진동 3회 | 1400 ms |
 | `V6\n` | READY | DMP 안정화 완료 알림 | 930 ms |
+
+### 3-1c. H — keep-alive 하트비트 ✅ Unity 사용 중 (v5.9+)
+
+Unity와 `serial_monitor.py`가 **10초 주기**로 자동 송신합니다. 펌웨어는 `{"debug":"hb"}`를 에코합니다.
+
+- 목적: USB 링크의 호스트→장치 방향 트래픽을 유지해 절전 진입을 막고, 에코 수신으로 링크 왕복 상태를 확인
+- Unity 디버그 GUI(`debugMode=1`)의 `HB Ack` 항목에서 마지막 에코 수신 경과를 확인 가능
+- 수동 테스트: 시리얼 모니터에서 `H` + Enter → `HB 응답` 표시 확인
 
 ### 3-2. B — 브레이크 피드백
 
@@ -158,7 +193,7 @@ ESP32 쪽 브레이크 진동(및 V 패턴) 지속시간에 곱해지는 배율�
 
 ### 3-5. M — 지자기 캘리브레이션 (불필요)
 
-v5.8은 DMP Quat6(Game Rotation Vector)를 사용하므로 지자기 보정이 필요 없습니다.  
+v5.8부터 DMP Quat6(Game Rotation Vector)를 사용하므로 지자기 보정이 필요 없습니다.  
 하위 호환을 위해 유지되며 응답만 반환합니다: `{"magcal":"not_required_in_dmp"}`
 
 ### 3-6. 진동 제어 (USB 릴레이, ESP32와 별도 포트) ✅ 현재 사용 중
@@ -198,6 +233,10 @@ Unity는 ESP32 포트가 아니라 **별도의 USB 릴레이 포트**(`config.in
 
 **릴레이 단독 점검 (Unity 없이)**: `Hardware/serial_monitor.py`가 ESP32(CH343)와 USB 릴레이(CH340) 포트를 자동 구분해 함께 연결합니다. 모니터 실행 중 키보드 **`v` 키**를 누르면(엔터 불필요) 릴레이로 진동 ON→0.5초 후 OFF 프레임을 직접 전송하므로, Unity를 켜지 않고도 릴레이 배선·전원을 빠르게 확인할 수 있습니다. 포트가 자동 구분되지 않으면 `python serial_monitor.py [ESP32포트] [릴레이포트]`로 직접 지정합니다.
 
+**브라우저 테스터**: `Hardware/hardware_signal_tester.html`을 Chrome/Edge로 열면 ESP32 실시간 데이터 시각화 + 릴레이 진동 체크(수동 펄스/ON/OFF, 브레이크·버튼 자동 연동) + ESP32 V 패턴 테스트를 GUI로 수행할 수 있습니다. 최초 1회만 포트를 수동 선택하면 이후 자동 연결됩니다.
+
+> 주의: Unity는 릴레이 상태확인(`FF`) **응답이 있어야만** 연결로 인정합니다. 상태확인에 응답하지 않는 호환 보드는 "모니터/테스터에서는 진동되는데 Unity에서는 안 됨" 증상을 보입니다 — 이 조합이 관찰되면 보드 교체 또는 상태확인 로직 수정이 필요합니다.
+
 **config.ini 키** (모두 `InputManager`가 읽어서 `VibrationRelay`에 전달 — 릴레이 스크립트는 파일을 직접 읽지 않음)
 
 > `config.ini`에서 릴레이 관련 키는 `[Vibration]` 섹션에 있습니다.
@@ -224,7 +263,7 @@ Unity는 ESP32 포트가 아니라 **별도의 USB 릴레이 포트**(`config.in
 
 **정상 부팅 흐름:**
 ```
-← {"debug":"DMP v5.8 Ready. Stabilizing for 3s..."}
+← {"debug":"DMP v6.0 Ready. Stabilizing for 3s..."}
    (파란 LED 점등 — 약 3초 대기)
 ← {"debug":"DMP Stabilized"}
    (LED 소등 → 이후 주행 상태에 따라 색상 변경)
@@ -421,6 +460,8 @@ bike.SetRGBState(1);    // S1: 주행 복귀
 | `str` 값이 항상 0 (LED 정상) | 캘리브레이션 미실시 또는 DMP 미안정화 | "DMP Stabilized" 수신 후 `C\n` 전송 |
 | `str` 값이 드리프트 | DMP 안정화 전 캘리브레이션 | 3초 대기 후 재캘리브레이션 |
 | `rpm` 값이 간헐적으로 급등 | 노이즈 | `spd` 사용 시 `Mathf.Clamp` 추가 권장 |
+| **PAS만 무반응** (버튼/브레이크는 정상) | PAS 센서 전원/배선 문제 (버튼과 달리 PAS는 전원이 필요한 능동 홀센서) | 모니터에서 `pc`(누적 펄스) 확인 — 페달을 돌려도 안 늘면 센서 커넥터/배선/전원 점검 (`pl`=1 고정이면 단선, 0 고정이면 출력 래치). `pc`는 느는데 `rpm`=0이면 펌웨어 문제이므로 개발팀 문의 |
+| 장시간 유휴 후 전체 입력 무반응 | Windows USB 절전으로 링크 사망 + 좀비 포트 | v5.9+ Unity는 5초 무수신 시 자동 재연결 (`Player.log`에서 `좀비 포트로 판단` 로그 확인). 예방: `kiosk_power_setup.bat` 실행 (§2-5) |
 | JSON 파싱 오류 | 부팅 직후 깨진 첫 줄 | `id` 필드 확인 후 사용 (`if (data.id != 1) return`) |
 | 브레이크 진동이 작동 안 함 (ESP32 쪽) | IRF520 모듈 배선 오류 | SIG(GPIO2)·VCC(5V)·GND·V+·OUT 배선 점검 |
 | 브레이크 진동이 약함 | IRF520 게이트 전압 부족 | 3.3V 신호로 동작 확인, 모터 전원 5V 확인 |
@@ -440,25 +481,25 @@ ESP32 부팅
   │   └─ 최종 실패 → "Steer sensor NOT found. str fixed to 0" + 자홍 LED
   │                  (str=0 고정, 아래 loop()는 동일하게 진행)
   ├─ DMP 초기화 (Quat6 활성화, ODR 설정)
-  ├─ 파란 LED 점등 + "DMP v5.8 Ready. Stabilizing for 3s..." 출력
+  ├─ 파란 LED 점등 + "DMP v6.0 Ready. Stabilizing for 3s..." 출력
   ├─ DMP 안정화 대기 (3초)
   │   └─ "DMP Stabilized" 출력 → 파란 LED 소등
   │
   └─ loop() 시작 ─────────────────────────────────
        │ 20ms마다
-       ├─ JSON 전송 (rpm, spd, str, brk, o, x)
-       ├─ 시리얼 수신 처리 (P/B/C/M 수신, S/V는 펌웨어 테스트용)
+       ├─ JSON 전송 (rpm, spd, str, brk, o, x, pc, pl)
+       ├─ 시리얼 수신 처리 (P/B/C/H/M 수신, S/V는 펌웨어 테스트용)
        ├─ 브레이크 진동 업데이트 (GPIO2 PWM, B1/B0 수신 시)
        └─ RGB LED 업데이트
 
 Unity 측
   │
-  ├─ Update()에서 매 프레임 ESP32 버퍼 읽기
-  ├─ \n 단위로 JSON 파싱
-  ├─ ESP32 포트로 P/B/C/M 명령 전송
+  ├─ 수신 스레드에서 ESP32 라인 읽기 → 메인 스레드에서 JSON 파싱
+  ├─ ESP32 포트로 P/B/C/M 명령 + 10초 주기 H(keep-alive) 전송
+  ├─ 0.5초 무수신 → 입력 리셋, 5초 무수신 → 포트 강제 재연결 (§2-5)
   └─ 이벤트 발생 시 진동은 InputManager.SendVibrate() → VibrationRelay가 별도 릴레이 포트로 전송 (§3-6)
 ```
 
 ---
 
-*bicycle_sim_x v5.8 · 빛고을국민안전체험관 / FLUXION*
+*bicycle_sim_x v6.0 · 빛고을국민안전체험관 / FLUXION*

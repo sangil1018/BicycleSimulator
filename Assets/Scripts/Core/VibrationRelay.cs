@@ -198,9 +198,11 @@ public class VibrationRelay : Singleton<VibrationRelay>
     // 연결 1회 시도. 재시도마다 결과를 로그로 남긴다(실패 시 연속 실패 횟수 표기).
     void AttemptConnect(ref int failCount)
     {
+        // 연결 수명주기 로그는 현장(빌드) Player.log 진단용 — 전역 Debug 래퍼가 빌드에서
+        // 로그를 제거하므로 UnityEngine.Debug를 직접 호출한다.
         if (ThreadConnect())
         {
-            Debug.Log(failCount > 0
+            UnityEngine.Debug.Log(failCount > 0
                 ? $"[VibrationRelay] {portName} 연결됨 (상태확인 성공, {failCount}회 실패 후 복구)"
                 : $"[VibrationRelay] {portName} 연결됨 (상태확인 성공)");
             failCount = 0;
@@ -208,7 +210,7 @@ public class VibrationRelay : Singleton<VibrationRelay>
         else
         {
             failCount++;
-            Debug.LogWarning($"[VibrationRelay] {portName} 연결/응답 실패 ({failCount}회) — {reconnectInterval:F0}초 후 재시도 (릴레이 연결 확인)");
+            UnityEngine.Debug.LogWarning($"[VibrationRelay] {portName} 연결/응답 실패 ({failCount}회) — {reconnectInterval:F0}초 후 재시도 (릴레이 연결 확인)");
         }
     }
 

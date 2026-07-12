@@ -199,9 +199,11 @@ public class InputManager : Singleton<InputManager>
     void AttemptConnect()
     {
         _lastConnectAttempt = Time.time;
+        // 연결 수명주기 로그는 현장(빌드) Player.log 진단용 — 전역 Debug 래퍼가 빌드에서
+        // 로그를 제거하므로 UnityEngine.Debug를 직접 호출한다.
         if (Connect())
         {
-            Debug.Log(_connectFailCount > 0
+            UnityEngine.Debug.Log(_connectFailCount > 0
                 ? $"[Input] ESP32 {portName} 연결됨 (VibeScale={VibeMultiplier:F1}x, {_connectFailCount}회 실패 후 복구)"
                 : $"[Input] ESP32 {portName} 연결됨 (VibeScale={VibeMultiplier:F1}x)");
             _connectFailCount = 0;
@@ -209,7 +211,7 @@ public class InputManager : Singleton<InputManager>
         else
         {
             _connectFailCount++;
-            Debug.LogWarning($"[Input] ESP32 연결 실패 ({_connectFailCount}회): {_lastConnectError} — {RECONNECT_INTERVAL:F0}초 후 재시도 (포트 {portName} 확인)");
+            UnityEngine.Debug.LogWarning($"[Input] ESP32 연결 실패 ({_connectFailCount}회): {_lastConnectError} — {RECONNECT_INTERVAL:F0}초 후 재시도 (포트 {portName} 확인)");
         }
     }
 
@@ -321,7 +323,7 @@ public class InputManager : Singleton<InputManager>
             if (_dataStale)
             {
                 _dataStale = false;
-                Debug.Log("[Input] ESP32 데이터 수신 재개");
+                UnityEngine.Debug.Log("[Input] ESP32 데이터 수신 재개");
             }
         }
         else if (!IsConnected)
@@ -335,19 +337,19 @@ public class InputManager : Singleton<InputManager>
             CadenceRPM = SteeringAngle = 0f;
             Brake = BtnOHeld = BtnXHeld = false;
             _prevO = _prevX = _prevBrk = false;
-            Debug.LogWarning($"[Input] ESP32 데이터 {DATA_TIMEOUT:F1}s 무수신 — 입력값 0으로 리셋");
+            UnityEngine.Debug.LogWarning($"[Input] ESP32 데이터 {DATA_TIMEOUT:F1}s 무수신 — 입력값 0으로 리셋");
         }
         else if (_dataStale && Time.time - _lastDataTime >= STALE_RECONNECT_SEC)
         {
             // IsOpen=true인데 데이터가 오지 않는 좀비 포트 (USB 절전/재열거/보드 리셋)
             // — 포트를 강제로 닫고 재연결. 실패하면 기존 RECONNECT_INTERVAL 루틴이 이어받는다.
-            Debug.LogWarning($"[Input] {STALE_RECONNECT_SEC:F0}s 무수신 지속 — 좀비 포트로 판단, 강제 재연결");
+            UnityEngine.Debug.LogWarning($"[Input] {STALE_RECONNECT_SEC:F0}s 무수신 지속 — 좀비 포트로 판단, 강제 재연결");
             AttemptConnect();
         }
         else if (IsConnected && _lastDataTime < 0f && Time.time - _lastConnectAttempt >= FIRST_DATA_TIMEOUT)
         {
             // 포트는 열렸지만 첫 데이터가 오지 않음 (다른 장치가 같은 포트로 재열거된 경우 등)
-            Debug.LogWarning($"[Input] 연결 후 {FIRST_DATA_TIMEOUT:F0}s 동안 데이터 없음 — 강제 재연결");
+            UnityEngine.Debug.LogWarning($"[Input] 연결 후 {FIRST_DATA_TIMEOUT:F0}s 동안 데이터 없음 — 강제 재연결");
             AttemptConnect();
         }
 

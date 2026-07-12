@@ -136,7 +136,8 @@ public class HomeGameManager : MonoBehaviour
     private void StartTransition(int level)
     {
         _isTransitioning = true;
-        // 프리로드가 점유 중일 수 있는 백그라운드 로딩 우선순위를 끌어올려 씬 로드를 가속
+        // 로딩 우선순위·GPU 업로드 타임슬라이스를 끌어올리고 프리로드 청크 발행을 중단해
+        // 씬 로드를 가속한다. 원복은 씬 활성화 완료 후 OnLevelLoadFinished에서.
         PreloadManager.BoostLoadingPriority();
         StartCoroutine(LoadLevelSequence(level));
     }
@@ -157,22 +158,49 @@ public class HomeGameManager : MonoBehaviour
             yield return null;
         }
 
-        Debug.Log($"[HomeGameManager] {sceneName} 로드 준비 완료: {loadTimer.Elapsed.TotalSeconds:F2}s (버튼 입력 기준)");
+        // UnityEngine.Debug 정규화 — 전역 Debug 래퍼(Plugins/Debug.cs)가 빌드에서 로그를
+        // 제거하므로, 빌드 Player.log에 남아야 하는 측정/진단 로그는 원본 API를 직접 호출한다.
+        UnityEngine.Debug.Log($"[HomeGameManager] {sceneName} 로드 준비 완료: {loadTimer.Elapsed.TotalSeconds:F2}s (버튼 입력 기준)");
 
         // 로드 완료 후에야 트랜지션 재생 — 2.6s 원샷 클립이 처음부터 온전히 보이도록.
         // 스파크가 화면을 완전히 덮는 시점(sceneRevealDelay)에 씬을 활성화해 전환을 숨긴다.
+        Animator transitionAnimator = null;
         if (homeTransition)
         {
             homeTransition.SetActive(true);
+            transitionAnimator = homeTransition.GetComponent<Animator>();
             yield return new WaitForSeconds(sceneRevealDelay);
+            // 씬 활성화(오브젝트 생성/Awake)가 클립 잔여 길이보다 오래 걸릴 수 있으므로,
+            // 화면이 덮인 프레임에서 일시정지해 활성화 중에 홈이 다시 비치지 않게 한다.
+            if (transitionAnimator) transitionAnimator.speed = 0f;
         }
 
         if (GameManager.Instance != null)
             GameManager.Instance.PrepareLevel(level);
 
+        UnityEngine.Debug.Log($"[HomeGameManager] {sceneName} 활성화 시작: {loadTimer.Elapsed.TotalSeconds:F2}s (트랜지션 연출 종료)");
+
+        // 활성화 대기 프레임 통계 — 소수의 초장 프레임이면 동기식 버스트(오디오 디코딩/
+        // 셰이더 생성/Awake), 다수의 짧은 프레임이면 타임슬라이스된 통합 작업이 원인.
         asyncLoad.allowSceneActivation = true;
+        int actFrames = 0;
+        float actMaxGapMs = 0f, prevT = Time.realtimeSinceStartup;
         while (!asyncLoad.isDone)
+        {
             yield return null;
+            float t = Time.realtimeSinceStartup;
+            actMaxGapMs = Mathf.Max(actMaxGapMs, (t - prevT) * 1000f);
+            prevT = t;
+            actFrames++;
+        }
+        UnityEngine.Debug.Log($"[HomeGameManager] {sceneName} 활성화 통계: {actFrames}프레임, 최장 프레임 {actMaxGapMs:F0}ms");
+
+        // 활성화가 끝났으니 트랜지션 잔여 연출(리빌)을 재개한다
+        if (transitionAnimator) transitionAnimator.speed = 1f;
+
+        // 로딩 가속 원복 + 남은 프리로드 재개 (낮은 우선순위)
+        PreloadManager.OnLevelLoadFinished();
+        UnityEngine.Debug.Log($"[HomeGameManager] {sceneName} 씬 활성화 완료: {loadTimer.Elapsed.TotalSeconds:F2}s (버튼 입력 기준)");
 
         Scene newScene = SceneManager.GetSceneByName(sceneName);
         if (newScene.IsValid())

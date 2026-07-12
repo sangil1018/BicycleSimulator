@@ -351,7 +351,7 @@ void setup()
     g_bootMs = millis();
     if (g_icmOk)
     {
-        Serial.println("{\"debug\":\"DMP v5.8 Ready. Stabilizing for 3s...\"}");
+        Serial.println("{\"debug\":\"DMP v6.0 Ready. Stabilizing for 3s...\"}");
         setRGB(0, 0, 255);
     }
     else
