@@ -264413,7 +264413,7 @@ MonoBehaviour:
     childrenForward: 1
     childrenReverse: 1
     lateralOffset: 0.6
-    heightOffset: 0.1
+    heightOffset: 0
     blendRadius: 3
   - label: way2
     waypoints:
@@ -264443,7 +264443,7 @@ MonoBehaviour:
     childrenForward: 1
     childrenReverse: 1
     lateralOffset: 0.6
-    heightOffset: 0.1
+    heightOffset: 0
     blendRadius: 3
   - label: way4
     waypoints:
@@ -264458,7 +264458,7 @@ MonoBehaviour:
     childrenForward: 1
     childrenReverse: 1
     lateralOffset: 0.6
-    heightOffset: 0.1
+    heightOffset: 0
     blendRadius: 3
   - label: way5
     waypoints:
@@ -264473,7 +264473,7 @@ MonoBehaviour:
     childrenForward: 1
     childrenReverse: 1
     lateralOffset: 0.6
-    heightOffset: 0.1
+    heightOffset: 0
     blendRadius: 3
   - label: way6
     waypoints:
@@ -264485,7 +264485,7 @@ MonoBehaviour:
     childrenForward: 1
     childrenReverse: 1
     lateralOffset: 0.6
-    heightOffset: 0.1
+    heightOffset: 0
     blendRadius: 3
   - label: way7
     waypoints:
@@ -264497,7 +264497,7 @@ MonoBehaviour:
     childrenForward: 1
     childrenReverse: 1
     lateralOffset: 0.6
-    heightOffset: 0.1
+    heightOffset: 0
     blendRadius: 3
   - label: way8
     waypoints:

@@ -1,13 +1,17 @@
 # -*- coding: utf-8 -*-
 # ================================================================
-#  자전거 시뮬레이터 ESP32-S3 시리얼 데이터 모니터
+#  자전거 시뮬레이터 ESP32-S3 시리얼 데이터 모니터  (펌웨어 v6.2 기준)
 #  사용법: check_serial.bat 더블클릭  또는  python serial_monitor.py [ESP32포트] [릴레이포트]
 #  - ESP32-S3(CH343) 115200bps, JSON 라인 수신 (50Hz)
-#  - USB 릴레이(CH340) 9600bps 자동 연결 — 'v' 키로 수동 진동, 'r' 키로 포트 재스캔
-#  - 릴레이 자동 연동: 브레이크는 누른 동안 계속, O/X 버튼은 누르는 순간 짧게 진동
-#  - 명령 전송: C(조향 보정), H(하트비트 에코 테스트), q(종료)
+#  - USB 릴레이(CH340) 9600bps 자동 연결 — 'v' 키로 수동 진동, 'r' 키(소문자)로 포트 재스캔
+#  - 릴레이 자동 연동: 브레이크/O/X 모두 '누르는 순간' 짧게 진동 (Unity와 동일)
+#    진동은 릴레이 단일 경로다 — ESP32의 IRF520 모터 경로(V/P/B 명령)는 사용하지 않는다.
+#  - 명령 전송(대문자 + Enter): C(조향 보정), R(PAS 인터럽트 재초기화), H(하트비트 에코)
+#    ※ 소문자 'r'은 포트 재스캔 단축키다. ESP32의 R 명령은 대문자로 입력해야 전달된다.
 #  - 연결 유지: Unity InputManager와 동일하게 10초 주기 'H' keep-alive 송신,
-#    5초 무수신 시 좀비 포트로 판단해 자동 재연결 (펌웨어 v5.9)
+#    5초 무수신 시 좀비 포트로 판단해 자동 재연결
+#  - 펌웨어 v6.2 워치독: loop가 5초간 굳으면 보드가 자동 리셋된다. 부팅 시 오는
+#    reset_reason이 반복해서 6(TASK_WDT)이면 loop가 멈추고 있다는 뜻 — I2C 락업 의심.
 # ================================================================
 import sys
 import os
@@ -32,7 +36,26 @@ RECONNECT_RETRY_SEC = 5.0    # 재연결 실패 시 재시도 주기 (초)
 RELAY_BAUD = 9600
 RELAY_ON = bytes([0xA0, 0x01, 0x01, 0xA2])
 RELAY_OFF = bytes([0xA0, 0x01, 0x00, 0xA1])
-RELAY_VIBE_DURATION = 0.5  # 'v' 키 진동 지속시간 (초)
+RELAY_VIBE_DURATION = 0.5  # 'v' 키 수동 진동 지속시간 (초) — 귀로 확인하기 좋게 길게
+# 브레이크/O/X 자동 연동 진동 — Unity의 VibeShortDuration 기본값과 맞춘다.
+# (config.ini에서 값을 바꿨다면 여기도 맞춰야 실제 체감과 같아진다)
+AUTO_VIBE_DURATION = 0.2
+
+# ── ESP32 리셋 원인 (펌웨어 v6.2가 부팅 시 송신) ──
+# 1(POWERON)이 정상. 6(TASK_WDT)이 반복되면 loop가 굳어 워치독이 물고 있다는 뜻이다.
+RESET_REASONS = {
+    0: "UNKNOWN",
+    1: "POWERON (정상 전원 인가)",
+    2: "EXT (외부 리셋 핀)",
+    3: "SW (소프트웨어 리셋)",
+    4: "PANIC (예외로 죽음)",
+    5: "INT_WDT (인터럽트 워치독)",
+    6: "TASK_WDT (loop 정지 — 워치독이 물었음)",
+    7: "WDT (기타 워치독)",
+    8: "DEEPSLEEP",
+    9: "BROWNOUT (전원 전압 불안정)",
+    10: "SDIO",
+}
 
 def _init_console():
     """Windows 콘솔의 ANSI 색상과 UTF-8 출력을 활성화한다.
@@ -273,7 +296,7 @@ def build_header(ports, port, relay):
         f" {C_ESP}{C_BOLD}ESP32 {C_RESET} {esp_line}",
         f" {C_RELAY}{C_BOLD}릴레이{C_RESET} {relay.status}",
         f" {C_BOLD}포트  {C_RESET} {plist}",
-        f" {C_BOLD}명령  {C_RESET} C=조향보정  H=하트비트  q=종료  "
+        f" {C_BOLD}명령  {C_RESET} C=조향보정  {C_MAGENTA}R=PAS재초기화{C_RESET}  I=펌웨어정보  H=하트비트  q=종료  "
         f"{C_YELLOW}[v]=수동진동{C_RESET}  {C_GREEN}[r]=포트재스캔{C_RESET}  "
         f"{C_DIM}brk/O/X=자동진동{C_RESET}",
         bar,
@@ -285,21 +308,23 @@ def build_header(ports, port, relay):
 class Relay:
     """USB 릴레이(CH340) 진동 제어.
 
-    두 가지 방식이 있다:
-      - pulse(): O/X 버튼처럼 누르는 '순간' → duration 후 자동 OFF
-      - hold():  브레이크처럼 누르는 '동안' → 뗄 때까지 계속 ON
-    미연결 상태에서는 모두 조용히 무시한다(50Hz 데이터에 맞춰 호출되므로).
+    pulse(duration): 누르는 '순간' 진동 → duration 후 자동 OFF.
+    브레이크·O·X 모두 같은 방식이다 — Unity가 브레이크 상승 엣지에서
+    SendVibrate(VibeState.Brake)로 짧은 펄스를 한 번 보내는 것과 동일하게 맞췄다.
+    (예전에는 브레이크를 '잡고 있는 동안' 계속 켰지만, 그건 ESP32의 IRF520 모터를
+     쓰던 시절의 동작이고 지금은 릴레이 단일 경로다.)
+    미연결 상태에서는 조용히 무시한다(50Hz 데이터에 맞춰 호출되므로).
     """
 
     def __init__(self, serial_mod, port, baud=RELAY_BAUD, duration=RELAY_VIBE_DURATION):
         self._serial = serial_mod
         self.port = port
         self.baud = baud
-        self.duration = duration
+        self.duration = duration   # 'v' 키 수동 진동 기본 길이
         self.ser = None
         self.status = ""      # 헤더에 표시할 연결 상태 한 줄
         self._timer = None    # 진행 중인 OFF 예약 타이머
-        self._held = False    # 브레이크가 잡고 있는 중인지 (타이머보다 우선)
+        self._off_at = 0.0    # 현재 예약된 OFF 시각 — 겹친 진동 중 긴 쪽을 남기기 위해
         self._lock = threading.Lock()
 
     @property
@@ -324,37 +349,27 @@ class Relay:
             self.ser = None
             return False
 
-    def pulse(self):
-        """짧은 진동. 브레이크가 잡고 있는 중이면 건드리지 않는다."""
+    def pulse(self, duration=None):
+        """짧은 진동 1회. duration 생략 시 자동 연동용 기본값(AUTO_VIBE_DURATION).
+
+        진동 중에 새 요청이 겹치면 Unity의 VibrationRelay와 마찬가지로 '긴 쪽'을 남긴다.
+        (위험 이벤트 진동이 뒤이은 짧은 클릭 진동에 잘려나가지 않도록)
+        """
         if not self.connected:
             return False
+        dur = AUTO_VIBE_DURATION if duration is None else duration
         try:
             with self._lock:
-                if self._held:      # 이미 켜져 있고, 끄는 주체는 브레이크다
-                    return True
-                # 연타 시 이전 타이머가 새 진동을 중간에 끊어버리지 않도록 취소 후 재예약
+                end_at = time.time() + dur
                 if self._timer:
+                    if end_at <= self._off_at:
+                        return True     # 이미 더 길게 켜져 있다 — 그대로 둔다
                     self._timer.cancel()
                 self.ser.write(RELAY_ON)
-                self._timer = threading.Timer(self.duration, self._off)
+                self._off_at = end_at
+                self._timer = threading.Timer(dur, self._off)
                 self._timer.daemon = True
                 self._timer.start()
-            return True
-        except Exception as e:
-            print(C_RED + f"릴레이 전송 실패: {e}" + C_RESET)
-            return False
-
-    def hold(self, on):
-        """브레이크 연동. on=True면 뗄 때(on=False)까지 계속 ON을 유지한다."""
-        if not self.connected:
-            return False
-        try:
-            with self._lock:
-                if self._timer:     # 유지 상태가 펄스 타이머보다 우선
-                    self._timer.cancel()
-                    self._timer = None
-                self._held = bool(on)
-                self.ser.write(RELAY_ON if on else RELAY_OFF)
             return True
         except Exception as e:
             print(C_RED + f"릴레이 전송 실패: {e}" + C_RESET)
@@ -365,14 +380,13 @@ class Relay:
         if not self.connected:
             print(C_YELLOW + ">> 릴레이 미연결 — 진동 무시 (v)" + C_RESET)
             return
-        if self.pulse():
+        if self.pulse(self.duration):
             print(C_CYAN + f">> 릴레이 진동 ON ({self.duration:.1f}s)" + C_RESET)
 
     def _off(self):
         with self._lock:
             self._timer = None
-            if self._held:          # 브레이크가 계속 잡고 있으면 끄지 않는다
-                return
+            self._off_at = 0.0
             try:
                 if self.connected:
                     self.ser.write(RELAY_OFF)
@@ -385,7 +399,7 @@ class Relay:
             if self._timer:
                 self._timer.cancel()   # cancel()은 join하지 않으므로 락 안에서 안전
                 self._timer = None
-            self._held = False
+            self._off_at = 0.0
             if self.ser is None:
                 return
             try:
@@ -540,7 +554,11 @@ def input_thread(esp, relay, rescan):
         if ch == "v":                # 릴레이 진동 트리거 (실시간, Enter 불필요)
             relay.vibrate()
             continue
-        if ch in ("r", "R"):         # 포트 재스캔 (ESP32 명령에 R은 없으므로 대소문자 모두)
+        if ch == "r":                # 포트 재스캔 — 소문자만!
+            # 펌웨어 v6.1부터 대문자 'R'은 ESP32의 PAS 재초기화 명령이다.
+            # 여기서 대문자까지 가로채면 그 명령을 영영 보낼 수 없게 되므로,
+            # 소문자만 단축키로 쓰고 'R'은 버퍼에 쌓아 Enter 시 ESP32로 보낸다.
+            # (펌웨어의 handleCommand는 대소문자를 구분하므로 소문자 r은 무시된다)
             rescan()
             continue
         if ch in ("\r", "\n"):       # Enter → 버퍼를 ESP32로 전송
@@ -558,7 +576,10 @@ def input_thread(esp, relay, rescan):
 
 
 def _line_input_loop(esp, relay, rescan):
-    """비 Windows 대체: 줄 단위 입력. 'v'=릴레이 진동, 'r'=포트 재스캔."""
+    """비 Windows 대체: 줄 단위 입력. 'v'=릴레이 진동, 'r'(소문자)=포트 재스캔.
+
+    대문자 'R'은 ESP32의 PAS 재초기화 명령이므로 가로채지 않고 그대로 전송한다.
+    """
     while True:
         try:
             cmd = input()
@@ -567,10 +588,10 @@ def _line_input_loop(esp, relay, rescan):
         cmd = cmd.strip()
         if not cmd:
             continue
-        if cmd.lower() == "v":
+        if cmd == "v":
             relay.vibrate()
             continue
-        if cmd.lower() == "r":
+        if cmd == "r":
             rescan()
             continue
         _send_esp(esp, cmd)
@@ -597,6 +618,14 @@ def main():
         print(C_RED + f"포트 열기 실패: {e}" + C_RESET)
         print("Unity나 아두이노 시리얼 모니터가 포트를 점유 중인지 확인하세요.")
         sys.exit(1)
+
+    # 접속 직후 펌웨어 정보를 물어본다. 부팅 메시지(boot/wdt_armed)는 setup()에서 한 번만
+    # 나가는데 이 보드는 포트를 열어도 리셋되지 않으므로, 나중에 붙는 쪽은 그걸 못 본다.
+    # 'I' 응답으로 재플래싱 여부·워치독·마지막 리셋 원인을 지금 확인할 수 있다.
+    try:
+        esp.write_line("I")
+    except Exception:
+        pass
 
     # USB 릴레이(CH340) 연결 — 인자로 지정하거나 자동 탐지 (ESP32 포트는 제외)
     relay_port = sys.argv[2] if len(sys.argv) > 2 else pick_relay_port(ports, port)
@@ -653,6 +682,7 @@ def main():
     next_retry = 0.0           # 다음 재연결 시도 가능 시각
     read_err_notified = False  # 수신 예외 메시지 중복 출력 방지
     pas_pc = pas_pl = None     # PAS 진단 (펌웨어 v6.0: 누적 펄스 수 / 핀 레벨)
+    boot_wdt = 0               # 워치독(TASK_WDT)에 의한 리셋 누적 횟수 — 반복되면 loop 정지
 
     def print_msg(msg):
         """상태 줄 덮어쓰기 중이면 줄바꿈 후 메시지 출력 (출력 섞임 방지)"""
@@ -707,8 +737,12 @@ def main():
                 if now >= next_retry:
                     next_retry = now + RECONNECT_RETRY_SEC
                     if esp.reconnect():
-                        print_msg(C_GREEN + f">> {port} 재연결 성공 — 보드 리셋, 부팅 메시지 대기" + C_RESET)
+                        print_msg(C_GREEN + f">> {port} 재연결 성공" + C_RESET)
                         last_rx = time.time()
+                        try:
+                            esp.write_line("I")   # 재연결 후에도 펌웨어 상태를 다시 확인
+                        except Exception:
+                            pass
                     else:
                         print_msg(C_RED + f">> {port} 재연결 실패 — {RECONNECT_RETRY_SEC:.0f}초 후 재시도" + C_RESET)
             continue
@@ -728,7 +762,10 @@ def main():
             if HEADER.refresh_if_resized():
                 line_open = False   # 화면을 지웠으므로 상태 줄도 초기화
             # PAS 진단 — 헤더의 ESP32 줄에 1초 주기로 덧붙인다 (v6.0 미만 펌웨어는 필드 없음).
-            # 페달을 돌려도 펄스가 늘지 않으면 센서 전원/배선, 늘는데 RPM=0이면 펌웨어 문제.
+            # 페달을 돌리면서 볼 것:
+            #   펄스가 늘어난다        → 정상
+            #   lv는 0/1로 바뀌는데 펄스가 안 는다 → PAS 인터럽트 사망. R 명령으로 복구된다.
+            #   lv가 고정이다          → 신호선이 죽음. 센서 전원/배선 문제이며 R로는 못 고친다.
             if pas_pc is not None:
                 HEADER.set_line(1, f"{esp_hdr_base}  {C_DIM}PAS펄스:{pas_pc} lv:{pas_pl}{C_RESET}")
 
@@ -753,6 +790,58 @@ def main():
             elif msg == "hb":
                 # keep-alive 에코 (펌웨어 v5.9) — 10초마다 오므로 어둡게 한 줄만
                 print_msg(C_DIM + f"[{ts}] HB 응답 — 링크 왕복 정상" + C_RESET)
+            elif msg == "boot":
+                # 펌웨어 v6.2 — 리셋 원인. 보드가 왜 다시 켜졌는지 알려주는 유일한 단서다.
+                rr = d.get("reset_reason")
+                label = RESET_REASONS.get(rr, f"코드 {rr}")
+                if rr == 6:      # TASK_WDT — 워치독이 물었다 = loop가 굳었다
+                    boot_wdt += 1
+                    print_msg(C_RED + C_BOLD +
+                              f"[{ts}] 부팅: {label}  ← loop가 멈춰 자동 리셋됨 "
+                              f"(누적 {boot_wdt}회, I2C 락업 의심)" + C_RESET)
+                elif rr == 9:    # BROWNOUT — 전원 전압 불안정
+                    print_msg(C_RED + C_BOLD +
+                              f"[{ts}] 부팅: {label}  ← USB 전원/허브 확인 필요" + C_RESET)
+                elif rr == 1:
+                    print_msg(C_GREEN + f"[{ts}] 부팅: {label}" + C_RESET)
+                else:
+                    print_msg(C_YELLOW + f"[{ts}] 부팅: {label}" + C_RESET)
+            elif msg == "info":
+                # 'I' 명령 응답 — 부팅 메시지를 놓쳐도 지금 올라간 펌웨어를 확인할 수 있다.
+                rr = d.get("reset_reason")
+                wdt = d.get("wdt")
+                print_msg(C_BOLD +
+                          f"[{ts}] 펌웨어 v{d.get('fw')}  I2C {int(d.get('i2c', 0)) // 1000}kHz  "
+                          f"워치독 {'활성' if wdt == 1 else '미등록'}  "
+                          f"조향센서 {'정상' if d.get('steer') == 1 else '미인식'}  "
+                          f"마지막 리셋: {RESET_REASONS.get(rr, f'코드 {rr}')}" + C_RESET)
+                if wdt != 1:
+                    print_msg(C_RED + "  ← 워치독 미등록: loop가 굳어도 자동 복구되지 않는다 "
+                                      "(펌웨어 v6.2 이상 확인)" + C_RESET)
+                if rr == 6:
+                    print_msg(C_RED + "  ← 직전 리셋이 TASK_WDT: loop가 멈췄다는 뜻. "
+                                      "반복되면 I2C 락업 의심 (I2C_CLOCK_HZ를 100000으로)" + C_RESET)
+            elif msg == "wdt_armed":
+                print_msg(C_GREEN +
+                          f"[{ts}] 워치독 활성 ({d.get('timeout_ms')}ms) — loop 정지 시 자동 리셋"
+                          + C_RESET)
+            elif msg == "wdt_setup_failed":
+                print_msg(C_RED + C_BOLD +
+                          f"[{ts}] 경고: 워치독 등록 실패 (err={d.get('err')}) — "
+                          f"loop가 굳어도 자동 복구되지 않는다" + C_RESET)
+            elif msg == "pas_reinit":
+                # 펌웨어 v6.1 — R 명령 응답. prev(재초기화 직전까지의 누적 펄스)가 핵심이다.
+                prev = d.get("prev", 0)
+                if prev == 0:
+                    print_msg(C_YELLOW + C_BOLD +
+                              f"[{ts}] PAS 재초기화 완료 — 직전 누적 펄스 0 "
+                              f"(부팅 후 펄스가 한 번도 안 들어옴 → 인터럽트가 아니라 "
+                              f"센서 전원/배선을 확인할 것)" + C_RESET)
+                else:
+                    print_msg(C_GREEN +
+                              f"[{ts}] PAS 재초기화 완료 — 직전 누적 펄스 {prev}, "
+                              f"핀 레벨 {d.get('pl')}" + C_RESET)
+                pas_pc = 0   # 펌웨어가 카운터를 0으로 되돌렸으므로 표시값도 맞춘다
             else:
                 print_msg(C_CYAN + f"[{ts}] DEBUG: {msg}" + C_RESET)
         elif "calibrated" in d:
@@ -766,11 +855,9 @@ def main():
             spd_c = C_GREEN if spd > 1 else C_DIM
             brk, o, x = bool(d.get("brk")), bool(d.get("o")), bool(d.get("x"))
 
-            # 릴레이 연동 — 미연결이면 hold/pulse가 조용히 무시하므로 별도 분기 불필요.
-            # 브레이크는 눌린 '동안' 유지, O/X는 눌리는 '순간'(상승 에지)에만 짧게.
-            if brk != prev_brk:
-                relay.hold(brk)
-            if not brk and ((o and not prev_o) or (x and not prev_x)):
+            # 릴레이 연동 — 미연결이면 pulse가 조용히 무시하므로 별도 분기 불필요.
+            # 브레이크·O·X 모두 눌리는 '순간'(상승 에지)에만 짧게. Unity와 동일한 동작이다.
+            if (brk and not prev_brk) or (o and not prev_o) or (x and not prev_x):
                 relay.pulse()
             prev_brk, prev_o, prev_x = brk, o, x
 

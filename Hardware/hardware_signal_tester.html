@@ -5,11 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ESP32-S3 자전거 하드웨어 신호 테스트기</title>
     <!--
-      자전거 시뮬레이터 하드웨어 신호 테스트기 (Web Serial)
+      자전거 시뮬레이터 하드웨어 신호 테스트기 (Web Serial) — 펌웨어 v6.2 기준
       - serial_monitor.py와 동일한 기능의 브라우저판: Chrome/Edge에서 파일을 열어 사용
-      - ESP32-S3(115200bps) JSON 수신 + 명령 전송 (C/H/V1~V6)
-      - USB 릴레이(CH340, 9600bps) 진동 체크: 수동 펄스 + 브레이크/버튼 자동 연동
+      - ESP32-S3(115200bps) JSON 수신 + 명령 전송 (C=조향보정, R=PAS 재초기화, H=하트비트)
+      - USB 릴레이(CH340, 9600bps) 진동 체크: 수동 펄스 + 브레이크/O/X 자동 연동
+        ※ 진동은 릴레이 단일 경로다. ESP32의 IRF520 모터 경로(V/P/B 명령)는 사용하지 않으므로
+          V 명령 버튼을 제거했다. 브레이크도 Unity와 동일하게 '누르는 순간' 짧은 펄스다.
       - 연결 유지: 10초 주기 'H' keep-alive, 5초 무수신 경고, 재삽입 시 자동 재연결
+      - 워치독(v6.2): loop가 5초 굳으면 보드 자동 리셋. 부팅 시 reset_reason이 반복해서
+        6(TASK_WDT)이면 loop가 멈추고 있다는 뜻 — I2C 락업 의심.
     -->
     <style>
         body {
@@ -27,7 +31,7 @@
             border-radius: 20px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.1);
             width: 100%;
-            max-width: 680px;
+            max-width: 900px;
         }
         h1 {
             color: #1a73e8;
@@ -200,24 +204,16 @@
     <div class="toggle-row">
         <input type="checkbox" id="chk-autolink" checked>
         <label for="chk-autolink" style="display:inline; margin:0; font-weight:normal;">
-            자동 연동 — 브레이크는 누른 <strong>동안</strong>, O/X 버튼은 누르는 <strong>순간</strong> 진동
+            자동 연동 — 브레이크·O·X 모두 누르는 <strong>순간</strong> 짧게 진동 (Unity와 동일)
         </label>
     </div>
 
-    <h2>진동 체크 — ESP32 내장 모터 패턴 (V 명령)</h2>
-    <div class="button-grid">
-        <button class="btn esp-cmd" data-cmd="V1">V1 위험</button>
-        <button class="btn esp-cmd" data-cmd="V2">V2 성공</button>
-        <button class="btn esp-cmd" data-cmd="V3">V3 정답</button>
-        <button class="btn esp-cmd" data-cmd="V4">V4 오답</button>
-        <button class="btn esp-cmd" data-cmd="V5">V5 보행</button>
-        <button class="btn btn-danger esp-cmd" data-cmd="V0">V0 정지</button>
-    </div>
-
     <h2>ESP32 명령</h2>
-    <div class="button-grid two">
+    <div class="button-grid">
         <button class="btn esp-cmd" data-cmd="C">C — 조향 보정</button>
-        <button class="btn esp-cmd" data-cmd="H">H — 하트비트 에코 (v5.9)</button>
+        <button class="btn btn-primary esp-cmd" data-cmd="R">R — PAS 재초기화</button>
+        <button class="btn esp-cmd" data-cmd="I">I — 펌웨어 정보</button>
+        <button class="btn esp-cmd" data-cmd="H">H — 하트비트 에코</button>
     </div>
 
     <h2>로그</h2>
@@ -229,8 +225,13 @@
         * ESP32는 10초 주기로 <strong>H</strong> keep-alive를 자동 송신하며, 5초 무수신 시 상태 줄이 붉게 바뀝니다.
           케이블을 다시 꽂으면 자동 재연결됩니다.<br>
         * Unity가 같은 포트를 점유 중이면 열리지 않습니다 — 게임을 끄고 테스트하세요.<br>
-        * <strong>PAS펄스</strong>(펌웨어 v6.0+): 페달을 돌려도 숫자가 늘지 않으면 센서 전원/배선 문제,
-          숫자는 느는데 RPM이 0이면 펌웨어 문제입니다.
+        * <strong>PAS 진단</strong> — 페달을 돌리면서 상태 줄의 <strong>PAS펄스</strong>와 <strong>lv</strong>를 보세요.
+          펄스가 늘면 정상입니다. <strong>lv는 0/1로 바뀌는데 펄스가 안 늘면 PAS 인터럽트가 죽은 것</strong>이고,
+          <strong>R — PAS 재초기화</strong> 버튼으로 복구됩니다(Unity는 레벨 진입 시와 감지 시 자동 전송).
+          반대로 <strong>lv가 고정</strong>이면 신호선이 죽은 것이라 센서 전원/배선 문제이며 R로는 고쳐지지 않습니다.<br>
+        * <strong>워치독</strong>(v6.2): loop가 5초간 굳으면 보드가 자동 리셋됩니다. 부팅 로그의
+          <strong>reset_reason</strong>이 반복해서 <strong>TASK_WDT</strong>로 찍히면 loop가 멈추고 있다는 뜻이니
+          I2C 락업을 의심하세요 (정상은 POWERON).
     </div>
 </div>
 
@@ -242,9 +243,20 @@
     const RELAY_BAUD = 9600;
     const RELAY_ON  = new Uint8Array([0xA0, 0x01, 0x01, 0xA2]);
     const RELAY_OFF = new Uint8Array([0xA0, 0x01, 0x00, 0xA1]);
-    const RELAY_VIBE_MS = 500;          // 수동/버튼 펄스 지속시간
+    const RELAY_VIBE_MS = 500;           // 수동 진동 버튼 — 귀로 확인하기 좋게 길게
+    const AUTO_VIBE_MS = 200;            // 브레이크/O/X 자동 연동 — Unity VibeShortDuration 기본값
     const HEARTBEAT_INTERVAL_MS = 10000; // Unity InputManager와 동일 keep-alive 주기
     const STALE_MS = 5000;               // 무수신 경고 기준
+
+    // ESP32 리셋 원인 (펌웨어 v6.2가 부팅 시 송신). POWERON이 정상,
+    // TASK_WDT가 반복되면 loop가 굳어 워치독이 물고 있다는 뜻이다.
+    const RESET_REASONS = {
+        0: 'UNKNOWN', 1: 'POWERON (정상 전원 인가)', 2: 'EXT (외부 리셋 핀)',
+        3: 'SW (소프트웨어 리셋)', 4: 'PANIC (예외로 죽음)', 5: 'INT_WDT (인터럽트 워치독)',
+        6: 'TASK_WDT (loop 정지 — 워치독이 물었음)', 7: 'WDT (기타 워치독)',
+        8: 'DEEPSLEEP', 9: 'BROWNOUT (전원 전압 불안정)', 10: 'SDIO',
+    };
+    let bootWdtCount = 0;   // 워치독에 의한 리셋 누적 — 반복되면 loop가 멈추고 있다는 신호
 
     const $ = id => document.getElementById(id);
     const logEl = $('log');
@@ -357,6 +369,9 @@
         updateConnUi();
         log(`ESP32 연결됨 — ${chipName(esp.info)} @${ESP_BAUD}bps`, 'ok');
         readLoop(port);
+        // 부팅 메시지(boot/wdt_armed)는 setup()에서 한 번만 나가고, 이 보드는 포트를 열어도
+        // 리셋되지 않아 나중에 붙는 쪽은 그걸 못 본다 — 'I'로 지금 상태를 물어본다.
+        sendEsp('I');
     }
 
     async function readLoop(port) {
@@ -431,6 +446,45 @@
             } else if (msg.includes('DMP Stabilized')) {
                 steerOk = true;
                 log(`DEBUG: ${msg}`, 'ok');
+            } else if (msg === 'boot') {
+                // 펌웨어 v6.2 — 보드가 왜 다시 켜졌는지 알려주는 유일한 단서
+                const rr = d.reset_reason;
+                const label = RESET_REASONS[rr] || `코드 ${rr}`;
+                if (rr === 6) {
+                    bootWdtCount++;
+                    log(`부팅: ${label} ← loop가 멈춰 자동 리셋됨 (누적 ${bootWdtCount}회, I2C 락업 의심)`, 'err');
+                } else if (rr === 9) {
+                    log(`부팅: ${label} ← USB 전원/허브 확인 필요`, 'err');
+                } else if (rr === 1) {
+                    log(`부팅: ${label}`, 'ok');
+                } else {
+                    log(`부팅: ${label}`, 'warn');
+                }
+            } else if (msg === 'info') {
+                // 'I' 응답 — 부팅 메시지를 놓쳐도 지금 올라간 펌웨어를 확인할 수 있다
+                const rr = d.reset_reason;
+                const label = RESET_REASONS[rr] || `코드 ${rr}`;
+                log(`펌웨어 v${d.fw}  I2C ${Math.round(d.i2c / 1000)}kHz  `
+                    + `워치독 ${d.wdt === 1 ? '활성' : '미등록'}  `
+                    + `조향센서 ${d.steer === 1 ? '정상' : '미인식'}  `
+                    + `마지막 리셋: ${label}`, d.wdt === 1 ? 'ok' : 'warn');
+                if (d.wdt !== 1)
+                    log('← 워치독 미등록: loop가 굳어도 자동 복구되지 않음 (펌웨어 v6.2 이상 확인)', 'err');
+                if (rr === 6)
+                    log('← 직전 리셋이 TASK_WDT: loop가 멈췄다는 뜻. 반복되면 I2C 락업 의심', 'err');
+            } else if (msg === 'wdt_armed') {
+                log(`워치독 활성 (${d.timeout_ms}ms) — loop 정지 시 자동 리셋`, 'ok');
+            } else if (msg === 'wdt_setup_failed') {
+                log(`경고: 워치독 등록 실패 (err=${d.err}) — loop가 굳어도 자동 복구되지 않음`, 'err');
+            } else if (msg === 'pas_reinit') {
+                // 펌웨어 v6.1 — R 명령 응답. prev(재초기화 직전 누적 펄스)가 진단의 핵심이다.
+                const prev = d.prev ?? 0;
+                if (prev === 0) {
+                    log(`PAS 재초기화 완료 — 직전 누적 펄스 0 (부팅 후 펄스가 한 번도 안 들어옴 → `
+                        + `인터럽트가 아니라 센서 전원/배선을 확인할 것)`, 'warn');
+                } else {
+                    log(`PAS 재초기화 완료 — 직전 누적 펄스 ${prev}, 핀 레벨 ${d.pl}`, 'ok');
+                }
             } else {
                 log(`DEBUG: ${msg}`);
             }
@@ -455,10 +509,11 @@
     function applyData(d) {
         const brk = !!d.brk, o = !!d.o, x = !!d.x;
 
-        // 릴레이 자동 연동 (serial_monitor.py와 동일): 브레이크=hold, O/X=상승 에지 펄스
-        if ($('chk-autolink').checked) {
-            if (brk !== prevBrk) relayHold(brk);
-            if (!brk && ((o && !prevO) || (x && !prevX))) relayPulse();
+        // 릴레이 자동 연동 (serial_monitor.py / Unity와 동일):
+        // 브레이크·O·X 모두 상승 에지에서 짧은 펄스 1회.
+        if ($('chk-autolink').checked
+            && ((brk && !prevBrk) || (o && !prevO) || (x && !prevX))) {
+            relayPulse(AUTO_VIBE_MS);
         }
         prevBrk = brk; prevO = o; prevX = x;
 
@@ -488,7 +543,7 @@
     // ════════════════════════════════════════════════════════════
     //  USB 릴레이 (진동 모터) — pulse/hold 의미는 serial_monitor.py와 동일
     // ════════════════════════════════════════════════════════════
-    const relay = { port: null, connected: false, info: null, held: false, timer: null };
+    const relay = { port: null, connected: false, info: null, held: false, timer: null, offAt: 0 };
 
     async function connectRelay() {
         try {
@@ -519,19 +574,28 @@
         finally { w.releaseLock(); }
     }
 
-    function relayPulse() {
-        if (!relay.connected || relay.held) return;   // 켜져 있으면 끄는 주체는 브레이크
-        if (relay.timer) clearTimeout(relay.timer);   // 연타 시 이전 타이머가 끊지 않도록
+    // 짧은 진동 1회. 겹친 요청 중에는 Unity의 VibrationRelay와 마찬가지로 '긴 쪽'을 남긴다.
+    // (수동 ON(유지) 중이면 끄는 주체는 그 버튼이므로 건드리지 않는다)
+    function relayPulse(durationMs = RELAY_VIBE_MS) {
+        if (!relay.connected || relay.held) return;
+        const endAt = performance.now() + durationMs;
+        if (relay.timer) {
+            if (endAt <= relay.offAt) return;   // 이미 더 길게 켜져 있다
+            clearTimeout(relay.timer);
+        }
         relayWrite(RELAY_ON);
+        relay.offAt = endAt;
         relay.timer = setTimeout(() => {
             relay.timer = null;
+            relay.offAt = 0;
             if (!relay.held) relayWrite(RELAY_OFF);
-        }, RELAY_VIBE_MS);
+        }, durationMs);
     }
 
+    // 수동 유지 ON/OFF 버튼 전용 — 실제 게임에는 이런 동작이 없다(진동은 전부 펄스).
     function relayHold(on) {
         if (!relay.connected) return;
-        if (relay.timer) { clearTimeout(relay.timer); relay.timer = null; }
+        if (relay.timer) { clearTimeout(relay.timer); relay.timer = null; relay.offAt = 0; }
         relay.held = on;
         relayWrite(on ? RELAY_ON : RELAY_OFF);
         $('btn-relay-on').classList.toggle('on', on);
@@ -541,6 +605,7 @@
         if (!relay.connected) return;
         relay.connected = false;
         if (relay.timer) { clearTimeout(relay.timer); relay.timer = null; }
+        relay.offAt = 0;
         try { await relay.port?.close(); } catch (_) {}
         relay.port = null;
         relay.held = false;

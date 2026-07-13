@@ -81,6 +81,11 @@ public class HomeGameManager : MonoBehaviour
             StopAllCoroutines();
             StartCoroutine(PrepareAndPlayVideo());
         }
+        else
+        {
+            // 비디오가 없으면 기다릴 이유가 없다 — 프리로드를 바로 풀어준다.
+            PreloadManager.MarkHomeReady();
+        }
     }
 
     private IEnumerator PrepareAndPlayVideo()
@@ -98,6 +103,10 @@ public class HomeGameManager : MonoBehaviour
 
         if (bgVideoPlayer.isPrepared) bgVideoPlayer.Play();
         else Debug.LogWarning("[HomeGameManager] 배경 비디오 준비 시간 초과 — 재생 생략");
+
+        // 성공하든 실패하든 여기서 프리로드를 풀어준다. Prepare()가 끝나기 전에 청크
+        // 로딩이 끼어들면 캐시가 차가운 첫 진입에서 디스크·메인 스레드를 두고 경합한다.
+        PreloadManager.MarkHomeReady();
     }
 
     /// <summary>키보드 방향키 입력 시 사운드 피드백 (애니메이터는 LevelSelectionBtn이 처리)</summary>
@@ -136,6 +145,13 @@ public class HomeGameManager : MonoBehaviour
     private void StartTransition(int level)
     {
         _isTransitioning = true;
+
+        // 레벨 진입 시점에 컨트롤러 입력단을 재설정한다. 장시간 가동 중 PAS 인터럽트만
+        // 죽어 페달이 안 먹는 사례가 있어(버튼·브레이크는 정상), 주행 시작 전에 미리 되살린다.
+        // 트랜지션·인트로가 뒤따르므로 핸들이 중립인 상태에서 조향 원점도 함께 다시 잡힌다.
+        if (InputManager.Instance != null)
+            InputManager.Instance.ResetControllerInput();
+
         // 로딩 우선순위·GPU 업로드 타임슬라이스를 끌어올리고 프리로드 청크 발행을 중단해
         // 씬 로드를 가속한다. 원복은 씬 활성화 완료 후 OnLevelLoadFinished에서.
         PreloadManager.BoostLoadingPriority();

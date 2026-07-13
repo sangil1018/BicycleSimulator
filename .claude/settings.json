@@ -13,7 +13,13 @@
       "PowerShell(Select-String -Path 'Hardware\\\\Unity_시리얼_통신_가이드.md' -Pattern 'v5\\\\.8' | ForEach-Object { \"$\\($_.LineNumber\\): $\\($_.Line.Trim\\(\\)\\)\" })",
       "PowerShell(& \"$env:LOCALAPPDATA\\\\Programs\\\\arduino-ide\\\\resources\\\\app\\\\lib\\\\backend\\\\resources\\\\arduino-cli.exe\" compile --fqbn esp32:esp32:esp32s3 'd:\\\\Interactive\\\\Gintotal\\\\Bitgoeul\\\\BicycleSimulator\\\\Hardware\\\\bicycle_sim_x' 2>&1 | Select-Object -Last 2)",
       "PowerShell(Select-String -Path 'CONTENT_GUIDE.md' -Pattern '매니저 수명' -Context 0,12 | ForEach-Object { $_.Line; $_.Context.PostContext })",
-      "PowerShell($m = Select-String -Path 'CONTENT_GUIDE.md' -Pattern '매니저 수명'; Write-Output $m.LineNumber)"
+      "PowerShell($m = Select-String -Path 'CONTENT_GUIDE.md' -Pattern '매니저 수명'; Write-Output $m.LineNumber)",
+      "PowerShell(& \"$env:LOCALAPPDATA\\\\Programs\\\\arduino-ide\\\\resources\\\\app\\\\lib\\\\backend\\\\resources\\\\arduino-cli.exe\" compile --fqbn esp32:esp32:esp32s3 \"d:\\\\Interactive\\\\Gintotal\\\\Bitgoeul\\\\BicycleSimulator\\\\Hardware\\\\bicycle_sim_x\")",
+      "PowerShell(& \"$env:LOCALAPPDATA\\\\Programs\\\\arduino-ide\\\\resources\\\\app\\\\lib\\\\backend\\\\resources\\\\arduino-cli.exe\" core list)",
+      "PowerShell(python -m py_compile \"d:\\\\Interactive\\\\Gintotal\\\\Bitgoeul\\\\BicycleSimulator\\\\Hardware\\\\serial_monitor.py\")",
+      "PowerShell(if \\($?\\) { \"syntax OK\" })",
+      "PowerShell(\"--- packages ---\")",
+      "PowerShell(if \\($?\\) { \"serial_monitor.py syntax OK\" })"
     ]
   }
 }
