@@ -553,6 +553,13 @@ def input_thread(esp, relay, rescan):
             exit_now(0)
         if ch == "v":                # 릴레이 진동 트리거 (실시간, Enter 불필요)
             relay.vibrate()
+            try:
+                # 핀 2번 진동을 제어하기 위해 ESP32 시리얼 포트로 진동 명령을 추가로 전송합니다.
+                if esp.connected:
+                    esp.write_line("V3")
+            except Exception as e:
+                # 시리얼 진동 명령 전송 중 발생한 예외 처리
+                pass
             continue
         if ch == "r":                # 포트 재스캔 — 소문자만!
             # 펌웨어 v6.1부터 대문자 'R'은 ESP32의 PAS 재초기화 명령이다.
@@ -590,6 +597,13 @@ def _line_input_loop(esp, relay, rescan):
             continue
         if cmd == "v":
             relay.vibrate()
+            try:
+                # 핀 2번 진동을 제어하기 위해 ESP32 시리얼 포트로 진동 명령을 추가로 전송합니다.
+                if esp.connected:
+                    esp.write_line("V3")
+            except Exception as e:
+                # 시리얼 진동 명령 전송 중 발생한 예외 처리
+                pass
             continue
         if cmd == "r":
             rescan()
@@ -859,6 +873,13 @@ def main():
             # 브레이크·O·X 모두 눌리는 '순간'(상승 에지)에만 짧게. Unity와 동일한 동작이다.
             if (brk and not prev_brk) or (o and not prev_o) or (x and not prev_x):
                 relay.pulse()
+                try:
+                    # 핀 2번 진동을 제어하기 위해 ESP32 시리얼 포트로 진동 명령을 추가로 전송합니다.
+                    if esp.connected:
+                        esp.write_line("V3")
+                except Exception as e:
+                    # 시리얼 진동 명령 전송 중 발생한 예외 처리
+                    pass
             prev_brk, prev_o, prev_x = brk, o, x
 
             if steer_ok:

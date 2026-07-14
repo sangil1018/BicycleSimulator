@@ -1,4 +1,4 @@
-# ================================================================
+﻿# ================================================================
 #  키오스크 절전 해제 설정 스크립트 (관리자 권한 필요)
 #  자전거 안전체험 시뮬레이터 — ESP32 시리얼 연결 유지용
 #
@@ -14,27 +14,55 @@
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin)
 {
-    Write-Host "[오류] 관리자 권한으로 실행하세요." -ForegroundColor Red
+    Write-Host "[ERROR] Please run as Administrator." -ForegroundColor Red
     exit 1
 }
 
-Write-Host "=== 1. 시스템 절전/최대 절전 비활성화 ===" -ForegroundColor Cyan
-powercfg /hibernate off                     # 최대 절전 끄기
-powercfg /change standby-timeout-ac 0       # 대기 모드 진입 없음
-powercfg /change hibernate-timeout-ac 0
-powercfg /change disk-timeout-ac 0          # 디스크 절전 없음
-powercfg /change monitor-timeout-ac 0       # 모니터 꺼짐 없음 (키오스크)
+# ── 시스템 전원 스키마 백업 및 모든 계획 획득 ───────────────────────
+# 현재 선택된 활성 전원 관리 체계(스키마)의 GUID를 백업합니다.
+$currentScheme = (powercfg /getactivescheme) -replace ".*GUID: ([a-fA-F0-9-]+).*", '$1'
 
-Write-Host "=== 2. USB 선택적 절전(selective suspend) 비활성화 ===" -ForegroundColor Cyan
+# 시스템에 존재하는 사용 가능한 모든 전원 스키마 GUID 목록을 획득합니다.
+$schemes = powercfg /list | ForEach-Object {
+    if ($_ -match "GUID: ([a-fA-F0-9-]+)") {
+        $matches[1]
+    }
+}
+
+Write-Host "=== 1. Disabling System Standby and Hibernation ===" -ForegroundColor Cyan
+powercfg /hibernate off                     # 최대 절전 모드 끄기 (글로벌 세팅)
+
+# 모든 전원 체계를 순회하며 절전 설정을 해제합니다.
+foreach ($scheme in $schemes)
+{
+    powercfg /setactive $scheme
+    powercfg /change standby-timeout-ac 0       # 대기 모드 진입 안 함 (전원 연결 시)
+    powercfg /change standby-timeout-dc 0       # 대기 모드 진입 안 함 (배터리 사용 시)
+    powercfg /change hibernate-timeout-ac 0     # 최대 절전 모드 진입 안 함 (전원 연결 시)
+    powercfg /change hibernate-timeout-dc 0     # 최대 절전 모드 진입 안 함 (배터리 사용 시)
+    powercfg /change disk-timeout-ac 0          # 디스크 끄기 안 함 (전원 연결 시)
+    powercfg /change disk-timeout-dc 0          # 디스크 끄기 안 함 (배터리 사용 시)
+    powercfg /change monitor-timeout-ac 0       # 모니터 끄기 안 함 (전원 연결 시)
+    powercfg /change monitor-timeout-dc 0       # 모니터 끄기 안 함 (배터리 사용 시)
+}
+
+Write-Host "=== 2. Disabling USB Selective Suspend ===" -ForegroundColor Cyan
 # 서브그룹: USB 설정 / 항목: USB 선택적 절전 설정
 $SUB_USB  = "2a737441-1930-4402-8d77-b2bebba308a3"
 $USB_SUSP = "48e6b7a6-50f5-4782-a5d4-53bb8f07e226"
-powercfg /setacvalueindex SCHEME_CURRENT $SUB_USB $USB_SUSP 0
-powercfg /setdcvalueindex SCHEME_CURRENT $SUB_USB $USB_SUSP 0
-powercfg /setactive SCHEME_CURRENT
 
-Write-Host "=== 3. USB 장치별 전원 관리 해제 ===" -ForegroundColor Cyan
-# 장치 관리자의 "전원 절약을 위해 컴퓨터가 이 장치를 끌 수 있음" 해제와 동일.
+# 모든 전원 체계에 USB 선택적 절전을 해제합니다.
+foreach ($scheme in $schemes)
+{
+    powercfg /setacvalueindex $scheme $SUB_USB $USB_SUSP 0
+    powercfg /setdcvalueindex $scheme $SUB_USB $USB_SUSP 0
+}
+
+# 원래의 전원 스키마를 다시 복구합니다.
+powercfg /setactive $currentScheme
+
+Write-Host "=== 3. Disabling Power Management for USB Devices ===" -ForegroundColor Cyan
+# 장치 관리자의 전원 절약을 위해 컴퓨터가 이 장치를 끌 수 있음 해제와 동일.
 # USB 허브·컨트롤러와 USB-시리얼(CP210x/CH340/CDC) 장치 전체에 적용한다.
 $count = 0
 Get-CimInstance -Namespace root/wmi -ClassName MSPower_DeviceEnable -ErrorAction SilentlyContinue |
@@ -48,12 +76,12 @@ Get-CimInstance -Namespace root/wmi -ClassName MSPower_DeviceEnable -ErrorAction
         }
         catch { }
     }
-Write-Host "  전원 관리 해제된 USB 장치: $count 개"
+Write-Host "  Disabled power management for $count USB device(s)."
 
-Write-Host "=== 4. 빠른 시작(Fast Startup) 비활성화 ===" -ForegroundColor Cyan
+Write-Host "=== 4. Disabling Fast Startup ===" -ForegroundColor Cyan
 # 빠른 시작은 종료 후 재부팅 시 USB 장치 상태를 비정상으로 남길 수 있음
 Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power' -Name HiberbootEnabled -Value 0 -Type DWord
 
 Write-Host ""
-Write-Host "완료. 재부팅 후 적용을 확인하세요." -ForegroundColor Green
-Write-Host "확인 명령: powercfg /query SCHEME_CURRENT $SUB_USB $USB_SUSP"
+Write-Host "Done. Please restart the PC to apply changes." -ForegroundColor Green
+Write-Host "Verify command: powercfg /query SCHEME_CURRENT $SUB_USB $USB_SUSP"

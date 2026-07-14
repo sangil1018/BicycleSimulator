@@ -9,8 +9,8 @@
       - serial_monitor.py와 동일한 기능의 브라우저판: Chrome/Edge에서 파일을 열어 사용
       - ESP32-S3(115200bps) JSON 수신 + 명령 전송 (C=조향보정, R=PAS 재초기화, H=하트비트)
       - USB 릴레이(CH340, 9600bps) 진동 체크: 수동 펄스 + 브레이크/O/X 자동 연동
-        ※ 진동은 릴레이 단일 경로다. ESP32의 IRF520 모터 경로(V/P/B 명령)는 사용하지 않으므로
-          V 명령 버튼을 제거했다. 브레이크도 Unity와 동일하게 '누르는 순간' 짧은 펄스다.
+        ※ 진동 신호를 보낼 때 릴레이 작동과 동시에 ESP32의 IRF520 모터 경로(핀 2번, V3 명령)로도 진동 신호를 보냅니다.
+          브레이크도 Unity와 동일하게 '누르는 순간' 짧은 펄스입니다.
       - 연결 유지: 10초 주기 'H' keep-alive, 5초 무수신 경고, 재삽입 시 자동 재연결
       - 워치독(v6.2): loop가 5초 굳으면 보드 자동 리셋. 부팅 시 reset_reason이 반복해서
         6(TASK_WDT)이면 loop가 멈추고 있다는 뜻 — I2C 락업 의심.
@@ -514,6 +514,14 @@
         if ($('chk-autolink').checked
             && ((brk && !prevBrk) || (o && !prevO) || (x && !prevX))) {
             relayPulse(AUTO_VIBE_MS);
+            try {
+                // 핀 2번 진동을 제어하기 위해 ESP32 시리얼 포트로 진동 명령을 추가로 전송합니다.
+                if (esp.connected) {
+                    sendEsp('V3');
+                }
+            } catch (e) {
+                // 진동 명령 전송 중 발생한 예외 처리
+            }
         }
         prevBrk = brk; prevO = o; prevX = x;
 
@@ -688,6 +696,14 @@
     $('btn-vibe-pulse').addEventListener('click', () => {
         log(`릴레이 진동 ON (${RELAY_VIBE_MS / 1000}s)`, 'send');
         relayPulse();
+        try {
+            // 핀 2번 진동을 제어하기 위해 ESP32 시리얼 포트로 진동 명령을 추가로 전송합니다.
+            if (esp.connected) {
+                sendEsp('V3');
+            }
+        } catch (e) {
+            // 진동 명령 전송 중 발생한 예외 처리
+        }
     });
     $('btn-relay-on').addEventListener('click', () => { log('릴레이 ON (유지)', 'send'); relayHold(true); });
     $('btn-relay-off').addEventListener('click', () => { log('릴레이 OFF', 'send'); relayHold(false); });
