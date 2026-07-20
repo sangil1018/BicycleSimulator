@@ -9,8 +9,8 @@
 
 1. **InputManager (필수)**: 하드웨어/키보드 입력 처리 및 로고 표시 제어.
 2. **GameManager (필수)**: 전체 게임 상태 및 씬 전환 데이터 관리.
-3. **VibrationRelay (필수)**: O/X 버튼 실행 시 진동 피드백 (`oButton`/`xButton`의 `HandleExecute()`에서 `InputManager.SendVibrate(VibeState.Click)` 호출). 진동은 버튼 컴포넌트가 담당하므로 Home·Level 모든 씬에서 동일하게 동작하며, `HomeGameManager.PlayClickSound()`는 사운드만 재생합니다. 방향키로 선택만 옮길 때는 사운드만 나고 진동은 없습니다. ESP32와 별도의 USB 릴레이 포트를 사용하며, 없으면 진동 없이 사운드만 재생됩니다.
-4. **수명**: `InputManager`, `VibrationRelay`는 `Singleton`(`DontDestroyOnLoad`)으로 씬 전환 후에도 유지됩니다. `GameManager`는 `SceneSingleton`이라 씬마다 새 인스턴스가 존재하므로 Home·Level 각 씬에 배치되어야 합니다.
+3. **진동**: O/X 버튼 실행 시 `oButton`/`xButton`의 `HandleExecute()`가 `InputManager.SendVibrate(VibeState.Click)`을 호출해 ESP32로 `V3`를 보냅니다(GPIO2 구동). 진동은 버튼 컴포넌트가 담당하므로 Home·Level 모든 씬에서 동일하게 동작하며, `HomeGameManager.PlayClickSound()`는 사운드만 재생합니다. 방향키로 선택만 옮길 때는 사운드만 나고 진동은 없습니다. ESP32가 미연결이면 진동 없이 사운드만 재생됩니다. (씬에 남아 있는 `VibrationRelay` 오브젝트는 폐기된 USB 릴레이용 껍데기로, 지워도 무방합니다.)
+4. **수명**: `InputManager`는 `Singleton`(`DontDestroyOnLoad`)으로 씬 전환 후에도 유지됩니다. `GameManager`는 `SceneSingleton`이라 씬마다 새 인스턴스가 존재하므로 Home·Level 각 씬에 배치되어야 합니다.
 
 ---
 

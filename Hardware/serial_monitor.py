@@ -3,9 +3,10 @@
 #  자전거 시뮬레이터 ESP32-S3 시리얼 데이터 모니터  (펌웨어 v6.2 기준)
 #  사용법: check_serial.bat 더블클릭  또는  python serial_monitor.py [ESP32포트] [릴레이포트]
 #  - ESP32-S3(CH343) 115200bps, JSON 라인 수신 (50Hz)
-#  - USB 릴레이(CH340) 9600bps 자동 연결 — 'v' 키로 수동 진동, 'r' 키(소문자)로 포트 재스캔
-#  - 릴레이 자동 연동: 브레이크/O/X 모두 '누르는 순간' 짧게 진동 (Unity와 동일)
-#    진동은 릴레이 단일 경로다 — ESP32의 IRF520 모터 경로(V/P/B 명령)는 사용하지 않는다.
+#  - 'v' 키로 수동 진동(V3 송신), 'r' 키(소문자)로 포트 재스캔
+#  - 진동 자동 연동: 브레이크/O/X 모두 '누르는 순간' 짧게 진동 (Unity와 동일)
+#    진동은 ESP32가 GPIO2(MOSFET 광커플러 절연 드라이버 모듈)로 직접 구동한다.
+#    USB 릴레이 진동 경로는 폐기 — 릴레이는 포트 목록 표시용으로만 남아 있다.
 #  - 명령 전송(대문자 + Enter): C(조향 보정), R(PAS 인터럽트 재초기화), H(하트비트 에코)
 #    ※ 소문자 'r'은 포트 재스캔 단축키다. ESP32의 R 명령은 대문자로 입력해야 전달된다.
 #  - 연결 유지: Unity InputManager와 동일하게 10초 주기 'H' keep-alive 송신,
@@ -520,6 +521,26 @@ def install_exit_handlers():
         pass   # 콘솔이 없는 환경(pythonw 등)에서는 무시
 
 
+def _send_vibe(esp, vibe_id=3, announce=True):
+    """ESP32에 진동 패턴 명령(V0~V6)을 보낸다.
+
+    진동은 보드가 GPIO2(MOSFET 광커플러 절연 드라이버)로 직접 구동한다 — USB 릴레이
+    경로는 폐기됐다. 기본값 V3(Correct)은 짧은 단발이라 버튼 확인용으로 적당하다.
+    버튼 에지에서 매 프레임 호출될 수 있으므로 실패해도 조용히 넘어간다.
+    """
+    if not esp.connected:
+        if announce:
+            print(C_YELLOW + ">> ESP32 미연결 — 진동 무시 (v)" + C_RESET)
+        return
+    try:
+        esp.write_line(f"V{vibe_id}")
+        if announce:
+            print(C_CYAN + f">> 진동 V{vibe_id} 전송" + C_RESET)
+    except Exception as e:
+        if announce:
+            print(C_RED + f"진동 전송 실패: {e}" + C_RESET)
+
+
 def _send_esp(esp, cmd):
     cmd = cmd.strip()
     if not cmd:
@@ -534,7 +555,7 @@ def _send_esp(esp, cmd):
 
 
 def input_thread(esp, relay, rescan):
-    """실시간 키 입력. 'v'=릴레이 진동, 'r'=포트 재스캔(둘 다 즉시).
+    """실시간 키 입력. 'v'=진동(ESP32 V3), 'r'=포트 재스캔(둘 다 즉시).
     그 외 문자는 버퍼에 모아 Enter 시 ESP32로 전송.
     Windows에서는 msvcrt로 단일 키를 감지하고, 그 외 OS는 줄 단위 입력으로 대체한다."""
     try:
@@ -551,15 +572,8 @@ def input_thread(esp, relay, rescan):
             continue
         if ch == "\x03":             # Ctrl+C (getwch는 raw 입력이라 SIGINT가 안 뜬다)
             exit_now(0)
-        if ch == "v":                # 릴레이 진동 트리거 (실시간, Enter 불필요)
-            relay.vibrate()
-            try:
-                # 핀 2번 진동을 제어하기 위해 ESP32 시리얼 포트로 진동 명령을 추가로 전송합니다.
-                if esp.connected:
-                    esp.write_line("V3")
-            except Exception as e:
-                # 시리얼 진동 명령 전송 중 발생한 예외 처리
-                pass
+        if ch == "v":                # 진동 트리거 (실시간, Enter 불필요)
+            _send_vibe(esp)
             continue
         if ch == "r":                # 포트 재스캔 — 소문자만!
             # 펌웨어 v6.1부터 대문자 'R'은 ESP32의 PAS 재초기화 명령이다.
@@ -583,7 +597,7 @@ def input_thread(esp, relay, rescan):
 
 
 def _line_input_loop(esp, relay, rescan):
-    """비 Windows 대체: 줄 단위 입력. 'v'=릴레이 진동, 'r'(소문자)=포트 재스캔.
+    """비 Windows 대체: 줄 단위 입력. 'v'=진동(ESP32 V3), 'r'(소문자)=포트 재스캔.
 
     대문자 'R'은 ESP32의 PAS 재초기화 명령이므로 가로채지 않고 그대로 전송한다.
     """
@@ -596,14 +610,7 @@ def _line_input_loop(esp, relay, rescan):
         if not cmd:
             continue
         if cmd == "v":
-            relay.vibrate()
-            try:
-                # 핀 2번 진동을 제어하기 위해 ESP32 시리얼 포트로 진동 명령을 추가로 전송합니다.
-                if esp.connected:
-                    esp.write_line("V3")
-            except Exception as e:
-                # 시리얼 진동 명령 전송 중 발생한 예외 처리
-                pass
+            _send_vibe(esp)
             continue
         if cmd == "r":
             rescan()
@@ -869,17 +876,10 @@ def main():
             spd_c = C_GREEN if spd > 1 else C_DIM
             brk, o, x = bool(d.get("brk")), bool(d.get("o")), bool(d.get("x"))
 
-            # 릴레이 연동 — 미연결이면 pulse가 조용히 무시하므로 별도 분기 불필요.
-            # 브레이크·O·X 모두 눌리는 '순간'(상승 에지)에만 짧게. Unity와 동일한 동작이다.
+            # 진동 연동 — 브레이크·O·X가 눌리는 '순간'(상승 에지)에만 짧게.
+            # Unity와 동일하게 ESP32에 V3만 보낸다(진동은 보드가 GPIO2로 직접 구동).
             if (brk and not prev_brk) or (o and not prev_o) or (x and not prev_x):
-                relay.pulse()
-                try:
-                    # 핀 2번 진동을 제어하기 위해 ESP32 시리얼 포트로 진동 명령을 추가로 전송합니다.
-                    if esp.connected:
-                        esp.write_line("V3")
-                except Exception as e:
-                    # 시리얼 진동 명령 전송 중 발생한 예외 처리
-                    pass
+                _send_vibe(esp, announce=False)
             prev_brk, prev_o, prev_x = brk, o, x
 
             if steer_ok:

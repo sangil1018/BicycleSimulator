@@ -1,10 +1,26 @@
 # 자전거 시뮬레이터 — Unity 시리얼 통신 가이드
 
-**펌웨어**: bicycle_sim_x v6.0 (ESP32-S3, 센서 담당)  
+**펌웨어**: bicycle_sim_x v6.2 (ESP32-S3, 센서 + 진동 담당) — **변경 없음, 재플래싱 불필요**  
 **대상**: 빛고을국민안전체험관 / FLUXION
 
-ESP32는 센서(케이던스·조향·브레이크·버튼) 입출력과 브레이크 진동 피드백을 담당합니다.
-이벤트/퀴즈 진동은 별도 USB 릴레이(§3-6)가 처리합니다.
+> ## ⚠️ 진동 경로 변경 — ESP32 단독 처리 (USB 릴레이 폐기)
+>
+> 진동 모터는 **ESP32 GPIO2(2번핀) + GND**에 연결된 **MOSFET 광커플러 절연 드라이버 모듈**로
+> 구동합니다. Unity는 진동 패턴 번호를 ESP32에 `V0`~`V6` 명령으로 보내고(§3-1b),
+> 길이 배율은 연결 시 `P`(§3-1)로 한 번 보냅니다.
+>
+> **펌웨어는 수정하지 않았습니다.** v5.8부터 있던 GPIO2 진동 경로(V/P/B 명령, 시퀀서)가
+> 그대로 살아 있고, 릴레이 시절에 Unity가 V 명령을 안 보내던 것뿐이었습니다.
+> 이번 변경은 **Unity 쪽만** 고쳤으므로 보드에 올라가 있는 v6.2를 그대로 쓰면 됩니다.
+>
+> **USB 릴레이 진동 경로는 사용하지 않습니다.** 아래 §1-2, §3-6과 `config.ini`의
+> `RelayPortName`/`RelayBaudRate`/`Vibe*Duration` 키는 옛 구성 기록으로만 남아 있으며
+> 실제 동작에 영향을 주지 않습니다. `VibrationRelay.cs`는 포트를 열지 않는 빈 껍데기입니다.
+>
+> 배선: `GPIO2 → 모듈 SIG(IN)`, `ESP32 GND → 모듈 GND`(신호 기준 공통, 필수),
+> 모터 전원은 모듈 출력단에 별도 DC로 연결(광커플러 절연이므로 전원 분리 가능).
+
+ESP32는 센서(케이던스·조향·브레이크·버튼) 입출력과 **모든 진동 피드백**을 담당합니다.
 조향 센서(ICM-20948)는 부팅 시 인식 실패해도 `str=0` 고정으로 정상 송신합니다(§2-4).
 
 **v5.9~v6.0 추가 사항**: `H` keep-alive 에코(§3-1c), 좀비 포트 자동 재연결(§2-5),
@@ -14,7 +30,7 @@ PAS 진단 필드 `pc`/`pl`(§2-2), PAS micros() 랩어라운드 가드.
 
 ## 1. 연결 설정
 
-Unity는 **COM 포트 2개**를 사용합니다 — ① ESP32(센서), ② USB 릴레이(진동, ESP32와 무관한 별도 장치).
+Unity는 **COM 포트 1개**(ESP32)만 사용합니다. 센서 입력과 진동이 모두 이 포트로 오갑니다.
 
 ### 1-1. ESP32 (센서)
 
@@ -28,7 +44,7 @@ Unity는 **COM 포트 2개**를 사용합니다 — ① ESP32(센서), ② USB �
 | 줄 끝 문자 | `\n` (LF) |
 | 전송 주기 | **50 Hz** (20 ms마다 1 패킷) |
 
-### 1-2. USB 릴레이 (진동)
+### 1-2. USB 릴레이 (진동) — ❌ 폐기됨 (옛 구성 기록)
 
 | 항목 | 값 |
 |------|----|
@@ -120,20 +136,23 @@ Unity는 **COM 포트 2개**를 사용합니다 — ① ESP32(센서), ② USB �
 
 모든 명령은 **같은 COM 포트**로 전송합니다. 형식: `ASCII + 숫자 + \n`
 
-펌웨어는 `P` `B` `C` `H` `M` `S` `V` 명령을 처리하며, **Unity(InputManager)가 실제로 보내는 명령은 `P` · `B1/B0` · `C` · `H` · `M`** 입니다. `S`(LED 상태)와 `V`(진동 패턴)는 펌웨어 단독 테스트용으로만 남아 있습니다.
+펌웨어는 `P` `B` `C` `H` `M` `R` `S` `V` 명령을 처리하며, **Unity(InputManager)가 실제로 보내는 명령은 `V0~V6` · `P` · `C` · `R` · `H` · `M`** 입니다. `S`(LED 상태)와 `B1/B0`(브레이크 연속 진동)는 펌웨어 단독 테스트용으로만 남아 있습니다 — 브레이크 진동도 이제 상승 에지에서 `V3` 단발로 보냅니다.
 
 ```
-P100\n  ← 진동 세기 배율 (100 = 1.0x)
-B1\n    ← 브레이크 ON
+V3\n    ← 진동 패턴 (V0~V6)
+P100\n  ← 진동 길이 배율 (100 = 1.0x, 연결 시 1회)
 C\n     ← 조향 캘리브레이션
+R\n     ← PAS 인터럽트 재초기화
 H\n     ← keep-alive (10초 주기 자동 송신)
 ```
 
-### 3-1. P — 진동 세기 배율 ✅ Unity 사용 중
+### 3-1. P — 진동 길이 배율 ✅ Unity 사용 중
 
-ESP32 쪽 브레이크 진동(및 V 패턴) 지속시간에 곱해지는 배율입니다. 연결 직후·DMP 안정화 완료·조향 센서 미인식 시 Unity가 `config.ini`의 `VibeMultiplier` 값을 `P{배율×100}` 형태로 전송합니다.
+V 패턴의 각 단계 지속시간에 곱해지는 배율입니다. Unity는 **연결이 수립될 때마다 1회**
+`config.ini`의 `VibeMultiplier` 값을 `P{배율×100}` 형태로 전송합니다.
 
-> 같은 `VibeMultiplier` 값이 USB 릴레이의 진동 프리셋 길이에도 곱해집니다(§3-6). 즉 이 키 하나로 ESP32 브레이크 진동과 릴레이 이벤트 진동의 길이가 함께 조절됩니다.
+> 진동 길이를 현장에서 조절하는 유일한 키입니다. 펌웨어 재플래싱 없이 `config.ini`만 고치고
+> Unity를 재시작하면 반영됩니다.
 
 | 명령 | 의미 |
 |------|------|
@@ -141,10 +160,13 @@ ESP32 쪽 브레이크 진동(및 V 패턴) 지속시간에 곱해지는 배율�
 | `P150\n` | 1.5배 |
 | `P{n}\n` | n/100 배 · 펌웨어에서 50~300으로 제한 |
 
-### 3-1b. V — 진동 패턴 (IRF520 모듈 → 진동 모터) — Unity 미사용
+### 3-1b. V — 진동 패턴 (GPIO2 → MOSFET 광커플러 절연 드라이버 → 모터) ✅ Unity 사용 중
 
-> 펌웨어 단독 테스트용입니다. Unity는 이 명령을 보내지 않으며, 이벤트/퀴즈 진동은 §3-6의 USB 릴레이로 처리합니다.
-> 아래 지속시간은 `P` 배율이 100(1.0x)일 때 기준이며, 수신 시 `{"debug":"V{n} recv"}` 에코를 반환합니다.
+> 모든 게임 진동이 이 명령 하나로 나갑니다. 아래 지속시간은 `P` 배율이 100(1.0x)일 때 기준이며,
+> 수신 시 `{"debug":"V{n} recv"}` 에코와 함께 RGB LED가 패턴 색으로 점등합니다(현장 확인용).
+>
+> Unity의 `VibeState` 매핑: `Danger→V1`, `Success→V2`, `Correct/Click/Brake→V3`,
+> `Wrong→V4`, `Walk→V5`, `Ready→V6`, `Stop→V0`.
 
 | 명령 | 패턴명 | 내용 | 총 시간 |
 |------|--------|------|---------|
@@ -164,14 +186,16 @@ Unity와 `serial_monitor.py`가 **10초 주기**로 자동 송신합니다. 펌�
 - Unity 디버그 GUI(`debugMode=1`)의 `HB Ack` 항목에서 마지막 에코 수신 경과를 확인 가능
 - 수동 테스트: 시리얼 모니터에서 `H` + Enter → `HB 응답` 표시 확인
 
-### 3-2. B — 브레이크 피드백
+### 3-2. B — 브레이크 연속 진동 — Unity 미사용
 
 | 명령 | 동작 |
 |------|------|
 | `B1\n` | 브레이크 당김 — 약진동 연속 (PWM 180) |
 | `B0\n` | 브레이크 해제 — 진동 정지 |
 
-> V 명령이 B보다 우선합니다. 패턴 재생 중 B 상태는 패턴 종료 후 적용됩니다.
+> Unity는 이 명령을 보내지 않습니다. 브레이크를 오래 잡으면 모터가 그동안 계속 돌기 때문에,
+> 게임에서는 브레이크 **상승 에지에 `V3` 단발**만 보냅니다. B는 수동 테스트 경로로만 남아 있습니다.
+> V 명령이 B보다 우선하며, 패턴 재생 중 B 상태는 패턴 종료 후 적용됩니다.
 
 ### 3-3. S — RGB LED 상태 — Unity 미사용
 
@@ -196,62 +220,61 @@ Unity와 `serial_monitor.py`가 **10초 주기**로 자동 송신합니다. 펌�
 v5.8부터 DMP Quat6(Game Rotation Vector)를 사용하므로 지자기 보정이 필요 없습니다.  
 하위 호환을 위해 유지되며 응답만 반환합니다: `{"magcal":"not_required_in_dmp"}`
 
-### 3-6. 진동 제어 (USB 릴레이, ESP32와 별도 포트) ✅ 현재 사용 중
+### 3-6. 진동 제어 (ESP32 GPIO2) ✅ 현재 사용 중
 
-Unity는 ESP32 포트가 아니라 **별도의 USB 릴레이 포트**(`config.ini` → `RelayPortName`)로 진동을 제어합니다.
-릴레이 보드 자체 스펙(9600bps, N/8/1)은 §1-2 참고.
+Unity는 ESP32 포트로 `V0`~`V6`만 보내고, ON/OFF 타이밍은 펌웨어의 진동 시퀀서가 처리합니다.
 
-**HEX 명령 (릴레이 1번 채널)**
+**하드웨어**
 
-| 동작 | 프레임 | 비고 |
-|------|--------|------|
-| ON | `A0 01 01 A2` | 체크섬 = 앞 3바이트 합산 |
-| OFF | `A0 01 00 A1` | 체크섬 = 앞 3바이트 합산 |
-| 상태확인 | `FF` | 응답은 ASCII 값 (Unity는 응답 수신 여부만으로 생존 확인) |
+| 항목 | 값 |
+|------|----|
+| 신호 핀 | ESP32 **GPIO2** → 드라이버 모듈 SIG(IN) |
+| 기준 | ESP32 **GND** → 드라이버 모듈 GND (필수) |
+| 드라이버 | MOSFET 광커플러 절연 드라이버 모듈 |
+| 모터 전원 | 모듈 출력단에 외부 DC (절연이므로 ESP32 전원과 분리 가능) |
+| PWM | `analogWrite` 기본 1 kHz, ON은 듀티 255 고정 |
 
-**Unity 구현**: `Assets/Scripts/Core/VibrationRelay.cs` (Singleton, DontDestroyOnLoad)
+> 부팅하자마자 계속 진동하고 `V` 명령에 오히려 멈춘다면 모듈이 **반전 입력**(IN=LOW에서 도통)입니다.
+> 이 경우에만 펌웨어 `vibeSet()`을 `analogWrite(PIN_MOTOR, 255 - val)`로 고쳐 재플래싱하세요
+> (현재 쓰는 모듈이 액티브-HIGH라면 손댈 필요 없습니다).
 
-- `InputManager.SendVibrate(VibeState)`가 유일한 진입점이며, 내부에서 `VibrationRelay`의 프리셋 메서드로 위임합니다.
-- Unity가 ESP32로 보내는 명령은 `P` · `B1/B0` · `C` · `M`입니다. 진동은 릴레이가 담당합니다.
+**Unity 구현**: `InputManager.SendVibrate(VibeState)`가 유일한 진입점입니다.
+`VibeState`를 V 번호로 매핑해 `SendRaw("V{n}")`으로 큐에 넣습니다(§3-1b 매핑표).
+`VibrationRelay.cs`는 폐기된 껍데기이며 포트를 열지 않습니다.
 
-| VibeState | 프리셋 | 기본 지속시간 | 발생 위치 |
-|-----------|--------|---------------|-----------|
-| `Click` | Short | 0.2 s | `oButton`/`xButton`/`ExitxButton` — 모든 O/X UI 버튼 실행 |
-| `Ready` | Short | 0.2 s | `InputManager` — DMP 안정화 완료, 조향 센서 미인식 |
-| `Walk` | Short | 0.2 s | `GameManager.TriggerAutoPlayStart()` — 횡단보도 자동주행 시작 |
-| `Correct` | Short | 0.2 s | `BlackBoard.SubmitAnswer()` — 퀴즈 정답 |
-| `Success` | Medium | 0.5 s | `GameManager` — 브레이크 이벤트 성공, 최종 결과 표시 |
-| `Danger` | Long | 1.5 s | `GameManager` — 경고 정지, 브레이크 이벤트 시작 |
-| `Wrong` | Long | 1.5 s | `BlackBoard.SubmitAnswer()` — 퀴즈 오답 |
-| `Stop` | (무시) | - | 호출하는 곳 없음 |
+| VibeState | 명령 | 발생 위치 |
+|-----------|------|-----------|
+| `Click` | `V3` | `oButton`/`xButton`/`ExitxButton` — 모든 O/X UI 버튼 실행 |
+| `Brake` | `V3` | `InputManager` — 브레이크 상승 에지 |
+| `Correct` | `V3` | `BlackBoard.SubmitAnswer()` — 퀴즈 정답 |
+| `Ready` | `V6` | `InputManager` — DMP 안정화 완료, 조향 센서 미인식 |
+| `Walk` | `V5` | `GameManager.TriggerAutoPlayStart()` — 횡단보도 자동주행 시작 |
+| `Success` | `V2` | `GameManager` — 브레이크 이벤트 성공, 최종 결과 표시 |
+| `Danger` | `V1` | `GameManager` — 경고 정지, 브레이크 이벤트 시작 |
+| `Wrong` | `V4` | `BlackBoard.SubmitAnswer()` — 퀴즈 오답 |
+| `Stop` | `V0` | 호출하는 곳 없음 |
 
-실제 지속시간은 **프리셋 × `VibeMultiplier`**이며, 최종값은 0.05~5초로 제한됩니다(config 오타 방어).
+**진동 겹침 처리**: 릴레이 시절의 "긴 쪽 유지"와 달리, 펌웨어 시퀀서는 **나중에 온 패턴이
+앞 패턴을 덮어씁니다**. 위험 이벤트 중 제동처럼 두 요청이 겹치면 마지막 패턴만 재생됩니다.
 
-**진동 겹침 처리**: 진동이 나가는 중에 새 요청이 오면 **남은 시간이 더 긴 쪽을 유지**합니다. 예를 들어 `Danger`(1.5초) 도중 X 버튼을 눌러 `Click`(0.2초)이 들어와도 위험 진동이 잘리지 않습니다. 반대로 짧은 진동 뒤에 긴 진동이 오면 종료 시각이 뒤로 밀립니다.
+**단독 점검 (Unity 없이)**: `Hardware/serial_monitor.py` 실행 중 **`v` 키**(엔터 불필요)를 누르면
+ESP32로 `V3`를 보냅니다. 브레이크/O/X를 누르는 순간에도 자동으로 `V3`가 나가므로,
+Unity를 켜지 않고 배선·모터 전원을 확인할 수 있습니다.
 
-**연결 확인 / 자동 재연결**: `Awake()`에서 포트를 연 직후 **OFF 프레임을 먼저 전송**해(이전 실행이 크래시로 릴레이를 켜둔 채 끝났을 수 있으므로) 항상 꺼진 상태로 시작합니다. 이어서 상태확인 명령(`FF`)으로 실제 보드 응답을 검증하고, 이후 `Reconnect Interval`(기본 5초)마다 재확인하여 응답이 없으면 자동으로 재연결을 시도합니다. OFF 전송이 실패하면 다음 폴링(20 ms)에서 재시도하므로, 일시적인 쓰기 실패로 진동이 켜진 채 남지 않습니다.
+**브라우저 테스터**: `Hardware/hardware_signal_tester.html`을 Chrome/Edge로 열면 ESP32 실시간
+데이터 시각화 + 진동 체크(수동 `V3`, 브레이크·버튼 자동 연동) + V 패턴 버튼을 GUI로 쓸 수 있습니다.
 
-**릴레이 단독 점검 (Unity 없이)**: `Hardware/serial_monitor.py`가 ESP32(CH343)와 USB 릴레이(CH340) 포트를 자동 구분해 함께 연결합니다. 모니터 실행 중 키보드 **`v` 키**를 누르면(엔터 불필요) 릴레이로 진동 ON→0.5초 후 OFF 프레임을 직접 전송하므로, Unity를 켜지 않고도 릴레이 배선·전원을 빠르게 확인할 수 있습니다. 포트가 자동 구분되지 않으면 `python serial_monitor.py [ESP32포트] [릴레이포트]`로 직접 지정합니다.
-
-**브라우저 테스터**: `Hardware/hardware_signal_tester.html`을 Chrome/Edge로 열면 ESP32 실시간 데이터 시각화 + 릴레이 진동 체크(수동 펄스/ON/OFF, 브레이크·버튼 자동 연동) + ESP32 V 패턴 테스트를 GUI로 수행할 수 있습니다. 최초 1회만 포트를 수동 선택하면 이후 자동 연결됩니다.
-
-> 주의: Unity는 릴레이 상태확인(`FF`) **응답이 있어야만** 연결로 인정합니다. 상태확인에 응답하지 않는 호환 보드는 "모니터/테스터에서는 진동되는데 Unity에서는 안 됨" 증상을 보입니다 — 이 조합이 관찰되면 보드 교체 또는 상태확인 로직 수정이 필요합니다.
-
-**config.ini 키** (모두 `InputManager`가 읽어서 `VibrationRelay`에 전달 — 릴레이 스크립트는 파일을 직접 읽지 않음)
-
-> `config.ini`에서 릴레이 관련 키는 `[Vibration]` 섹션에 있습니다.
+**config.ini 키** (`InputManager`가 읽음)
 
 | 키 | 기본값 | 설명 |
 |----|--------|------|
-| `isActive` | `1` | 진동 사용 여부 (1=활성화, 0=비활성화 시 릴레이 연결 안 함) |
-| `RelayPortName` | `COM3` | 릴레이 연결 포트 |
-| `RelayBaudRate` | `9600` | 릴레이 통신 속도 |
-| `VibeShortDuration` | `0.2` | 짧은 진동 지속시간(초) |
-| `VibeMediumDuration` | `0.5` | 중간 진동 지속시간(초) |
-| `VibeLongDuration` | `1.5` | 긴 진동 지속시간(초) |
-| `VibeMultiplier` | `1.0` | 위 세 프리셋에 곱해지는 시간 배율 (0.5~3.0). `[Settings]` 섹션에 있음 |
+| `isActive` | `1` | 진동 사용 여부 (0이면 `V` 명령을 아예 보내지 않음) |
+| `VibeMultiplier` | `1.0` | 진동 길이 배율 (0.5~3.0) — 연결 시 `P{×100}`으로 전달. `[Settings]` 섹션에 있음 |
 
-**씬 설정**: `VibrationRelay`는 Singleton이라 씬에 컴포넌트가 붙은 GameObject가 최소 1개 있어야 동작합니다. 현재 Home/Level1/Level2 씬 모두에 배치되어 있습니다.
+> `RelayPortName` · `RelayBaudRate` · `Vibe*Duration` 키는 폐기됐습니다. 남아 있어도 무시됩니다.
+
+**씬 설정**: 진동에 필요한 컴포넌트는 `InputManager` 하나뿐입니다(`DontDestroyOnLoad` Singleton).
+Home/Level1/Level2에 남아 있는 `VibrationRelay` 오브젝트는 지워도 무방합니다.
 
 ---
 
@@ -298,12 +321,11 @@ Unity는 ESP32 포트가 아니라 **별도의 USB 릴레이 포트**(`config.in
 |------------|------|------|--------|
 | 페달 센서 | 페달을 천천히 밟음 | `rpm`, `spd` | rpm > 0, spd > 0 |
 | 핸들 조향 | 핸들을 좌우로 기울임 | `str` | -45 ~ +45 범위 내 변화 |
-| 브레이크 | 레버 당김 | `brk` + 체감 진동 | 0 → 1, 약진동 연속 (ESP32 `B1` — 릴레이와 무관) |
+| 브레이크 | 레버 당김 | `brk` + 체감 진동 | 0 → 1, 누르는 순간 짧은 진동 (`V3`) |
 | O 버튼 | O 버튼 누름 | `o` | 0 → 1 |
 | X 버튼 | X 버튼 누름 | `x` | 0 → 1 |
-| 진동 패턴 (테스트용) | `V1\n` 전송 | 체감 진동 | 펌웨어 단독 테스트용, Unity는 미사용 (§3-1b 참고) |
+| 진동 | `V1\n` 전송 (또는 `serial_monitor.py`에서 `v` 키) | 체감 진동 + RGB LED 색상 | 패턴 길이만큼 진동, LED 빨강 |
 | RGB LED | `S2\n` 전송 | LED 색상 | 빨간색 |
-| 진동 릴레이 | Unity 실행 후 `DebugInputPanel`에서 진동 버튼 클릭 (또는 `serial_monitor.py`에서 `v` 키) | 릴레이 클릭음 + 체감 진동 | 프리셋 길이만큼 ON |
 
 #### STEP 4 — 초기 상태 설정
 
@@ -318,8 +340,8 @@ S0\n   ← 대기 상태 (흰색 깜박)로 설정
 [ ] STEP 2  조향 기준점 설정 완료 (str = 0.0° at 직진)
 [ ] STEP 3  페달 / 핸들 / 브레이크 / 버튼 전체 동작 확인
 [ ] STEP 3  RGB LED 색상 변경 확인
-[ ] STEP 3  진동 릴레이 연결 확인 (DebugInputPanel에서 "● 릴레이 연결됨" 표시)
-[ ] STEP 3  진동 릴레이 동작 확인 (DebugInputPanel 진동 버튼)
+[ ] STEP 3  진동 배선 확인 (GPIO2 → 드라이버 SIG, ESP32 GND → 드라이버 GND)
+[ ] STEP 3  진동 동작 확인 (DebugInputPanel 진동 버튼 또는 `V1` 전송)
 [ ] STEP 4  초기 상태 S0 설정
 ```
 
@@ -420,7 +442,7 @@ public class BikeSerial : MonoBehaviour
         catch (Exception e) { Debug.LogWarning($"[Bike] 송신 실패: {e.Message}"); }
     }
 
-    // 진동 (레거시, ESP32 GPIO2 → IRF520 → 모터) — 이 프로젝트에서는 미사용, §3-6 릴레이 참고
+    // 진동 (ESP32 GPIO2 → MOSFET 광커플러 절연 드라이버 → 모터), §3-6 참고
     public void SetVibration(int pattern) => Send($"V{pattern}");
     public void SetBrake(bool on)         => Send(on ? "B1" : "B0");
 
@@ -430,7 +452,8 @@ public class BikeSerial : MonoBehaviour
 }
 ```
 
-> 이 예시는 ESP32 프로토콜 자체를 보여주기 위한 단독 참고 코드입니다. 실제 프로젝트의 진동 제어는 `SetVibration()`이 아니라 별도 포트로 붙는 `Assets/Scripts/Core/VibrationRelay.cs`를 사용합니다 (§3-6).
+> 이 예시는 ESP32 프로토콜 자체를 보여주기 위한 단독 참고 코드입니다. 실제 프로젝트에서는
+> `InputManager.SendVibrate(VibeState)`가 같은 `V` 명령을 보냅니다 (§3-6).
 
 ### 5-2. 사용 예시
 
@@ -439,9 +462,9 @@ float steer   = bike.Data.str;      // -45 ~ 45도
 float speed   = bike.Data.spd;      // km/h
 bool  braking = bike.Data.brk == 1;
 
-bike.SetVibration(1);   // V1: 위험 경고 — 레거시, 이 프로젝트에서는 VibrationRelay 사용 (§3-6)
-bike.SetVibration(2);   // V2: 성공 — 레거시
-bike.SetBrake(true);    // B1: 브레이크 피드백 (ESP32 GPIO2 — 릴레이와 별개, 현재도 사용 중)
+bike.SetVibration(1);   // V1: 위험 경고
+bike.SetVibration(2);   // V2: 성공
+bike.SetBrake(true);    // B1: 브레이크 연속 진동 — 게임에서는 미사용 (§3-2)
 bike.SetBrake(false);   // B0: 브레이크 해제
 bike.SetRGBState(2);    // S2: 빨간 LED
 bike.SetRGBState(1);    // S1: 주행 복귀
@@ -463,12 +486,11 @@ bike.SetRGBState(1);    // S1: 주행 복귀
 | **PAS만 무반응** (버튼/브레이크는 정상) | PAS 센서 전원/배선 문제 (버튼과 달리 PAS는 전원이 필요한 능동 홀센서) | 모니터에서 `pc`(누적 펄스) 확인 — 페달을 돌려도 안 늘면 센서 커넥터/배선/전원 점검 (`pl`=1 고정이면 단선, 0 고정이면 출력 래치). `pc`는 느는데 `rpm`=0이면 펌웨어 문제이므로 개발팀 문의 |
 | 장시간 유휴 후 전체 입력 무반응 | Windows USB 절전으로 링크 사망 + 좀비 포트 | v5.9+ Unity는 5초 무수신 시 자동 재연결 (`Player.log`에서 `좀비 포트로 판단` 로그 확인). 예방: `kiosk_power_setup.bat` 실행 (§2-5) |
 | JSON 파싱 오류 | 부팅 직후 깨진 첫 줄 | `id` 필드 확인 후 사용 (`if (data.id != 1) return`) |
-| 브레이크 진동이 작동 안 함 (ESP32 쪽) | IRF520 모듈 배선 오류 | SIG(GPIO2)·VCC(5V)·GND·V+·OUT 배선 점검 |
-| 브레이크 진동이 약함 | IRF520 게이트 전압 부족 | 3.3V 신호로 동작 확인, 모터 전원 5V 확인 |
-| 이벤트/퀴즈 진동이 작동 안 함 (릴레이 쪽) | 릴레이 포트 미연결 또는 상태확인 실패 | `DebugInputPanel`에서 "● 릴레이 연결됨" 확인, `config.ini`의 `RelayPortName` 점검, USB 케이블/전원(5V) 점검 |
-| `VibrationRelay` 응답 없음 로그 반복 | 릴레이 보드가 상태확인(`FF`) 명령에 응답 안 함 | 릴레이 보드레이트(9600) 및 배선 확인, 다른 프로그램이 같은 포트 점유 중인지 확인 |
-| 게임 종료 후 진동이 계속 켜져 있음 | 크래시·강제 종료·에디터 도메인 리로드로 OFF 프레임을 못 보냄 (릴레이는 마지막 상태를 유지하는 래치 방식) | Unity를 다시 실행하면 연결 직후 OFF를 보내 자동으로 꺼집니다. 즉시 끄려면 릴레이 USB를 뽑거나 `serial_monitor.py`에서 `v` 키로 ON→OFF를 한 번 보내세요 |
-| 게임 실행 중 진동이 안 꺼짐 | OFF 전송 실패 후 포트가 죽은 상태 | `[VibrationRelay] 전송 실패` 로그 확인. 재연결이 성공하면 밀린 OFF가 자동 전송됩니다. `스레드가 1500ms 내에 종료되지 않음` 경고가 보이면 종료 시 정리가 끝나지 않은 것이므로 릴레이 전원을 재인가하세요 |
+| 진동이 전혀 안 됨 | 배선 또는 모터 전원 | `V1` 전송 시 RGB LED가 빨강으로 켜지는지 확인 — **LED는 켜지는데 진동이 없으면** 드라이버 이후 문제(SIG/GND/모터 전원/모터), **LED도 안 켜지면** 명령이 도달하지 않은 것(포트·연결 확인) |
+| 진동이 안 멈추고 계속 돎 | 드라이버 모듈이 반전 입력 | 펌웨어 `vibeSet()`을 `analogWrite(PIN_MOTOR, 255 - val)`로 고쳐 재플래싱 (§3-6) |
+| 진동이 약함 | 모터 전원 부족 | 드라이버 출력단 DC 전압/전류 용량 확인 (ESP32 5V에서 끌어쓰지 말 것) |
+| GND만 빼먹어 동작 안 함 | 광커플러 입력 기준 누락 | ESP32 GND ↔ 드라이버 모듈 GND는 **반드시** 연결 (절연은 출력단 기준이며 입력 기준은 공통) |
+| 진동 길이가 이상함 | `VibeMultiplier` 미반영 | Unity 재시작 시 `P{n}` 전송 로그 확인 — 보드는 포트를 열어도 리셋되지 않으므로 마지막 `P` 값이 유지됩니다 |
 
 ---
 
@@ -488,18 +510,18 @@ ESP32 부팅
   └─ loop() 시작 ─────────────────────────────────
        │ 20ms마다
        ├─ JSON 전송 (rpm, spd, str, brk, o, x, pc, pl)
-       ├─ 시리얼 수신 처리 (P/B/C/H/M 수신, S/V는 펌웨어 테스트용)
-       ├─ 브레이크 진동 업데이트 (GPIO2 PWM, B1/B0 수신 시)
+       ├─ 시리얼 수신 처리 (V/P/C/R/H/M 수신, S/B는 펌웨어 테스트용)
+       ├─ 진동 시퀀서 업데이트 (GPIO2 PWM → MOSFET 광커플러 절연 드라이버)
        └─ RGB LED 업데이트
 
 Unity 측
   │
   ├─ 수신 스레드에서 ESP32 라인 읽기 → 메인 스레드에서 JSON 파싱
-  ├─ ESP32 포트로 P/B/C/M 명령 + 10초 주기 H(keep-alive) 전송
+  ├─ ESP32 포트로 V/P/C/R/M 명령 + 10초 주기 H(keep-alive) 전송
   ├─ 0.5초 무수신 → 입력 리셋, 5초 무수신 → 포트 강제 재연결 (§2-5)
-  └─ 이벤트 발생 시 진동은 InputManager.SendVibrate() → VibrationRelay가 별도 릴레이 포트로 전송 (§3-6)
+  └─ 이벤트 발생 시 InputManager.SendVibrate() → 같은 ESP32 포트로 V{n} 전송 (§3-6)
 ```
 
 ---
 
-*bicycle_sim_x v6.0 · 빛고을국민안전체험관 / FLUXION*
+*bicycle_sim_x v6.2 · 빛고을국민안전체험관 / FLUXION*

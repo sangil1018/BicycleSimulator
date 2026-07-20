@@ -35,9 +35,11 @@ public class DebugInputPanel : MonoBehaviour
 
     IEnumerator VibrateAllRoutine()
     {
-        // 가장 긴 프리셋(long × VibeMultiplier)만큼 기다려야 다음 패턴과 겹치지 않는다.
+        // 펌웨어의 가장 긴 패턴(Walk = 400+100+400+100+400 ≈ 1.4초)에 배율을 곱한 만큼
+        // 기다려야 다음 패턴이 앞 패턴을 덮어쓰지 않는다.
+        const float LongestPatternSec = 1.4f;
         var im = InputManager.Instance;
-        float interval = im != null ? Mathf.Max(im.VibeLongDuration * im.VibeMultiplier, 0.5f) : 1.5f;
+        float interval = LongestPatternSec * (im != null ? im.VibeMultiplier : 1f) + 0.3f;
 
         VibeState[] sequence = { VibeState.Ready, VibeState.Danger, VibeState.Success, VibeState.Correct, VibeState.Wrong, VibeState.Walk };
         foreach (var state in sequence)
@@ -77,8 +79,9 @@ public class DebugInputPanel : MonoBehaviour
     {
         EnsureStyles();
 
-        var relay = VibrationRelay.Instance;
-        bool connected = relay != null && relay.IsConnected;
+        // 진동은 ESP32가 GPIO2로 직접 구동한다 — 연결 상태도 ESP32 포트 기준이다.
+        var im = InputManager.Instance;
+        bool connected = im != null && im.IsConnected;
 
         float panelH = titleH + statusH + echoH + connectH + pad + (bh + btnGap) * btnCount;
 
@@ -96,10 +99,10 @@ public class DebugInputPanel : MonoBehaviour
         GUI.Box(new Rect(px, py, panelW, panelH), "진동 테스트", boxStyle);
         float y = py + titleH;
 
-        // 연결 상태 (진동 릴레이)
+        // 연결 상태 (ESP32)
         statusStyle.normal.textColor = connected ? Color.green : Color.red;
         GUI.Label(new Rect(bx, y, bw, statusH),
-            connected ? "● 릴레이 연결됨" : "● 릴레이 미연결", statusStyle);
+            connected ? "● ESP32 연결됨" : "● ESP32 미연결", statusStyle);
         y += statusH;
 
         // 송신 / ESP32 에코 표시
@@ -108,9 +111,9 @@ public class DebugInputPanel : MonoBehaviour
             $"송신: {_lastSent}   ESP32 에코: {_lastEcho}", echoStyle);
         y += echoH;
 
-        // 재연결 버튼 (릴레이)
-        if (GUI.Button(new Rect(bx, y, bw, connectH), "재연결 (Connect)", connectStyle) && relay != null)
-            relay.Connect();
+        // 재연결 버튼 (ESP32)
+        if (GUI.Button(new Rect(bx, y, bw, connectH), "재연결 (Connect)", connectStyle) && im != null)
+            im.RequestReconnect("디버그 패널 수동 재연결");
         y += connectH + pad;
 
         // 진동 버튼 — 미연결 시 비활성화

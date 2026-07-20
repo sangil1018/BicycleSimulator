@@ -3,18 +3,23 @@
 
 ---
 
-### 하드웨어 (ESP32-S3, 펌웨어 `bicycle_sim_x` v6.0)
+### 하드웨어 (ESP32-S3, 펌웨어 `bicycle_sim_x` v6.2)
 
 ```
 PAS(케이던스)   빨간→3V3  노랑→GND  파랑→GPIO1
-진동 모터       IRF520 SIG→GPIO2   (브레이크 피드백 B1/B0)
+진동 모터       SIG→GPIO2  GND→GND   (MOSFET 광커플러 절연 드라이버 모듈)
 조향 ICM-20948  SDA→GPIO17  SCL→GPIO18  (AD0=HIGH, I2C 0x69)
 브레이크        GPIO4
 O버튼→GPIO6  X버튼→GPIO7
 RGB LED         GPIO48 (WS2812 내장)
 ```
 
-> 이벤트/퀴즈 진동(위험·성공·정오답 등)은 위 ESP32 GPIO가 아니라 **별도 USB 릴레이 모듈**(COM 포트 별도, `config.ini` → `RelayPortName`)로 처리합니다. 자세한 내용은 `Hardware/Unity_시리얼_통신_가이드.md` §3-6 참고.
+> **진동은 모두 ESP32가 GPIO2로 직접 구동합니다.** Unity는 패턴 번호(`V0`~`V6`)만 보내고
+> ON/OFF 타이밍은 펌웨어 시퀀서가 처리합니다. 모터 전원은 드라이버 모듈 출력단에 외부 DC로
+> 넣으며, 광커플러 절연이므로 ESP32 전원과 분리해도 됩니다 — 단 **신호 기준용 GND는 반드시 공통**입니다.
+>
+> 예전에 쓰던 **USB 릴레이 진동 경로는 폐기**됐습니다(`config.ini`의 `RelayPortName` 등은 무시됨).
+> 자세한 내용은 `Hardware/Unity_시리얼_통신_가이드.md` §3-6 참고.
 
 ### 펌웨어 수정 항목
 
@@ -47,12 +52,15 @@ BaseSpeedKph = 15.0 (기본값) → 이 속도에서 Timeline 1.0× 재생
 
 ### 하드웨어 점검 도구
 
-- `Hardware/check_serial.bat` (serial_monitor.py) — 콘솔 시리얼 모니터: 실시간 센서 표시, 릴레이 진동 테스트(`v`), keep-alive/자동 재연결, PAS 진단(pc/pl)
-- `Hardware/hardware_signal_tester.html` — Chrome/Edge용 GUI 테스터: 신호 시각화 + 릴레이/ESP32 진동 체크 (최초 1회 포트 허용 후 자동 연결)
+- `Hardware/check_serial.bat` (serial_monitor.py) — 콘솔 시리얼 모니터: 실시간 센서 표시, 진동 테스트(`v` 키 → `V3` 송신), keep-alive/자동 재연결, PAS 진단(pc/pl)
+- `Hardware/hardware_signal_tester.html` — Chrome/Edge용 GUI 테스터: 신호 시각화 + 진동 체크(`V` 패턴, 브레이크·버튼 자동 연동) (최초 1회 포트 허용 후 자동 연결)
+
+> 진동이 안 나올 때는 `V1` 전송 후 **RGB LED가 빨강으로 켜지는지**로 원인이 갈립니다 —
+> LED는 켜지는데 진동이 없으면 드라이버 이후(배선·모터 전원), LED도 안 켜지면 명령 미도달입니다.
 
 ### 참고 문서
 
 - 콘텐츠 구성 및 Timeline 이벤트 설정 → `CONTENT_GUIDE.md`
 - config.ini 설정 → `CONTENT_GUIDE.md` §2
 - 홈 씬 구성 / 씬 전환·프리로드 → `HOME_GUIDE.md`
-- 시리얼 통신 프로토콜 (ESP32 센서 + 진동 릴레이, keep-alive/재연결/PAS 진단) → `Hardware/Unity_시리얼_통신_가이드.md`
+- 시리얼 통신 프로토콜 (ESP32 센서 + 진동, keep-alive/재연결/PAS 진단) → `Hardware/Unity_시리얼_통신_가이드.md`

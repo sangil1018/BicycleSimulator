@@ -9,12 +9,13 @@
 
 ```
 [ESP32 하드웨어] → InputManager → TimelineGameController → PlayableDirector
-                       │        ↘ SpeedUIController (속도 UI / 네비게이션)
-                       ↓
-                  VibrationRelay (진동, USB 릴레이 — ESP32와 별도 포트)
-                  GameSignalReceiver ← Timeline Signal Track
-                       ↓
-                  GameManager (이벤트 루틴)
+       ↑               │        ↘ SpeedUIController (속도 UI / 네비게이션)
+       │               ↓
+       │          GameSignalReceiver ← Timeline Signal Track
+       │               ↓
+       │          GameManager (이벤트 루틴)
+       └───────────────┘
+   진동: InputManager.SendVibrate() → 같은 ESP32 포트로 V0~V6 송신 (GPIO2 구동)
 ```
 
 ---
@@ -33,7 +34,7 @@
 | `BaseSpeedKph` | `15.0` | 1.0× 재생 기준 속도(km/h) |
 | `MetersPerRevolution` | `1.5` | 페달 1회전당 이동 거리(m) — RPM→km/h 환산 |
 | `PlaybackMultiplier` | `1.0` | 영상 재생 배속 승수 |
-| `VibeMultiplier` | `1.0` | 진동 시간 배율 (0.5~3.0) — 아래 세 프리셋과 ESP32 브레이크 진동에 모두 곱해짐 |
+| `VibeMultiplier` | `1.0` | 진동 길이 배율 (0.5~3.0) — 연결 시 `P{배율×100}`으로 ESP32 진동 시퀀서에 전달 |
 | `BrakeStopDuration` | `1.0` | 브레이크 작동 시 완전 정지까지 걸리는 시간(초, 0.05~10). 잡는 순간의 속도에서 선형 감속하며, 잡고 있는 동안 페달 입력 무시 |
 | `debugMode` | `0` | 디버그 GUI 표시 (1=표시) — 빌드에서도 동작 (§2.3) |
 | `fps` | `60` | 목표 프레임레이트 (15~240, 0=제한 없음). VSync는 자동 비활성화 |
@@ -43,12 +44,7 @@
 
 | 파라미터 | 기본값 | 설명 |
 | :--- | :--- | :--- |
-| `isActive` | `1` | 진동 사용 여부 (0=비활성화) |
-| `RelayPortName` | `COM3` | 진동 릴레이 연결 포트 (ESP32와 별도 USB 장치) |
-| `RelayBaudRate` | `9600` | 진동 릴레이 통신 속도 |
-| `VibeShortDuration` | `0.2` | 짧은 진동 지속시간(초) — Click/Ready/Walk/Correct |
-| `VibeMediumDuration` | `0.5` | 중간 진동 지속시간(초) — Success |
-| `VibeLongDuration` | `1.5` | 긴 진동 지속시간(초) — Danger/Wrong |
+| `isActive` | `1` | 진동 사용 여부 (0=비활성화 시 `V` 명령을 아예 보내지 않음) |
 | `SteeringRange` | `45` | 핸들 최대 조향각 출력 범위 (도, 1~45) |
 | `CameraSteerSmoothTime` | `0.12` | 조향 회전 스무딩 시간(초) |
 | `YellowThreshold` | `20.0` | 노란색 속도 경고 기준(km/h) |
@@ -56,7 +52,9 @@
 
 > 위 값은 모두 `InputManager`가 읽어서 각 시스템에 전달합니다. 섹션 헤더(`[Settings]` 등)는 구분용일 뿐이며 키 이름만 파싱됩니다. 상세 프로토콜은 `Hardware/Unity_시리얼_통신_가이드.md` §3-6 참고.
 >
-> 진동 프리셋의 실제 길이는 `프리셋 × VibeMultiplier`이며, 최종값은 0.05~5초로 제한됩니다. O/X 버튼 진동(`Click`)은 `oButton`/`xButton` 컴포넌트가 직접 발생시키므로 Home·Level 모든 씬에서 동일하게 동작합니다.
+> 진동 패턴의 길이는 **펌웨어에 고정**되어 있고(V1=900ms, V5=1400ms 등), `VibeMultiplier`만 전체에 곱해집니다. 폐기된 `RelayPortName`·`RelayBaudRate`·`VibeShortDuration`·`VibeMediumDuration`·`VibeLongDuration` 키는 남아 있어도 무시됩니다.
+>
+> O/X 버튼 진동(`Click`)은 `oButton`/`xButton` 컴포넌트가 직접 발생시키므로 Home·Level 모든 씬에서 동일하게 동작합니다.
 
 ### 2.3 디버그 GUI (debugMode)
 
@@ -123,7 +121,7 @@ GameState에 따른 자동 동작:
 ## 5. 씬 구조
 
 ### 5.1 홈 씬 (Home)
-- `InputManager`, `GameManager`, `VibrationRelay` 오브젝트 필수 (버튼 선택 시 진동 피드백)
+- `InputManager`, `GameManager` 오브젝트 필수 (진동은 `InputManager`가 ESP32로 직접 보냅니다)
 - Additive 로드 후 1.6초 커버 포인트에서 레벨 씬 활성화
 
 ### 5.2 레벨 씬 (Level)
@@ -132,15 +130,16 @@ GameState에 따른 자동 동작:
 - `GameSignalReceiver` — Timeline Signal 수신 (PlayableDirector와 같은 오브젝트)
 - `SpeedUIController` — 속도 UI 및 네비게이션 애니메이터
 - `IntroManager`, `QuizManager` — 인트로 및 퀴즈
-- `VibrationRelay` — 진동 피드백 (USB 릴레이, ESP32와 별도 포트)
+
+> 씬에 남아 있는 `VibrationRelay` 오브젝트는 폐기된 USB 릴레이용 껍데기입니다. 포트를 열지 않으며
+> 지워도 동작에 영향이 없습니다(스크립트 파일까지 지우려면 세 씬 모두에서 오브젝트를 먼저 제거).
 
 ### 5.3 매니저 수명
-- **영속(`DontDestroyOnLoad`)**: `InputManager`, `VibrationRelay` — 씬 전환 후에도 유지됩니다.
+- **영속(`DontDestroyOnLoad`)**: `InputManager` — 씬 전환 후에도 유지됩니다.
 - **씬 스코프(`SceneSingleton`)**: `GameManager`, `QuizManager` — 씬마다 새 인스턴스가 존재하므로 각 씬(Home/Level)에 오브젝트가 배치되어 있어야 합니다.
 - **코드 부착**: `PreloadManager` — Home 씬에서 `HomeGameManager.Awake()`가 자동 부착 (씬 배치 불필요). 레벨 에셋 전체를 백그라운드 프리로드해 상주시킵니다 (`HOME_GUIDE.md` §3-1). **레벨 씬 에셋 변경 시 `Tools → Build Preload Manifests` 재실행 필수.**
 
-씬 로드 시 `GameManager`가 `TimelineGameController`를 자동으로 탐색합니다.  
-`VibrationRelay`는 `InputManager`(`[DefaultExecutionOrder(-100)]`)보다 나중에 `Awake`되어 `config.ini` 값을 넘겨받습니다.
+씬 로드 시 `GameManager`가 `TimelineGameController`를 자동으로 탐색합니다.
 
 ---
 

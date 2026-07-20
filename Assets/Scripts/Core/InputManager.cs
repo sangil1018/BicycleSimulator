@@ -41,15 +41,20 @@ public class InputManager : Singleton<InputManager>
     public int TargetFps { get; private set; } = 60;
     public bool DebugMode { get; private set; } = false;
 
-    [Header("Config — Vibration Relay")]
+    [Header("Config — Vibration (ESP32 GPIO2)")]
+    /// <summary>진동 사용 여부. 0이면 V 명령을 아예 보내지 않는다.</summary>
     public bool VibrationActive { get; private set; } = true;
+    /// <summary>진동 길이 배율. 연결 시 P 명령으로 ESP32 시퀀서에 전달한다(50~300%).</summary>
+    public float VibeMultiplier { get; private set; } = 1.0f;
+
+    // ── 아래는 폐기된 USB 릴레이 경로의 설정값 ────────────────────────
+    // 진동은 ESP32가 GPIO2(MOSFET 광커플러 절연 드라이버)로 직접 구동한다. config.ini에
+    // 옛 키가 남아 있어도 파싱 오류가 나지 않도록 프로퍼티만 남겨두며, 실제 동작에는 쓰이지 않는다.
     public string RelayPortName { get; private set; } = "COM3";
     public int RelayBaudRate { get; private set; } = 9600;
     public float VibeShortDuration { get; private set; } = 0.2f;
     public float VibeMediumDuration { get; private set; } = 0.5f;
     public float VibeLongDuration { get; private set; } = 1.5f;
-    /// <summary>진동 지속시간 배율. VibrationRelay가 프리셋 길이에 곱해 사용한다.</summary>
-    public float VibeMultiplier { get; private set; } = 1.0f;
 
     [Header("Keyboard")]
     [SerializeField] bool keyboardEnabled = true;
@@ -541,8 +546,11 @@ public class InputManager : Singleton<InputManager>
         // I 명령으로 물어보면 펌웨어 버전·워치독 등록 여부·마지막 리셋 원인을 지금 받을 수 있다.
         SendRaw("I");
 
-        // VibeMultiplier는 VibrationRelay가 프리셋 길이에 곱해 쓴다. 예전에는 여기서 ESP32에
-        // P 명령으로도 보냈지만, 그건 펌웨어의 IRF520 시퀀서용이라 릴레이 단일 경로에서는 무의미하다.
+        // 진동 길이 배율을 펌웨어 시퀀서에 넘긴다(P 명령, 백분율). 진동은 ESP32가 GPIO2로
+        // 직접 구동하므로, config.ini의 VibeMultiplier가 반영되는 곳은 여기 하나뿐이다.
+        // 보드는 포트를 열어도 리셋되지 않으므로 재연결 때마다 다시 보내도 무해하다.
+        SendRaw($"P{Mathf.RoundToInt(VibeMultiplier * 100f)}");
+
         UnityEngine.Debug.Log("[Input] 연결 초기화 완료");
     }
 
@@ -882,11 +890,11 @@ public class InputManager : Singleton<InputManager>
         if (BtnODown) OnBtnO?.Invoke();
         if (BtnXDown) OnBtnX?.Invoke();
 
-        // 브레이크 상승 엣지 — USB 릴레이로 짧은 햅틱 피드백.
-        // 진동은 릴레이 단일 경로다. 예전에는 여기서 ESP32에 B1/B0을 보내 펌웨어가
-        // IRF520 모터를 브레이크 내내 켰지만, 그 경로는 더 이상 쓰지 않으므로 보내지 않는다.
-        // 위험 이벤트 중 제동이면 GameManager가 Success(중간 길이)를 함께 요청하는데,
-        // VibrationRelay가 겹친 요청 중 긴 쪽을 남기므로 두 번 울리지 않는다.
+        // 브레이크 상승 엣지 — ESP32 진동으로 짧은 햅틱 피드백.
+        // 브레이크를 누르는 내내 모터를 켜는 B 명령은 쓰지 않는다(장시간 제동 시 모터가
+        // 계속 도는 것을 피한다). 엣지에서 단발 패턴만 보낸다.
+        // 위험 이벤트 중 제동이면 GameManager가 Success도 함께 요청하는데, 펌웨어 시퀀서가
+        // 나중에 온 패턴으로 덮어쓰므로 두 패턴이 겹쳐 울리지는 않는다.
         if (BrkDown && BrakeAny)
         {
             SendVibrate(VibeState.Brake);
@@ -923,36 +931,39 @@ public class InputManager : Singleton<InputManager>
         });
     }
 
-    // ── 진동 제어 (USB 릴레이 — ESP32와 별도 포트) ─────────────────────
+    // ── 진동 제어 (ESP32 GPIO2 → MOSFET 광커플러 절연 드라이버) ────────
+    // USB 릴레이 경로는 폐기했다. 진동은 ESP32가 단독으로 처리하며, Unity는 패턴 번호만
+    // V 명령으로 보낸다(펌웨어의 진동 시퀀서가 ON/OFF 타이밍을 담당).
+    // 펌웨어가 아는 번호는 V0~V6뿐이므로, Unity 전용 상태(Click/Brake)는 기존 프리셋에 매핑한다.
+    static int VibeCommandId(VibeState state) => state switch
+    {
+        VibeState.Stop    => 0,
+        VibeState.Danger  => 1,
+        VibeState.Success => 2,
+        VibeState.Correct => 3,
+        VibeState.Wrong   => 4,
+        VibeState.Walk    => 5,
+        VibeState.Ready   => 6,
+        VibeState.Click   => 3, // 짧은 단발 — Correct 패턴 재사용
+        VibeState.Brake   => 3, // 브레이크 상승 엣지의 짧은 햅틱
+        _                 => -1
+    };
+
     public void SendVibrate(VibeState state)
     {
-        if (VibrationRelay.Instance == null)
+        if (!VibrationActive) return;
+
+        int id = VibeCommandId(state);
+        if (id < 0) return;
+
+        if (!_connected)
         {
-            Debug.LogWarning($"[Input] SendVibrate → {state} 무시 (VibrationRelay 없음)");
+            Debug.LogWarning($"[Input] SendVibrate → {state} 무시 (ESP32 미연결)");
             return;
         }
 
-        Debug.Log($"[Input] SendVibrate → {state}, relayConnected={VibrationRelay.Instance.IsConnected}");
-
-        switch (state)
-        {
-            case VibeState.Stop:
-                break;
-            case VibeState.Ready:
-            case VibeState.Walk:
-            case VibeState.Correct:
-            case VibeState.Click:
-            case VibeState.Brake:
-                VibrationRelay.Instance.VibrateShort();
-                break;
-            case VibeState.Success:
-                VibrationRelay.Instance.VibrateMedium();
-                break;
-            case VibeState.Danger:
-            case VibeState.Wrong:
-                VibrationRelay.Instance.VibrateLong();
-                break;
-        }
+        Debug.Log($"[Input] SendVibrate → {state} (V{id})");
+        SendRaw($"V{id}");
     }
 
     // ── Unity → ESP32-S3 송신 ────────────────────────────────────────
