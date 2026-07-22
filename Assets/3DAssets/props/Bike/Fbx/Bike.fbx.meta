@@ -19,6 +19,21 @@ ModelImporter:
       assembly: UnityEngine.CoreModule
       name: Wheel_SHD
     second: {fileID: 2100000, guid: 10af446109e555a4d8bc33ded80f8cfa, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: body_shd
+    second: {fileID: 2100000, guid: 6c5c3a9da7040e24ab5aeceae34359e7, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: chain_shd
+    second: {fileID: 2100000, guid: be46799872e3d3a409ee81b92118efbf, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: wheel_shd
+    second: {fileID: 2100000, guid: 10af446109e555a4d8bc33ded80f8cfa, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

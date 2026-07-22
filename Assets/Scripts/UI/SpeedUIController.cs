@@ -13,9 +13,9 @@ public class SpeedUIController : MonoBehaviour
 
     [Header("Speed Thresholds (km/h)")]
     [Tooltip("노란색 속도 경고 기준값")]
-    [SerializeField] float yellowThreshold = 20f;
+    [SerializeField] float yellowThreshold = 16f;
     [Tooltip("빨간색 속도 경고 기준값")]
-    [SerializeField] float redThreshold = 30f;
+    [SerializeField] float redThreshold = 25f;
 
     [Header("Over Speed UI")]
     [SerializeField] GameObject overSpeedUI;

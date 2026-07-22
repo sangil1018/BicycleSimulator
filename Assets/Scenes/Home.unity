@@ -1379,6 +1379,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a347bbdae4d8c934cb08dc72f04325b1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InputManager
+  speedText: {fileID: 0}
   portName: COM8
   baudRate: 115200
   autoConnect: 1

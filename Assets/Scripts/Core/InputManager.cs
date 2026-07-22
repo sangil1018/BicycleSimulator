@@ -22,6 +22,9 @@ public enum VibeState
 [DefaultExecutionOrder(-100)]
 public class InputManager : Singleton<InputManager>
 {
+    [Header("Speed UI")]
+    [SerializeField] TMPro.TMP_Text speedText;
+
     [Header("Serial Port — ESP32-S3")]
     [SerializeField] string portName = "COM8";
     [SerializeField] int baudRate = 115200;
@@ -672,6 +675,8 @@ public class InputManager : Singleton<InputManager>
             _wasBraking = false;
             SpeedKph = rawSpeed;
         }
+
+        speedText.text = $"{SpeedKph:F0}";
     }
 
     void UpdateKeyboard()
@@ -937,16 +942,16 @@ public class InputManager : Singleton<InputManager>
     // 펌웨어가 아는 번호는 V0~V6뿐이므로, Unity 전용 상태(Click/Brake)는 기존 프리셋에 매핑한다.
     static int VibeCommandId(VibeState state) => state switch
     {
-        VibeState.Stop    => 0,
-        VibeState.Danger  => 1,
+        VibeState.Stop => 0,
+        VibeState.Danger => 1,
         VibeState.Success => 2,
         VibeState.Correct => 3,
-        VibeState.Wrong   => 4,
-        VibeState.Walk    => 5,
-        VibeState.Ready   => 6,
-        VibeState.Click   => 3, // 짧은 단발 — Correct 패턴 재사용
-        VibeState.Brake   => 3, // 브레이크 상승 엣지의 짧은 햅틱
-        _                 => -1
+        VibeState.Wrong => 4,
+        VibeState.Walk => 5,
+        VibeState.Ready => 6,
+        VibeState.Click => 3, // 짧은 단발 — Correct 패턴 재사용
+        VibeState.Brake => 3, // 브레이크 상승 엣지의 짧은 햅틱
+        _ => -1
     };
 
     public void SendVibrate(VibeState state)

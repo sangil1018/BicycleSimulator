@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Playables;
+using UnityEngine.UI;
 
 /// <summary>
 /// Timeline 기반 카메라 애니메이션 컨트롤러.
@@ -12,6 +13,7 @@ public class TimelineGameController : MonoBehaviour
 {
     [Header("Timeline")]
     [SerializeField] PlayableDirector director;
+    [SerializeField] Slider navSlider;
 
     [Header("Speed Mapping")]
     [Tooltip("이 속도(km/h)에서 1.0× 재생")]
@@ -79,6 +81,8 @@ public class TimelineGameController : MonoBehaviour
             // if (GameManager.Instance != null)
             //     GameManager.Instance.OnTimelineComplete();
         }
+
+        navSlider.value = (float)(director.time / director.duration);
     }
 
     void SetPlaybackSpeed()
