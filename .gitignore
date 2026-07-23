@@ -113,3 +113,17 @@ InitTestScene*.unity*
 
 /[Aa]ssets/[Cc]apture/
 __pycache__
+
+# APV Baking Data
+*.CellBricksData.bytes
+*.CellBricksData.bytes.meta
+*.CellSharedData.bytes
+*.CellSharedData.bytes.meta
+*.CellSupportData.bytes
+*.CellSupportData.bytes.meta
+*.CellData.bytes
+*.CellData.bytes.meta
+*.CellOptionalData.bytes
+*.CellOptionalData.bytes.meta
+*.CellProbeOcclusionData.bytes
+*.CellProbeOcclusionData.bytes.meta
