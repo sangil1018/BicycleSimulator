@@ -68,15 +68,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Active: 1
   m_Settings:
-    AOMethod: 0
+    AOMethod: 1
     Downsample: 0
-    AfterOpaque: 1
+    AfterOpaque: 0
     Source: 1
     NormalSamples: 2
     Intensity: 0.8
     DirectLightingStrength: 0.2
-    Radius: 0.15
+    Radius: 0.2
     Samples: 0
     BlurQuality: 0
-    Falloff: 100
+    Falloff: 60
     SampleCount: -1

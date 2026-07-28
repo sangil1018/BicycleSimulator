@@ -8,13 +8,27 @@ using UnityEngine.Splines;
 using UnityEngine.Timeline;
 
 /// <summary>
-/// Timeline이 움직이는 카메라 경로를 샘플링해 주행 경로 SplineContainer로 굽는 도구.
-/// 카메라 Animation Track이 이미 도로를 정확히 따라가므로, 별도로 스플라인을 그릴 필요가 없다.
+/// 주행 경로 SplineContainer를 만드는 도구. 두 가지 방식을 탭으로 제공한다.
+///
+///  ① 타임라인 베이크 — Timeline이 움직이는 카메라 경로를 샘플링해 굽는다.
+///                     카메라 Animation Track이 이미 도로를 정확히 따라가므로,
+///                     별도로 스플라인을 그릴 필요가 없다.
+///  ② 루트 스플라인 웨이포인트 — 씬 뷰를 찍어 포인트를 놓고 라운드(모서리 반경)를
+///                     조절해 직접 경로를 구성한다. (RouteSplineBaker.Waypoints.cs)
+///
+/// 두 방식 모두 결과물은 같은 SplineContainer이므로 사용하는 쪽은 구분할 필요가 없다.
 ///
 /// 메뉴: Tools ▸ Navigation ▸ Route Spline Baker
 /// </summary>
-public class RouteSplineBaker : EditorWindow
+public partial class RouteSplineBaker : EditorWindow
 {
+    enum Tab { Bake, Waypoints }
+
+    static readonly string[] TabLabels = { "타임라인 베이크", "루트 스플라인 웨이포인트" };
+
+    Tab tab = Tab.Bake;
+    Vector2 scroll;
+
     // ── 설정 ───────────────────────────────────────────────────────
 
     PlayableDirector director;
@@ -46,16 +60,42 @@ public class RouteSplineBaker : EditorWindow
     void OnEnable()
     {
         SceneView.duringSceneGui += OnSceneGUI;
+        Undo.undoRedoPerformed   += OnWaypointUndoRedo;
     }
 
     void OnDisable()
     {
         SceneView.duringSceneGui -= OnSceneGUI;
+        Undo.undoRedoPerformed   -= OnWaypointUndoRedo;
+
+        placingWaypoints = false;
+        SceneView.RepaintAll();
     }
 
     // ── GUI ────────────────────────────────────────────────────────
 
     void OnGUI()
+    {
+        EditorGUI.BeginChangeCheck();
+        tab = (Tab)GUILayout.Toolbar((int)tab, TabLabels, GUILayout.Height(24));
+        if (EditorGUI.EndChangeCheck())
+        {
+            GUI.FocusControl(null);
+            if (tab != Tab.Waypoints) placingWaypoints = false;
+            SceneView.RepaintAll();
+        }
+
+        EditorGUILayout.Space(4);
+
+        scroll = EditorGUILayout.BeginScrollView(scroll);
+
+        if (tab == Tab.Bake) OnBakeGUI();
+        else                 OnWaypointGUI();
+
+        EditorGUILayout.EndScrollView();
+    }
+
+    void OnBakeGUI()
     {
         EditorGUILayout.HelpBox(
             "카메라 Animation Track을 일정 간격으로 샘플링해 주행 경로 스플라인을 만듭니다.\n" +
@@ -135,6 +175,12 @@ public class RouteSplineBaker : EditorWindow
 
     void OnSceneGUI(SceneView view)
     {
+        if (tab == Tab.Waypoints)
+        {
+            OnWaypointSceneGUI(view);
+            return;
+        }
+
         if (previewPath == null || previewPath.Length < 2) return;
 
         Handles.color = new Color(0.2f, 1f, 0.85f, 0.9f);

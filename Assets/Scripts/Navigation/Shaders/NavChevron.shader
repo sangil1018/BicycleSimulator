@@ -9,6 +9,7 @@ Shader "Bicycle/NavChevron"
         [MainTexture] _BaseMap   ("Chevron Texture", 2D)      = "white" {}
         [MainColor]   _BaseColor ("Color", Color)             = (0.25, 1, 0.85, 1)
                       _Intensity ("Intensity", Range(1, 8))   = 1
+                      _Emission  ("Emission", Range(0, 16))   = 0
                       _Fade      ("Distance Fade Power", Range(0.1, 4)) = 1
     }
 
@@ -46,6 +47,7 @@ Shader "Bicycle/NavChevron"
             CBUFFER_START(UnityPerMaterial)
                 float4 _BaseMap_ST;
                 float  _Intensity;
+                float  _Emission;
                 float  _Fade;
             CBUFFER_END
 
@@ -86,7 +88,14 @@ Shader "Bicycle/NavChevron"
                 half4 tex   = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, input.uv);
                 half4 color = UNITY_ACCESS_INSTANCED_PROP(Props, _BaseColor);
 
-                half3 rgb = tex.rgb * color.rgb * _Intensity;
+                half3 albedo = tex.rgb * color.rgb * _Intensity;
+
+                // 이미션 색은 별도 프로퍼티 없이 _BaseColor를 그대로 쓴다.
+                // (인스턴스마다 바뀌는 속도 등급 색이 글로우에도 그대로 반영되도록)
+                // 텍스처 알파로 마스킹해 셰브론 모양 안에서만 빛나게 한다.
+                half3 emission = color.rgb * tex.a * _Emission;
+
+                half3 rgb = albedo + emission;
                 half  a   = pow(saturate(tex.a * color.a), _Fade);
 
                 clip(a - 0.003);

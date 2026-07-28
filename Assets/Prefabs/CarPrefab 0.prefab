@@ -256,10 +256,30 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -7776175250526598902, guid: 819508c07258cfa4dbfb7864b08edccc, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: d683403930eb5f341a5a8346d22632a6, type: 2}
+    - target: {fileID: -7511558181221131132, guid: 819508c07258cfa4dbfb7864b08edccc, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: d683403930eb5f341a5a8346d22632a6, type: 2}
+    - target: {fileID: -5032118990502427810, guid: 819508c07258cfa4dbfb7864b08edccc, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: d683403930eb5f341a5a8346d22632a6, type: 2}
     - target: {fileID: 919132149155446097, guid: 819508c07258cfa4dbfb7864b08edccc, type: 3}
       propertyPath: m_Name
       value: Taxi 1
       objectReference: {fileID: 0}
+    - target: {fileID: 2806612130800580638, guid: 819508c07258cfa4dbfb7864b08edccc, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: d683403930eb5f341a5a8346d22632a6, type: 2}
+    - target: {fileID: 5178181465255507719, guid: 819508c07258cfa4dbfb7864b08edccc, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: d683403930eb5f341a5a8346d22632a6, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

@@ -1,0 +1,77 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &4957794389181896806
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1252263539179026105}
+  - component: {fileID: 8171801805394537361}
+  m_Layer: 0
+  m_Name: RoadNavigation
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1252263539179026105
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4957794389181896806}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8171801805394537361
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4957794389181896806}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8869eacd12c035246b9dbadab31a7005, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RoadNavigationGuide
+  route: {fileID: 0}
+  viewer: {fileID: 0}
+  chevronMaterial: {fileID: 2100000, guid: 35be61137f1cfbf4da28524d77388919, type: 2}
+  chevronWidth: 0.9
+  chevronLength: 1
+  poolSize: 20
+  spacing: 1.2
+  nearDistance: 2
+  farDistance: 18
+  lateralOffset: 0
+  conformToGround: 0
+  groundMask:
+    serializedVersion: 2
+    m_Bits: 1
+  rayHeight: 3
+  rayLength: 8
+  groundOffset: 0.02
+  flowSpeed: 2
+  flowFollowsBikeSpeed: 1
+  nearFade: 3
+  farFade: 10
+  maxAlpha: 1
+  tintBySpeed: 1
+  normalColor: {r: 0.01, g: 0.92, b: 0.87, a: 1}
+  yellowColor: {r: 1, g: 0.87, b: 0, a: 1}
+  redColor: {r: 0.9, g: 0.02, b: 0.1, a: 1}
+  colorProperty: _BaseColor
+  colorBlendDuration: 0.25
+  hideOnNonRiding: 1
+  visibleSpeedThreshold: 1
+  fadeDuration: 0.3

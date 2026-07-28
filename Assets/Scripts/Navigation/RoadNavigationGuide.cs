@@ -25,19 +25,19 @@ public class RoadNavigationGuide : MonoBehaviour
     [Tooltip("셰브론 머티리얼 (Unlit/Transparent 권장, GPU Instancing 체크)")]
     [SerializeField] Material chevronMaterial;
     [Tooltip("셰브론 가로 폭(m)")]
-    [SerializeField] float chevronWidth = 2.2f;
+    [SerializeField] float chevronWidth = 0.9f;
     [Tooltip("셰브론 진행 방향 길이(m)")]
-    [SerializeField] float chevronLength = 1.4f;
+    [SerializeField] float chevronLength = 2.0f;
     [Tooltip("풀 크기. (farDistance - nearDistance) / spacing 보다 커야 한다")]
-    [SerializeField] int poolSize = 24;
+    [SerializeField] int poolSize = 16;
 
     [Header("Placement")]
     [Tooltip("셰브론 간격(m)")]
-    [SerializeField] float spacing = 3f;
+    [SerializeField] float spacing = 2.5f;
     [Tooltip("라이더 앞 몇 m부터 표시할지")]
-    [SerializeField] float nearDistance = 4f;
+    [SerializeField] float nearDistance = 2f;
     [Tooltip("라이더 앞 몇 m까지 표시할지")]
-    [SerializeField] float farDistance = 40f;
+    [SerializeField] float farDistance = 18f;
     [Tooltip("경로 기준 좌우 오프셋(m). +가 오른쪽")]
     [SerializeField] float lateralOffset = 0f;
 
@@ -55,9 +55,9 @@ public class RoadNavigationGuide : MonoBehaviour
 
     [Header("Flow")]
     [Tooltip("셰브론이 흐르는 속도(m/s). 0이면 노면에 그려진 것처럼 고정")]
-    [SerializeField] float flowSpeed = 0f;
+    [SerializeField] float flowSpeed = 3.0f;
     [Tooltip("체크 시 flowSpeed를 자전거 속도에 비례시킨다 (flowSpeed가 배율로 동작)")]
-    [SerializeField] bool flowFollowsBikeSpeed = false;
+    [SerializeField] bool flowFollowsBikeSpeed = true;
 
     [Header("Fade")]
     [Tooltip("가까운 쪽 페이드 구간 길이(m)")]
@@ -71,9 +71,9 @@ public class RoadNavigationGuide : MonoBehaviour
     [Header("Speed Tier Color")]
     [Tooltip("속도 등급에 따라 셰브론 색을 바꾼다 (SpeedUIController와 동일 기준)")]
     [SerializeField] bool tintBySpeed = true;
-    [SerializeField] Color normalColor = new Color(0.25f, 1f, 0.85f, 1f);
-    [SerializeField] Color yellowColor = new Color(1f, 0.85f, 0.2f, 1f);
-    [SerializeField] Color redColor = new Color(1f, 0.3f, 0.25f, 1f);
+    [SerializeField] Color normalColor = new Color(0.01f, 0.92f, 0.87f, 1f);
+    [SerializeField] Color yellowColor = new Color(1f, 0.87f, 0.0f, 1f);
+    [SerializeField] Color redColor = new Color(0.9f, 0.02f, 0.1f, 1f);
     [Tooltip("색을 넣을 셰이더 프로퍼티 (URP Unlit = _BaseColor)")]
     [SerializeField] string colorProperty = "_BaseColor";
     [Tooltip("등급 전환 시 색 보간 시간(초)")]

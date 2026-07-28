@@ -7,8 +7,18 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: Skin_SHD
+    second: {fileID: 2100000, guid: 78da073cf42b4554c9e33e9bd80c1db5, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: lambert3
     second: {fileID: 2100000, guid: 43f916da60782a946b7b1653a2c2bccd, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: nail
+    second: {fileID: 2100000, guid: de4d0ecc2b546fb40b708fe32dc69bbf, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule

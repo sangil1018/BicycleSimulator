@@ -41,23 +41,6 @@ static class MarkerOverlayDrawer
     }
 }
 
-// ── GameEventMarker ────────────────────────────────────────────
-
-[CustomTimelineEditor(typeof(GameEventMarker))]
-public class GameEventMarkerEditor : MarkerEditor
-{
-    static readonly Color k_Color = new Color(0.86f, 0.23f, 0.23f);
-
-    public override MarkerDrawOptions GetMarkerOptions(IMarker marker)
-    {
-        var m = (GameEventMarker)marker;
-        return new MarkerDrawOptions { tooltip = m.EventType.ToString() };
-    }
-
-    public override void DrawOverlay(IMarker marker, MarkerUIStates uiState, MarkerOverlayRegion region)
-        => MarkerOverlayDrawer.Draw(region, uiState, k_Color);
-}
-
 // ── QuizMarker ─────────────────────────────────────────────────
 
 [CustomTimelineEditor(typeof(QuizMarker))]
@@ -69,6 +52,23 @@ public class QuizMarkerEditor : MarkerEditor
     {
         var m = (QuizMarker)marker;
         return new MarkerDrawOptions { tooltip = $"OXQuiz [{m.QuizIndex}]" };
+    }
+
+    public override void DrawOverlay(IMarker marker, MarkerUIStates uiState, MarkerOverlayRegion region)
+        => MarkerOverlayDrawer.Draw(region, uiState, k_Color);
+}
+
+// ── CheckpointMarker ───────────────────────────────────────────
+
+[CustomTimelineEditor(typeof(CheckpointMarker))]
+public class CheckpointMarkerEditor : MarkerEditor
+{
+    static readonly Color k_Color = new Color(0.30f, 0.78f, 0.45f);
+
+    public override MarkerDrawOptions GetMarkerOptions(IMarker marker)
+    {
+        var m = (CheckpointMarker)marker;
+        return new MarkerDrawOptions { tooltip = $"Checkpoint [{m.Index}]" };
     }
 
     public override void DrawOverlay(IMarker marker, MarkerUIStates uiState, MarkerOverlayRegion region)

@@ -41,8 +41,21 @@ public class InputManager : Singleton<InputManager>
     public float MaxRate { get; private set; } = 1.5f;
     public float CameraSteerSmoothTime { get; private set; } = 0.12f;
     public float BrakeStopDuration { get; private set; } = 1.0f;
+    /// <summary>
+    /// 페달을 멈췄을 때 관성으로 정지하기까지의 시간(초). 펌웨어가 PAS 타임아웃(0.5s)에
+    /// 도달하면 rpm을 0으로 뚝 떨어뜨리는데, 이를 그대로 반영하면 화면이 한 프레임 만에
+    /// 정지한다. 실제 자전거처럼 굴러가다 서도록 이 시간에 걸쳐 선형 감속한다.
+    /// </summary>
+    public float CoastStopDuration { get; private set; } = 0.5f;
     public int TargetFps { get; private set; } = 60;
     public bool DebugMode { get; private set; } = false;
+    /// <summary>
+    /// 브레이크 극성 반전. 펌웨어는 브레이크 핀을 그대로(digitalRead) 보내므로, 설치된
+    /// 스위치가 normally-open이거나 배선이 끊기면 풀업 때문에 brk=1이 고정되고 —
+    /// 그러면 주행이 영구히 제동 상태가 되어 페달도 키보드도 전혀 먹지 않는다.
+    /// 현장에서 재플래싱 없이 뒤집을 수 있도록 config.ini(BrakeInverted)로 노출한다.
+    /// </summary>
+    public bool BrakeInverted { get; private set; } = false;
 
     [Header("Config — Vibration (ESP32 GPIO2)")]
     /// <summary>진동 사용 여부. 0이면 V 명령을 아예 보내지 않는다.</summary>
@@ -137,6 +150,18 @@ public class InputManager : Singleton<InputManager>
     const int READ_ERROR_LIMIT = 20;             // 연속 오류가 이만큼(약 2초) 쌓이면 포트를 닫고 재연결
     bool _wasBraking = false;
     float _brakeDecelRate = 0f; // 브레이크 시작 시점 속도 / BrakeStopDuration (km/h per sec)
+    bool _coasting = false;     // 페달을 늦추거나 멈춰 관성 감속 중
+    float _coastDecelRate = 0f; // 감속 시작 시점 속도 / CoastStopDuration (km/h per sec)
+
+    // ── 브레이크 고착 감시 ────────────────────────────────────────────
+    // 브레이크가 켜져 있는 동안에는 페달이든 키보드든 속도가 0으로 눌린다(아래 Update 참조).
+    // 그래서 극성이 뒤집히거나 배선이 끊겨 brk=1이 고정되면 "컨트롤러를 연결하면
+    // 아무 입력으로도 움직이지 않는" 증상이 되는데, 화면상으로는 원인이 전혀 드러나지 않는다.
+    // 사람이 이만큼 오래 브레이크를 잡고 있을 이유가 없으므로, 지속되면 원인을 짚어 경고한다.
+    bool _rawBrk;                     // 펌웨어가 보낸 원시 brk (극성 반전 적용 전) — 진단 표시용
+    float _brakeOnSince = -1f;
+    bool _brakeStuckWarned = false;
+    const float BRAKE_STUCK_SEC = 10f;
     float _yawOffset = 0f;
     bool _yawCalibrated = false;
     int _expectedStationID = 1;
@@ -216,8 +241,10 @@ public class InputManager : Singleton<InputManager>
                     case "MaxRate": if (float.TryParse(val, out float mr)) MaxRate = Mathf.Max(0.01f, mr); break;
                     case "CameraSteerSmoothTime": if (float.TryParse(val, out float ct)) CameraSteerSmoothTime = Mathf.Max(0f, ct); break;
                     case "BrakeStopDuration": if (float.TryParse(val, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float bsd)) BrakeStopDuration = Mathf.Clamp(bsd, 0.05f, 10f); break;
+                    case "CoastStopDuration": if (float.TryParse(val, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float csd)) CoastStopDuration = Mathf.Clamp(csd, 0.05f, 5f); break;
                     case "fps": if (int.TryParse(val, out int fps)) TargetFps = fps <= 0 ? 0 : Mathf.Clamp(fps, 15, 240); break;
                     case "debugMode": DebugMode = int.TryParse(val, out int dm) && dm != 0; break;
+                    case "BrakeInverted": BrakeInverted = int.TryParse(val, out int bi) && bi != 0; break;
                     case "StationID": int.TryParse(val, out _expectedStationID); break;
                     case "VibeMultiplier": if (float.TryParse(val, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float vm)) VibeMultiplier = Mathf.Clamp(vm, 0.5f, 3.0f); break;
                     case "isActive": VibrationActive = !int.TryParse(val, out int va) || va != 0; break;
@@ -228,7 +255,7 @@ public class InputManager : Singleton<InputManager>
                     case "VibeLongDuration": if (float.TryParse(val, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float vld)) VibeLongDuration = vld; break;
                 }
             }
-            Debug.Log($"[Input] 설정 로드: ESP32={portName}@{baudRate}");
+            Debug.Log($"[Input] 설정 로드: ESP32={portName}@{baudRate}, 브레이크 극성={(BrakeInverted ? "반전" : "기본")}");
         }
         catch (Exception e)
         {
@@ -609,7 +636,12 @@ public class InputManager : Singleton<InputManager>
         }
         else if (!IsConnected)
         {
+            // 마지막 패킷의 브레이크가 켜진 채로 연결이 끊기면 그 값이 그대로 남아,
+            // 키보드로 조작하려 해도 영구 제동 상태가 된다 — 버튼/브레이크도 함께 해제한다.
             CadenceRPM = SteeringAngle = 0f;
+            Brake = BtnOHeld = BtnXHeld = false;
+            _prevO = _prevX = _prevBrk = false;
+            _rawBrk = false;
         }
         else if (_lastDataTime > 0f && !_dataStale && Time.time - _lastDataTime > DATA_TIMEOUT)
         {
@@ -655,6 +687,8 @@ public class InputManager : Singleton<InputManager>
             ResetPasDiagnostics();
         }
 
+        UpdateBrakeStuckWatchdog();
+
         if (keyboardEnabled) UpdateKeyboard();
 
         // 케이던스(RPM) × 1회전당 이동거리(m) 기준으로 매 프레임 속도 재계산 (RPM × m/rev × 60/1000)
@@ -673,10 +707,55 @@ public class InputManager : Singleton<InputManager>
         else
         {
             _wasBraking = false;
-            SpeedKph = rawSpeed;
+
+            if (rawSpeed >= SpeedKph)
+            {
+                // 가속·유지는 즉시 반영한다. 여기에 스무딩을 넣으면 페달을 밟는 순간의
+                // 반응이 둔해져서, 체감상 "안 나가는" 자전거가 된다.
+                SpeedKph = rawSpeed;
+                _coasting = false;
+            }
+            else
+            {
+                // 감속 — 펌웨어는 마지막 펄스 후 PAS_TIMEOUT(0.5s)이 지나면 rpm을 0으로
+                // 뚝 떨어뜨린다. 그대로 반영하면 화면이 한 프레임 만에 정지해 버리므로,
+                // 지금 속도에서 CoastStopDuration 안에 0까지 내려가는 비율로 따라 내려간다.
+                // 목표는 0이 아니라 rawSpeed다 — 페달을 늦추기만 한 경우엔 그 속도에서 멈춘다.
+                if (!_coasting)
+                {
+                    _coasting = true;
+                    _coastDecelRate = SpeedKph / CoastStopDuration;
+                }
+                SpeedKph = Mathf.MoveTowards(SpeedKph, rawSpeed, _coastDecelRate * Time.deltaTime);
+            }
         }
 
         speedText.text = $"{SpeedKph:F0}";
+    }
+
+    // 브레이크가 비정상적으로 오래 잡혀 있으면 원인 후보와 조치를 한 번만 로그로 남긴다.
+    // 자동으로 무시하지는 않는다 — 브레이크는 체험 콘텐츠의 안전 요소라, 진짜로 잡고 있는
+    // 경우까지 소프트웨어가 임의로 풀어버리면 안 된다. 판단은 사람이 하도록 근거만 제시한다.
+    void UpdateBrakeStuckWatchdog()
+    {
+        if (!Brake)
+        {
+            _brakeOnSince = -1f;
+            _brakeStuckWarned = false;
+            return;
+        }
+
+        if (_brakeOnSince < 0f) _brakeOnSince = Time.time;
+        if (_brakeStuckWarned || Time.time - _brakeOnSince < BRAKE_STUCK_SEC) return;
+
+        _brakeStuckWarned = true;
+        UnityEngine.Debug.LogWarning(
+            $"[Input] 브레이크가 {BRAKE_STUCK_SEC:F0}초 이상 계속 켜져 있습니다 " +
+            $"(펌웨어 원시값 brk={(_rawBrk ? 1 : 0)}, 반전설정={(BrakeInverted ? "ON" : "OFF")}). " +
+            "제동 중에는 페달·키보드 입력이 모두 무시되므로 화면이 전혀 움직이지 않습니다.\n" +
+            "  · 실제로 브레이크를 잡고 있지 않다면 극성/배선 문제입니다.\n" +
+            "  · config.ini의 BrakeInverted 값을 뒤집고 재시작하면 재플래싱 없이 교정됩니다.\n" +
+            "  · 그래도 고정이면 브레이크 스위치 배선(ESP32 GPIO4↔GND) 단선을 확인하세요.");
     }
 
     void UpdateKeyboard()
@@ -884,7 +963,10 @@ public class InputManager : Singleton<InputManager>
         }
         SteeringAngle = (d.str - _yawOffset) / 45f * SteeringRange;
 
-        bool brk = d.brk == 1, o = d.o == 1, x = d.x == 1;
+        // 펌웨어의 brk는 브레이크 핀 원시값이다. 설치된 스위치 극성에 맞춰 여기서 뒤집는다.
+        _rawBrk = d.brk == 1;
+        bool brk = _rawBrk != BrakeInverted;
+        bool o = d.o == 1, x = d.x == 1;
         Brake = brk;
         BtnOHeld = o; BtnXHeld = x;
 
@@ -1058,6 +1140,16 @@ public class InputManager : Singleton<InputManager>
             return ("■ 준비 중 — DMP 안정화 대기\n" +
                     "   · 최대 3초 후 자동 진행. 이 동안 입력은 무시됨", Color.yellow);
 
+        // ── 브레이크 고착 판정 ──
+        // PAS보다 먼저 본다. 브레이크가 켜져 있으면 PAS가 아무리 정상이어도 속도는 0이므로,
+        // "PAS 정상"이라고 표시해 버리면 진짜 원인에서 눈을 돌리게 만든다.
+        if (Brake && _brakeOnSince > 0f && Time.time - _brakeOnSince >= BRAKE_STUCK_SEC)
+            return ($"■ 이상 — 브레이크가 {Time.time - _brakeOnSince:F0}초째 켜져 있음 (raw brk={(_rawBrk ? 1 : 0)})\n" +
+                    "   · 제동 중에는 페달·키보드 입력이 모두 무시되어 전혀 움직이지 않습니다\n" +
+                    "   · 브레이크를 잡고 있지 않다면 극성/배선 문제입니다\n" +
+                    $"   · config.ini의 BrakeInverted를 {(BrakeInverted ? "0" : "1")}로 바꾸고 재시작해 보세요\n" +
+                    "   · 그래도 고정이면 브레이크 스위치 배선(GPIO4↔GND) 단선 확인", Color.red);
+
         // ── PAS 판정 ──
         // pc(누적 펄스)와 pl(핀 레벨)이 갈리는 지점으로 원인을 좁힌다.
         bool pulsing = _pasLastPulseTime > 0f && Time.time - _pasLastPulseTime < PAS_IDLE;
@@ -1099,7 +1191,7 @@ public class InputManager : Singleton<InputManager>
             $"Speed     : {SpeedKph:F1} km/h\n" +
             $"Cadence   : {CadenceRPM:F0} RPM\n" +
             $"PAS       : pc={PasPulseCount} pl={PasPinLevel}\n" +
-            $"Brake     : {Brake}  O:{BtnOHeld}  X:{BtnXHeld}\n" +
+            $"Brake     : {Brake} (raw brk={(_rawBrk ? 1 : 0)}{(BrakeInverted ? ", 반전" : "")})  O:{BtnOHeld}  X:{BtnXHeld}\n" +
             $"YawCalib  : {(_yawCalibrated ? "완료" : "대기중")}\n" +
             $"HB Ack    : {(_lastHbAckTime < 0f ? "없음" : $"{Time.time - _lastHbAckTime:F0}s 전")}";
         GUI.Box(new Rect(10, 160, 900, 520), text, _debugStyle);
