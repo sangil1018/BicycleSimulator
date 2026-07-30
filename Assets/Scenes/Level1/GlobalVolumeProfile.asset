@@ -17,7 +17,7 @@ MonoBehaviour:
     m_OverrideState: 1
     m_Value: 1.1
   contrast:
-    m_OverrideState: 0
+    m_OverrideState: 1
     m_Value: -5
   colorFilter:
     m_OverrideState: 0
@@ -40,7 +40,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 29fa0085f50d5e54f8144f766051a691, type: 3}
   m_Name: FilmGrain
   m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.FilmGrain
-  active: 1
+  active: 0
   type:
     m_OverrideState: 1
     m_Value: 1
@@ -68,7 +68,7 @@ MonoBehaviour:
   active: 1
   intensity:
     m_OverrideState: 1
-    m_Value: 0.15
+    m_Value: 0.1
   xMultiplier:
     m_OverrideState: 0
     m_Value: 1
@@ -96,7 +96,7 @@ MonoBehaviour:
   active: 1
   shadows:
     m_OverrideState: 1
-    m_Value: {x: 1, y: 1, z: 1, w: 0.1325645}
+    m_Value: {x: 1, y: 1, z: 1, w: 0.15285666}
   midtones:
     m_OverrideState: 0
     m_Value: {x: 1, y: 1, z: 1, w: 0.019502684}
@@ -210,7 +210,7 @@ MonoBehaviour:
     m_Value: 2
   intensity:
     m_OverrideState: 1
-    m_Value: 0.35
+    m_Value: 0.3
   clamp:
     m_OverrideState: 0
     m_Value: 0.05
@@ -316,10 +316,10 @@ MonoBehaviour:
     m_Value: {x: 1, y: 1, z: 1, w: 0}
   gamma:
     m_OverrideState: 1
-    m_Value: {x: 1, y: 1, z: 1, w: -0.17847483}
+    m_Value: {x: 1, y: 1, z: 1, w: -0.12680537}
   gain:
     m_OverrideState: 1
-    m_Value: {x: 1, y: 1, z: 1, w: 0.101240695}
+    m_Value: {x: 1, y: 1, z: 1, w: 0.05396979}
 --- !u!114 &5918494906490931615
 MonoBehaviour:
   m_ObjectHideFlags: 3

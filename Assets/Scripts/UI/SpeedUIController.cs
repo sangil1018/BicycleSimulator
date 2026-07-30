@@ -11,6 +11,10 @@ public class SpeedUIController : MonoBehaviour
     [Header("Canvas Group")]
     [SerializeField] CanvasGroup speedCanvasGroup;
 
+    [Header("Speed Text")]
+    [Tooltip("속도 숫자 텍스트. 영속 싱글톤인 InputManager가 아니라 씬 스코프인 여기서 갱신한다 — 씬 전환 시 참조가 끊기지 않도록.")]
+    [SerializeField] TMPro.TMP_Text speedText;
+
     [Header("Speed Thresholds (km/h)")]
     [Tooltip("노란색 속도 경고 기준값")]
     [SerializeField] float yellowThreshold = 16f;
@@ -99,6 +103,8 @@ public class SpeedUIController : MonoBehaviour
             if (InputManager.Instance == null) return;
 
             float spd = InputManager.Instance.SpeedKph;
+
+            if (speedText != null) speedText.text = $"{spd:F0}";
 
             // 속도 기반 페이드인/아웃 (NormalRiding 상태일 때만)
             if (_stateAllowsShow)

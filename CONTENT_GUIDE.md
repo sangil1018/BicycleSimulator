@@ -26,16 +26,21 @@
 
 ### 2.1 [Settings]
 
+> 아래 "기본값"은 **현재 배포 `config.ini`에 들어 있는 값**입니다. 키가 없거나 파싱에 실패하면 `InputManager`의 코드 기본값이 쓰입니다.
+
 | 파라미터 | 기본값 | 설명 |
 | :--- | :--- | :--- |
 | `StationID` | `1` | 스테이션 ID — 펌웨어 `STATION_ID`와 일치해야 데이터 수신 |
 | `PortName` | `COM8` | ESP32 시리얼 포트 (센서 전용) |
 | `BaudRate` | `115200` | ESP32 시리얼 통신 속도 |
 | `BaseSpeedKph` | `15.0` | 1.0× 재생 기준 속도(km/h) |
-| `MetersPerRevolution` | `1.5` | 페달 1회전당 이동 거리(m) — RPM→km/h 환산 |
+| `MetersPerRevolution` | `1.0` | 페달 1회전당 이동 거리(m) — RPM→km/h 환산 |
 | `PlaybackMultiplier` | `1.0` | 영상 재생 배속 승수 |
+| `MaxRate` | `3.0` | 최대 재생 배속 — 아무리 빨리 밟아도 이 배속을 넘지 않음. `TimelineGameController.Max Rate`를 덮어씀 |
 | `VibeMultiplier` | `1.0` | 진동 길이 배율 (0.5~3.0) — 연결 시 `P{배율×100}`으로 ESP32 진동 시퀀서에 전달 |
-| `BrakeStopDuration` | `1.0` | 브레이크 작동 시 완전 정지까지 걸리는 시간(초, 0.05~10). 잡는 순간의 속도에서 선형 감속하며, 잡고 있는 동안 페달 입력 무시 |
+| `BrakeStopDuration` | `0.3` | 브레이크 작동 시 완전 정지까지 걸리는 시간(초, 0.05~10). 잡는 순간의 속도에서 선형 감속하며, 잡고 있는 동안 페달 입력 무시 |
+| `CoastStopDuration` | `1.0` | 페달을 멈췄을 때 관성으로 완전 정지까지 걸리는 시간(초, 0.05~5). 클수록 부드럽게 굴러가다 섬 |
+| `BrakeInverted` | `0` | 브레이크 극성 반전 (1=반전). 잡지 않았는데 계속 제동 상태면 1로 변경 (§2.4) |
 | `debugMode` | `0` | 디버그 GUI 표시 (1=표시) — 빌드에서도 동작 (§2.3) |
 | `fps` | `60` | 목표 프레임레이트 (15~240, 0=제한 없음). VSync는 자동 비활성화 |
 | `logo` | `1` | UI 로고 표시 여부 |
@@ -47,8 +52,8 @@
 | `isActive` | `1` | 진동 사용 여부 (0=비활성화 시 `V` 명령을 아예 보내지 않음) |
 | `SteeringRange` | `45` | 핸들 최대 조향각 출력 범위 (도, 1~45) |
 | `CameraSteerSmoothTime` | `0.12` | 조향 회전 스무딩 시간(초) |
-| `YellowThreshold` | `20.0` | 노란색 속도 경고 기준(km/h) |
-| `RedThreshold` | `30.0` | 빨간색 속도 경고 기준(km/h) |
+| `YellowThreshold` | `16.0` | 노란색 속도 경고 기준(km/h) — 속도 UI + 네비게이션 화살표 색상 |
+| `RedThreshold` | `25.0` | 빨간색 속도 경고 기준(km/h) |
 
 > 위 값은 모두 `InputManager`가 읽어서 각 시스템에 전달합니다. 섹션 헤더(`[Settings]` 등)는 구분용일 뿐이며 키 이름만 파싱됩니다. 상세 프로토콜은 `Hardware/Unity_시리얼_통신_가이드.md` §3-6 참고.
 >
@@ -62,15 +67,32 @@
 - 디버그 GUI 코드는 `DEBUG_GUI` 심볼(`Assets/csc.rsp`의 `-define:DEBUG_GUI`)로 컴파일됩니다. **최종 마스터 빌드에서 코드까지 제거하려면 csc.rsp에서 해당 줄을 삭제** 후 빌드하세요. 심볼이 없으면 `debugMode=1`이어도 표시되지 않습니다.
 - 조향 센서(ICM-20948) 미인식 시 펌웨어가 조향값 0 고정으로 계속 동작하며, 디버그 GUI의 `SteerSens` 항목에서 "미인식(0고정)"으로 확인할 수 있습니다.
 
+### 2.4 브레이크 극성 (BrakeInverted)
+
+브레이크를 잡지 않았는데 디버그 화면의 `Brake`가 `True`로 고정되면 스위치 극성이 뒤집힌 상태입니다.
+**제동 중에는 페달·키보드 입력이 모두 무시되므로 아무것도 움직이지 않습니다.**
+
+- `config.ini`의 `BrakeInverted`를 `0` ↔ `1`로 바꾸고 재시작하면 **펌웨어 재플래싱 없이** 교정됩니다.
+- 스위치를 normally-open ↔ normally-closed로 교체했을 때도 여기서 맞춥니다.
+- 디버그 GUI에는 펌웨어 원시값(`raw brk`)과 반전 설정이 함께 표시되므로 둘을 비교해 판단하세요.
+
+> **정지 감속 두 종류 구분**
+> - `BrakeStopDuration` — 브레이크를 **잡았을 때**의 감속 시간
+> - `CoastStopDuration` — 페달을 **멈췄을 때**의 관성 감속 시간.
+>   펌웨어가 마지막 페달 펄스 후 0.5초가 지나야 정지로 판단하므로, 실제 체감 지연은 `이 값 + 0.5초`입니다.
+
 ---
 
 ## 3. Timeline 이벤트 설정
 
-이벤트는 세 종류의 트랙으로 구성합니다. 모두 `GameSignalReceiver`(PlayableDirector와 같은 오브젝트)로 전달됩니다.
+이벤트는 네 종류의 트랙으로 구성합니다. 앞의 세 종류는 `GameSignalReceiver`(PlayableDirector와 같은 오브젝트)로 전달됩니다.
 
 - **게임 이벤트** → Unity 내장 **Signal Track** + Signal Emitter. 같은 오브젝트의 내장 **Signal Receiver**가 각 Signal Asset을 UnityEvent로 받아 `GameSignalReceiver`의 아래 메서드를 호출합니다.
 - **퀴즈** → 커스텀 **Quiz Track**에 **QuizMarker** 배치.
 - **방향 안내** → 커스텀 **Direction Track**에 **DirectionMarker** 배치.
+- **진행도 체크포인트** → 커스텀 **Checkpoint Track**에 **CheckpointMarker** 배치. 이것만 `TimelineGameController`가 타임라인 에셋에서 직접 읽으므로 **트랙 바인딩이 필요 없습니다.**
+
+> 상세 배치 절차는 `Assets/Scripts/Timeline/TimelineGuide.md` 참고.
 
 ### 3.1 게임 이벤트 (Signal Receiver → GameSignalReceiver)
 
@@ -81,6 +103,14 @@
 | `TriggerBicycleStop()` | 정지 유지 — Freeze 상태로 대기(별도 이벤트가 재개할 때까지) |
 | `TriggerAutoPlayStart()` | 자동진행 구간 시작 (입력 무시, `Fixed Auto Speed`로 재생 · 횡단보도 걷기 구간) |
 | `TriggerAutoPlayEnd()` | 자동진행 구간 종료 (페달 입력 재개) |
+
+같은 Signal Emitter의 UnityEvent에 씬 오브젝트를 직접 연결해도 됩니다. Level1은 자전거 모델 연출을 이 방식으로 붙였습니다.
+
+| 컴포넌트 | 메서드 | 용도 |
+| :--- | :--- | :--- |
+| `BikeRotation` | `RotateBike(각도)` | 자전거를 지정 Y각도로 즉시 고정 |
+| `BikeRotation` | `FollowBikeRotation()` | 이후 매 프레임 대상 Transform의 회전을 추종 (주행 복귀) |
+| `BikeRotation` | `StopFollowBikeRotation()` | 추종 중단 |
 
 ### 3.2 QuizMarker (Quiz Track)
 
@@ -100,6 +130,17 @@ OX 퀴즈를 띄웁니다. 마커의 `Quiz Index`(0~3)로 문제를 지정합니
 속도 tier에 따라 트리거에 자동으로 postfix가 붙습니다:  
 기본(`left`) → yellow 이상(`left_y`) → red 이상(`left_r`)
 
+### 3.4 CheckpointMarker (Checkpoint Track)
+
+상단 진행도 슬라이더의 눈금 위치를 정의하고, 통과 시 이벤트를 1회 발동합니다.
+
+- 마커의 `Index`(0~7)가 `TimelineGameController`의 `On Checkpoint` 배열 슬롯과 대응합니다.
+- 슬라이더 값은 재생 시간 비례가 아니라 **체크포인트 기준 등분값**으로 리매핑됩니다.
+  전체를 10으로 두고 양 끝 구간에 0.5씩, 남은 9를 체크포인트 사이 구간에 균등 배분 —
+  구간 길이가 달라도 슬라이더는 일정한 속도로 움직입니다.
+- 마커가 하나도 없으면 단순 시간 비례로 폴백합니다.
+- **8개 기준**이며 개수가 다르거나 시간순과 `Index` 순서가 어긋나면 Console에 경고가 남습니다.
+
 ---
 
 ## 4. 속도 UI (SpeedUIController)
@@ -111,6 +152,9 @@ Inspector에서 아래 값을 조정합니다.
 | `Yellow Threshold` | 이 속도(km/h) 이상이면 UI 텍스트가 yellow로 변경 |
 | `Red Threshold` | 이 속도(km/h) 이상이면 red + overSpeedUI 활성화 |
 | `Fade Duration` | Show/Hide 알파 전환 시간 (기본 0.3초) |
+
+> `Yellow/Red Threshold`는 `Start()`에서 `config.ini`의 `YellowThreshold`/`RedThreshold` 값으로 덮어씌워집니다.
+> 인스펙터 값은 config.ini가 없을 때의 폴백입니다. (네비게이션 화살표 색상도 같은 값을 사용)
 
 GameState에 따른 자동 동작:
 - `NormalRiding` → 속도가 `Visible Speed Threshold`(기본 1km/h) 이상일 때 Show
@@ -130,6 +174,10 @@ GameState에 따른 자동 동작:
 - `GameSignalReceiver` — Timeline Signal 수신 (PlayableDirector와 같은 오브젝트)
 - `SpeedUIController` — 속도 UI 및 네비게이션 애니메이터
 - `IntroManager`, `QuizManager` — 인트로 및 퀴즈
+- `CameraSteeringRotator` (`anim_rot` 오브젝트) — 조향 센서값을 카메라 Y회전에 반영
+- `BikeRotation` (자전거 모델) — Timeline 이벤트로 자전거 회전 고정/추종 전환
+- `RoadNavigationGuide` — 노면 네비게이션 (`Assets/Scripts/Navigation/NavigationGuide.md`)
+- `PedestrianSpawner` / 교통 시스템 — `Assets/Scripts/TrafficSystem/` 의 가이드 참고
 
 > 씬에 남아 있는 `VibrationRelay` 오브젝트는 폐기된 USB 릴레이용 껍데기입니다. 포트를 열지 않으며
 > 지워도 동작에 영향이 없습니다(스크립트 파일까지 지우려면 세 씬 모두에서 오브젝트를 먼저 제거).
@@ -147,9 +195,11 @@ GameState에 따른 자동 동작:
 
 | 컴포넌트 | 변수명 | 설명 |
 | :--- | :--- | :--- |
-| `TimelineGameController` | `Base Speed Kph` | 1.0× 재생 기준 속도 |
-| `TimelineGameController` | `Max Rate` | 최대 재생 배속 (기본 1.5×) |
+| `TimelineGameController` | `Base Speed Kph` | 1.0× 재생 기준 속도 (config.ini가 덮어씀) |
+| `TimelineGameController` | `Max Rate` | 최대 재생 배속 (config.ini `MaxRate`가 덮어씀) |
 | `TimelineGameController` | `Fixed Auto Speed` | 자동진행 구간 재생 배속 |
+| `TimelineGameController` | `Nav Slider` | 상단 진행도 슬라이더 참조 |
+| `TimelineGameController` | `On Checkpoint[0~7]` | 체크포인트 통과 시 1회 발동할 이벤트 |
 | `GameManager` | `Brake Event Sec` | 브레이크 판정 시간 |
 | `GameManager` | `Quiz Duration Sec` | 퀴즈 UI 대기 시간 |
 | `SpeedUIController` | `Yellow/Red Threshold` | 속도 색상 전환 기준값 |
@@ -161,5 +211,8 @@ GameState에 따른 자동 동작:
 1. 기존 레벨 씬을 복제합니다.
 2. `PlayableDirector`에 새 Timeline Asset을 연결하고 카메라 애니메이션을 제작합니다.
 3. Signal Track(게임 이벤트) · Direction Track(`DirectionMarker`) · Quiz Track(`QuizMarker`)에 이벤트를 배치합니다. (§3 참고)
-4. `HomeGameManager`에 새 씬 로드를 연결합니다.
-5. **Build Settings**에 새 씬을 등록합니다.
+4. Checkpoint Track에 `CheckpointMarker` 8개를 배치하고 `Index`를 시간순 0~7로 지정합니다. (§3.4)
+5. `TimelineGameController`의 `Nav Slider`와 필요한 `On Checkpoint` 이벤트를 연결합니다.
+6. `HomeGameManager`에 새 씬 로드를 연결합니다.
+7. **Build Settings**에 새 씬을 등록합니다.
+8. 에디터 메뉴 **`Tools → Build Preload Manifests`**를 재실행합니다. (프리로드 대상 갱신 — `HOME_GUIDE.md` §3-1)

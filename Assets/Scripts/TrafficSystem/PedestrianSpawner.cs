@@ -14,6 +14,13 @@ namespace TrafficSystem
         [SerializeField] float adultWalkSpeed = 1.4f;
         [SerializeField] float childWalkSpeed = 0.85f;
 
+        // Scale Variation — 프리팹 원본 스케일에 곱해지는 랜덤 배율 범위.
+        // 라벨/헤더는 PedestrianSpawnerEditor가 직접 그리므로 속성을 달지 않는다.
+        [SerializeField] float adultScaleMin = 0.95f;
+        [SerializeField] float adultScaleMax = 1.05f;
+        [SerializeField] float childScaleMin = 0.9f;
+        [SerializeField] float childScaleMax = 1.1f;
+
         [Header("Groups")]
         [SerializeField] PedestrianGroup[] groups;
 
@@ -141,12 +148,22 @@ namespace TrafficSystem
             }
 
             GameObject prefab = prefabs[Random.Range(0, prefabs.Length)];
-            if (prefab == null) return;
+            if (prefab == null)
+            {
+                Debug.LogWarning($"[PedestrianSpawner] {type} 프리팹 배열에 null 요소가 있습니다.");
+                return;
+            }
 
             float walkSpeed = type == PedestrianType.Adult ? adultWalkSpeed : childWalkSpeed;
 
             GameObject ped = Instantiate(prefab, sp.position, Quaternion.identity, transform);
             ped.name = $"Ped_{type}_{(reverse ? "L" : "R")}_{sp.nextWpIndex:D2}";
+
+            // 프리팹 원본 스케일 * 랜덤 배율 (min > max로 넣어도 동작하도록 정렬)
+            float sMin = type == PedestrianType.Adult ? adultScaleMin : childScaleMin;
+            float sMax = type == PedestrianType.Adult ? adultScaleMax : childScaleMax;
+            float scale = Random.Range(Mathf.Min(sMin, sMax), Mathf.Max(sMin, sMax));
+            ped.transform.localScale = prefab.transform.localScale * scale;
 
             if (ped.TryGetComponent(out PedestrianController ctrl))
                 ctrl.Init(g.waypoints, sp.position, sp.nextWpIndex, reverse, walkSpeed, g.lateralOffset, g.blendRadius, g.heightOffset);

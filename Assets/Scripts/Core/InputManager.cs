@@ -22,8 +22,8 @@ public enum VibeState
 [DefaultExecutionOrder(-100)]
 public class InputManager : Singleton<InputManager>
 {
-    [Header("Speed UI")]
-    [SerializeField] TMPro.TMP_Text speedText;
+    // 속도 텍스트는 SpeedUIController가 표시한다. 영속 싱글톤인 InputManager가 씬 UI를
+    // [SerializeField]로 들고 있으면, 씬 전환 후 파괴된 참조가 남아 매 프레임 NRE가 난다.
 
     [Header("Serial Port — ESP32-S3")]
     [SerializeField] string portName = "COM8";
@@ -729,8 +729,6 @@ public class InputManager : Singleton<InputManager>
                 SpeedKph = Mathf.MoveTowards(SpeedKph, rawSpeed, _coastDecelRate * Time.deltaTime);
             }
         }
-
-        speedText.text = $"{SpeedKph:F0}";
     }
 
     // 브레이크가 비정상적으로 오래 잡혀 있으면 원인 후보와 조치를 한 번만 로그로 남긴다.

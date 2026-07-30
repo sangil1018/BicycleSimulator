@@ -10,6 +10,10 @@ public class PedestrianSpawnerEditor : Editor
     SerializedProperty childPrefabsProp;
     SerializedProperty adultSpeedProp;
     SerializedProperty childSpeedProp;
+    SerializedProperty adultScaleMinProp;
+    SerializedProperty adultScaleMaxProp;
+    SerializedProperty childScaleMinProp;
+    SerializedProperty childScaleMaxProp;
     SerializedProperty groupsProp;
     SerializedProperty spawnPerFrameProp;
 
@@ -33,6 +37,10 @@ public class PedestrianSpawnerEditor : Editor
         childPrefabsProp  = serializedObject.FindProperty("childPrefabs");
         adultSpeedProp    = serializedObject.FindProperty("adultWalkSpeed");
         childSpeedProp    = serializedObject.FindProperty("childWalkSpeed");
+        adultScaleMinProp = serializedObject.FindProperty("adultScaleMin");
+        adultScaleMaxProp = serializedObject.FindProperty("adultScaleMax");
+        childScaleMinProp = serializedObject.FindProperty("childScaleMin");
+        childScaleMaxProp = serializedObject.FindProperty("childScaleMax");
         groupsProp        = serializedObject.FindProperty("groups");
         spawnPerFrameProp = serializedObject.FindProperty("spawnPerFrame");
     }
@@ -49,6 +57,12 @@ public class PedestrianSpawnerEditor : Editor
         EditorGUILayout.LabelField("── Walk Speed ───────────────────────", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(adultSpeedProp);
         EditorGUILayout.PropertyField(childSpeedProp);
+
+        EditorGUILayout.Space(4);
+        EditorGUILayout.LabelField("── Scale Variation ──────────────────", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("프리팹 원본 스케일에 곱해지는 랜덤 배율 범위", EditorStyles.miniLabel);
+        DrawMinMax("Adult", adultScaleMinProp, adultScaleMaxProp);
+        DrawMinMax("Child", childScaleMinProp, childScaleMaxProp);
 
         EditorGUILayout.Space(4);
         EditorGUILayout.LabelField("── Performance ──────────────────────", EditorStyles.boldLabel);
@@ -93,6 +107,37 @@ public class PedestrianSpawnerEditor : Editor
         }
 
         serializedObject.ApplyModifiedProperties();
+    }
+
+    // Min/Max를 한 줄에 표시. 자동 레이아웃 대신 Rect를 직접 분할해 폭을 고정한다.
+    static void DrawMinMax(string label, SerializedProperty minProp, SerializedProperty maxProp)
+    {
+        if (minProp == null || maxProp == null) return;
+
+        const float minLabelW = 30f;
+        const float gap       = 6f;
+
+        Rect line  = EditorGUILayout.GetControlRect();
+        Rect field = EditorGUI.PrefixLabel(line, new GUIContent(label));
+
+        float half = (field.width - gap) * 0.5f;
+        var minRect = new Rect(field.x, field.y, half, field.height);
+        var maxRect = new Rect(field.x + half + gap, field.y, half, field.height);
+
+        float labelW = EditorGUIUtility.labelWidth;
+        int   indent = EditorGUI.indentLevel;
+        EditorGUIUtility.labelWidth = minLabelW;
+        EditorGUI.indentLevel = 0;
+
+        EditorGUI.PropertyField(minRect, minProp, new GUIContent("Min"));
+        EditorGUI.PropertyField(maxRect, maxProp, new GUIContent("Max"));
+
+        EditorGUIUtility.labelWidth = labelW;
+        EditorGUI.indentLevel = indent;
+
+        // 0 이하 / 역전 방지
+        minProp.floatValue = Mathf.Max(0.01f, minProp.floatValue);
+        maxProp.floatValue = Mathf.Max(minProp.floatValue, maxProp.floatValue);
     }
 
     // ── Scene View ──────────────────────────────────────────────────────────────

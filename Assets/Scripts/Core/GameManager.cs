@@ -35,6 +35,10 @@ public class GameManager : SceneSingleton<GameManager>
     [SerializeField] private GameObject endTransitionObject;
     [SerializeField] private CanvasGroup endTransitionCanvasGroup;
 
+    [Header("Audio")]
+    [SerializeField] private AudioClip clickClip;
+    private AudioSource _audioSource;
+
     [Header("Timing")]
     [SerializeField] float delayStart = 2.5f;
     [SerializeField] float brakeEventSec = 5f;
@@ -44,6 +48,8 @@ public class GameManager : SceneSingleton<GameManager>
     [SerializeField] int finalQuizIndex = 3;    // 0-based, 4번째 퀴즈
     [SerializeField] float finalResultWaitSec = 13f;
     [SerializeField] float totalEndWaitSec = 15f;
+    [Tooltip("종료 메뉴에서 홈으로 나갈 때 클릭 사운드가 들릴 만큼 씬 전환을 늦추는 시간(초)")]
+    [SerializeField] float goHomeClickDelay = 0.3f;
 
     // ── 공개 상태 ──────────────────────────────────────────────────
 
@@ -63,6 +69,20 @@ public class GameManager : SceneSingleton<GameManager>
     public TimelineGameController TimelineController { get; private set; }
 
     // ── 내부 상태 ──────────────────────────────────────────────────
+
+    bool _goingHome = false;   // 홈 이동 확정 — 지연 중 X 버튼 연타로 중복 진입 방지
+
+    protected override void Awake()
+    {
+        base.Awake();
+
+        _audioSource = GetComponent<AudioSource>();
+        if (_audioSource == null)
+        {
+            _audioSource = gameObject.AddComponent<AudioSource>();
+            _audioSource.playOnAwake = false;
+        }
+    }
 
     void OnEnable()
     {
@@ -122,7 +142,35 @@ public class GameManager : SceneSingleton<GameManager>
             CurrentState == GameState.Home ||
             CurrentState == GameState.Boot) return;
 
+        PlayClickSound();
         if (exit_menu != null) exit_menu.SetActive(true);
+    }
+
+    /// <summary>종료 메뉴의 "취소" 버튼 등 씬 UI에서 직접 호출용 (UnityEvent 연결)</summary>
+    public void PlayClick() => PlayClickSound();
+
+    private void PlayClickSound()
+    {
+        if (_audioSource && clickClip) _audioSource.PlayOneShot(clickClip);
+    }
+
+    /// <summary>
+    /// 종료 메뉴의 "홈" 버튼용 — 클릭 사운드를 들려준 뒤 홈으로 이동.
+    /// GoHome()은 곧바로 씬을 로드해 AudioSource까지 파괴되므로 소리가 한 프레임 만에 끊긴다.
+    /// </summary>
+    public void GoHomeWithClick()
+    {
+        if (_goingHome) return;
+        _goingHome = true;
+
+        PlayClickSound();
+        StartCoroutine(GoHomeRoutine());
+    }
+
+    IEnumerator GoHomeRoutine()
+    {
+        yield return new WaitForSeconds(goHomeClickDelay);
+        GoHome();
     }
 
     public void GoHome()
@@ -170,6 +218,7 @@ public class GameManager : SceneSingleton<GameManager>
         Debug.Log($"[GM] StartRiding called — CurrentState:{CurrentState}  TimelineController:{TimelineController != null}");
         if (CurrentState != GameState.GameReady) return;
 
+        PlayClickSound();
         ChangeState(GameState.NormalRiding);
         if (TimelineController != null) TimelineController.Play();
     }

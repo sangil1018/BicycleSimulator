@@ -14,6 +14,8 @@ PedestrianSpawner (씬 오브젝트)
  ├─ childPrefabs[]      — 아이 캐릭터 프리팹 목록
  ├─ adultWalkSpeed      — 어른 이동 속도
  ├─ childWalkSpeed      — 아이 이동 속도
+ ├─ adultScale Min/Max  — 어른 랜덤 스케일 배율 범위
+ ├─ childScale Min/Max  — 아이 랜덤 스케일 배율 범위
  └─ groups[]            — 보행로 그룹 목록
       └─ PedestrianGroup (보행로 하나)
           ├─ waypoints[]       — 중심선 웨이포인트
@@ -84,7 +86,17 @@ PedestrianSpawner (씬 오브젝트)
 | **Child Prefabs** | 아이 캐릭터 프리팹 배열 (1개 이상) |
 | **Adult Walk Speed** | 어른 이동 속도 (권장: 1.2 ~ 1.6) |
 | **Child Walk Speed** | 아이 이동 속도 (권장: 0.7 ~ 1.0) |
+| **Scale Variation → Adult Min/Max** | 어른 랜덤 스케일 배율 범위 (기본 0.95 ~ 1.05) |
+| **Scale Variation → Child Min/Max** | 아이 랜덤 스케일 배율 범위 (기본 0.9 ~ 1.1) |
 | **Spawn Per Frame** | 프레임당 스폰 수 (0 = 일괄, 부하 분산 시 5 권장) |
+
+> **Scale Variation 가이드**
+> - 스폰할 때마다 `프리팹 원본 스케일 × Random.Range(Min, Max)`가 적용됩니다.
+>   프리팹 자체 크기를 대체하는 절대값이 아니라 **곱해지는 배율**입니다.
+> - `Min = Max = 1.0` 으로 두면 변화 없이 프리팹 크기 그대로 스폰됩니다.
+> - 인스펙터가 `Min ≤ Max`, `Min ≥ 0.01`로 자동 보정하며, 런타임에서도 뒤집힌 값을 정렬해 사용합니다.
+> - 같은 캐릭터 프리팹이 반복돼 보이는 것을 줄이는 용도이므로 **0.9 ~ 1.1 범위**를 권장합니다.
+>   범위를 크게 잡으면 어른/아이 체형 구분이 무너집니다.
 
 ---
 
@@ -118,6 +130,7 @@ PedestrianSpawner (씬 오브젝트)
    - `R` = 우측(정방향), `L` = 좌측(역방향)
 3. 보행자가 웨이포인트를 따라 걷다가 **끝에서 방향 전환** 후 되돌아오는지 확인
 4. 어른/아이의 속도 차이가 보이는지 확인
+5. 같은 프리팹끼리도 키가 조금씩 다르게 생성되는지 확인 (Scale Variation)
 
 ---
 

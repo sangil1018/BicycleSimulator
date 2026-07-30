@@ -61,6 +61,11 @@ BaseSpeedKph = 15.0 (기본값) → 이 속도에서 Timeline 1.0× 재생
 ### 참고 문서
 
 - 콘텐츠 구성 및 Timeline 이벤트 설정 → `CONTENT_GUIDE.md`
-- config.ini 설정 → `CONTENT_GUIDE.md` §2
+- config.ini 설정 → `CONTENT_GUIDE.md` §2 (브레이크 극성·정지 감속은 §2.4)
 - 홈 씬 구성 / 씬 전환·프리로드 → `HOME_GUIDE.md`
+- 인트로 시퀀스 → `INTRO_GUIDE.md`
+- Timeline 트랙·마커 상세 (Signal / Direction / Quiz / Checkpoint) → `Assets/Scripts/Timeline/TimelineGuide.md`
+- 노면 네비게이션 (경로 스플라인 베이크) → `Assets/Scripts/Navigation/NavigationGuide.md`
+- 차량·신호기 교통 시스템 → `Assets/Scripts/TrafficSystem/TrafficSystemGuide.md`
+- 보행자 배치 → `Assets/Scripts/TrafficSystem/PedestrianSetupGuide.md`
 - 시리얼 통신 프로토콜 (ESP32 센서 + 진동, keep-alive/재연결/PAS 진단) → `Hardware/Unity_시리얼_통신_가이드.md`
