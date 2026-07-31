@@ -2038,7 +2038,7 @@ GameObject:
   - component: {fileID: 8473958285690858171}
   - component: {fileID: 6691005714827068657}
   m_Layer: 5
-  m_Name: bicycle
+  m_Name: bicycleLogo
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

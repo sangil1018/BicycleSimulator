@@ -571,6 +571,22 @@ AnimationClip:
   m_HasGenericRootTransform: 0
   m_HasMotionFloatCurves: 0
   m_Events: []
+--- !u!114 &4751563349100528775
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 15c38f6fa1940124db1ab7f6fe7268d1, type: 3}
+  m_Name: Signal Emitter
+  m_EditorClassIdentifier: Unity.Timeline::UnityEngine.Timeline.SignalEmitter
+  m_Time: 1
+  m_Retroactive: 0
+  m_EmitOnce: 0
+  m_Asset: {fileID: 11400000, guid: d117f61992a00794a8b28b961edfa059, type: 2}
 --- !u!114 &5518288366050172393
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -595,6 +611,7 @@ MonoBehaviour:
   m_Markers:
     m_Objects:
     - {fileID: -4892451992173964827}
+    - {fileID: 4751563349100528775}
 --- !u!114 &6736967523551803114
 MonoBehaviour:
   m_ObjectHideFlags: 1

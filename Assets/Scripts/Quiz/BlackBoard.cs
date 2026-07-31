@@ -231,7 +231,7 @@ public class BlackBoard : MonoBehaviour
                         && QuizManager.Instance.CurrentQuizNumber == GameManager.Instance.FinalQuizIndex + 1;
 
         // 퀴즈 종료 후 타임라인 완료 자동 이벤트 호출 여부
-        if (isFinalQuiz && autoResult) GameManager.Instance.OnTimelineComplete();
+        if (isFinalQuiz && autoResult) GameManager.Instance.OnTimelineComplete(0.2f);
 
         GameManager.Instance.ChangeState(GameState.NormalRiding);
         if (GameManager.Instance.TimelineController != null)
