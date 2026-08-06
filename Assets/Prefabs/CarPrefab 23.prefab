@@ -111,6 +111,11 @@ MonoBehaviour:
   emergencyDist: 5
   vehicleHalfLength: 3
   vehicleHalfWidth: 1
+  yieldAtPathCrossing: 1
+  crossCheckRadius: 25
+  crossYieldDistance: 12
+  crossAngleThreshold: 30
+  crossClearance: 2.5
   speedCalcInterval: 2
   wheels:
   - {fileID: 7803066473078394336}
@@ -166,12 +171,24 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: -7511558181221131132, guid: 2c472a3598f04da4fa9c09bc781194c7, type: 3}
+      propertyPath: m_ReceiveGI
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: -7511558181221131132, guid: 2c472a3598f04da4fa9c09bc781194c7, type: 3}
       propertyPath: 'm_Materials.Array.data[1]'
       value: 
       objectReference: {fileID: 2100000, guid: 158a1bfc6ad2ad14296141211be1d599, type: 2}
+    - target: {fileID: 562651220692206192, guid: 2c472a3598f04da4fa9c09bc781194c7, type: 3}
+      propertyPath: m_ReceiveGI
+      value: 2
+      objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 2c472a3598f04da4fa9c09bc781194c7, type: 3}
       propertyPath: m_Name
       value: CarA (1)
+      objectReference: {fileID: 0}
+    - target: {fileID: 6194280647493141213, guid: 2c472a3598f04da4fa9c09bc781194c7, type: 3}
+      propertyPath: m_ReceiveGI
+      value: 2
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

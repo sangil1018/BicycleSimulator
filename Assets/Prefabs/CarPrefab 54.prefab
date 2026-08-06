@@ -111,6 +111,11 @@ MonoBehaviour:
   emergencyDist: 5
   vehicleHalfLength: 3
   vehicleHalfWidth: 1
+  yieldAtPathCrossing: 1
+  crossCheckRadius: 25
+  crossYieldDistance: 12
+  crossAngleThreshold: 30
+  crossClearance: 2.5
   speedCalcInterval: 2
   wheels:
   - {fileID: 723950064717917915}
@@ -146,9 +151,21 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: -7511558181221131132, guid: c295279508a3ef24183db41434919a44, type: 3}
+      propertyPath: m_ReceiveGI
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: -7511558181221131132, guid: c295279508a3ef24183db41434919a44, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: fe8e09c887a53d04a902612c6f8603cc, type: 2}
+    - target: {fileID: -4932975534899597162, guid: c295279508a3ef24183db41434919a44, type: 3}
+      propertyPath: m_ReceiveGI
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: -4863210753181150069, guid: c295279508a3ef24183db41434919a44, type: 3}
+      propertyPath: m_ReceiveGI
+      value: 2
+      objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: c295279508a3ef24183db41434919a44, type: 3}
       propertyPath: m_Name
       value: Car_I
