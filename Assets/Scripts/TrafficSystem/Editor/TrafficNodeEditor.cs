@@ -7,26 +7,31 @@ public class TrafficNodeEditor : Editor
 {
     SerializedProperty exitsProp;
     SerializedProperty stopSignalProp;
+    SerializedProperty yieldPedProp;
 
-    static readonly Color colorNode     = new Color(1f,  0.85f, 0f,  1f);
-    static readonly Color colorNodeStop = new Color(1f,  0.25f, 0.25f, 1f);
-    static readonly Color colorExit     = new Color(1f,  0.85f, 0f,  0.7f);
+    static readonly Color colorNode      = new Color(1f,  0.85f, 0f,  1f);
+    static readonly Color colorNodeStop  = new Color(1f,  0.25f, 0.25f, 1f);
+    static readonly Color colorNodeYield = new Color(0.2f, 0.9f, 1f,  1f);
+    static readonly Color colorExit      = new Color(1f,  0.85f, 0f,  0.7f);
 
     void OnEnable()
     {
         if (!target) return;
+        FetchProps();
+    }
+
+    void FetchProps()
+    {
         exitsProp      = serializedObject.FindProperty("exits");
         stopSignalProp = serializedObject.FindProperty("stopSignal");
+        yieldPedProp   = serializedObject.FindProperty("yieldPedestrianSignal");
     }
 
     public override void OnInspectorGUI()
     {
         if (!target) { DrawDefaultInspector(); return; }
-        if (exitsProp == null || stopSignalProp == null)
-        {
-            exitsProp      = serializedObject.FindProperty("exits");
-            stopSignalProp = serializedObject.FindProperty("stopSignal");
-        }
+        if (exitsProp == null || stopSignalProp == null || yieldPedProp == null)
+            FetchProps();
         serializedObject.Update();
 
         var node = (TrafficNode)target;
@@ -52,6 +57,16 @@ public class TrafficNodeEditor : Editor
         EditorGUILayout.LabelField("── 신호 연결 ─────────────────────────", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(stopSignalProp,
             new GUIContent("Stop Signal", "null이면 자유 통과.\n할당하면 차량이 이 노드 앞에서 신호를 확인합니다."));
+        EditorGUILayout.PropertyField(yieldPedProp,
+            new GUIContent("Yield Pedestrian Signal",
+                "이 노드 바로 앞 횡단보도의 보행 신호.\n" +
+                "보행 초록이면 차량이 대기합니다 (회전 시 보행자 우선).\n" +
+                "회전 경로가 적신호 방향의 횡단보도를 가로지르는 노드에 지정하세요."));
+
+        if (yieldPedProp.objectReferenceValue != null)
+            EditorGUILayout.HelpBox(
+                "보행 초록 동안 이 노드에서 정지합니다. 직진 차선을 막지 않도록 회전 분기 이후 노드에 지정하세요.",
+                MessageType.Info);
 
         // ── 도구 ────────────────────────────────────────────────────────
         EditorGUILayout.Space(6);
@@ -74,12 +89,32 @@ public class TrafficNodeEditor : Editor
         bool isSelected = (gizmoType & GizmoType.Selected) != 0;
         float sphereSize = isSelected ? 0.55f : 0.35f;
 
-        // 노드 구: stopSignal 있으면 빨강, 없으면 노랑
-        bool hasStop = node.StopSignal != null;
-        Color nodeColor = hasStop ? colorNodeStop : colorNode;
+        // 노드 구: stopSignal 빨강 / 보행 양보 하늘색 / 없으면 노랑
+        bool hasStop  = node.StopSignal != null;
+        bool hasYield = node.YieldPedestrianSignal != null;
+        Color nodeColor = hasStop ? colorNodeStop : hasYield ? colorNodeYield : colorNode;
         nodeColor.a = isSelected ? 0.9f : 0.5f;
         Handles.color = nodeColor;
         Handles.SphereHandleCap(0, node.transform.position, Quaternion.identity, sphereSize, EventType.Repaint);
+
+        // 보행 양보 지점 — 보행 초록이면 강조
+        if (hasYield)
+        {
+            bool pedGreen = Application.isPlaying &&
+                            node.YieldPedestrianSignal.PedestrianSignal == PedestrianState.Green;
+            Handles.color = pedGreen
+                ? new Color(1f, 0.1f, 0.1f, 0.9f)     // 보행 초록 = 차량 정지
+                : new Color(0.2f, 0.9f, 1f, 0.6f);
+            Vector3 yp = node.transform.position;
+            Handles.DrawWireDisc(yp + Vector3.up * 0.05f, Vector3.up, 1.2f, 3f);
+
+            if (isSelected)
+            {
+                Handles.color = new Color(0.2f, 0.9f, 1f, 0.7f);
+                Handles.DrawDottedLine(yp, node.YieldPedestrianSignal.transform.position, 4f);
+                Handles.Label(yp + Vector3.up * 1.5f, $"  ⚑ 보행 양보 → {node.YieldPedestrianSignal.name}");
+            }
+        }
 
         // 정지선 표시
         if (hasStop)

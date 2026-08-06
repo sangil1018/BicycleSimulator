@@ -51,7 +51,7 @@ MonoBehaviour:
   pedestrianRedLight: {fileID: 3555428223817546423}
   pedestrianGreenLight: {fileID: 7526046844187459543}
   state: 0
-  blinkInterval: 0
+  blinkInterval: 0.2
   pedestrianState: 0
 --- !u!1001 &6042905655966568809
 PrefabInstance:

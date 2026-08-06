@@ -27,10 +27,15 @@ namespace TrafficSystem
         [Tooltip("같은 노드에 여러 차량 스폰 시 뒤로 띄우는 간격 (m)")]
         [SerializeField] float spawnSpacing = 6f;
 
+        [Header("신호 대기 제한")]
+        [Tooltip("신호 정지선 하나에 대기할 수 있는 최대 차량 수. 초과분은 다른 구간으로 재배치됩니다. 0이면 무제한.")]
+        [SerializeField] int maxQueuePerSignal = 5;
+
         void Awake()
         {
             if (Instance != null && Instance != this) { Destroy(gameObject); return; }
             Instance = this;
+            TrafficVehicle.MaxQueuePerSignal = maxQueuePerSignal;
             // 씬 전환 후 잔류하는 정적 큐 데이터 초기화
             TrafficVehicle.ClearQueues();
         }
@@ -54,6 +59,13 @@ namespace TrafficSystem
             {
                 var node   = spawnNodes[i % spawnNodes.Length];
                 if (node == null) continue;
+
+                // 신호 대기 정원이 찬 구간은 피한다 (여유 있는 스폰 노드가 없으면 이 대수는 생략)
+                if (TrafficVehicle.IsQueueFull(node))
+                {
+                    node = FindFreeSpawnNode(i);
+                    if (node == null) continue;
+                }
 
                 var prefab = vehiclePrefabs[Random.Range(0, vehiclePrefabs.Length)];
                 if (prefab == null) continue;
@@ -94,6 +106,7 @@ namespace TrafficSystem
             {
                 var candidate = spawnNodes[(start + i) % spawnNodes.Length];
                 if (candidate == null) continue;
+                if (TrafficVehicle.IsQueueFull(candidate)) continue;   // 정원이 찬 구간은 제외
                 var checkPos = candidate.transform.position + Vector3.up * heightOffset;
                 if (!Physics.CheckSphere(checkPos, 2.5f, vehicleLayer, QueryTriggerInteraction.Ignore))
                 {
@@ -102,10 +115,25 @@ namespace TrafficSystem
                 }
             }
 
+            // 물리적으로 비어있지 않더라도 정원에 여유가 있는 노드를 우선 사용
+            if (chosen == null)
+                chosen = FindFreeSpawnNode(start);
+
             if (chosen == null)
                 chosen = spawnNodes[Random.Range(0, spawnNodes.Length)];
 
             Teleport(vehicle, chosen);
+        }
+
+        // startIndex부터 순회하며 신호 대기 정원에 여유가 있는 스폰 노드를 찾는다.
+        TrafficNode FindFreeSpawnNode(int startIndex)
+        {
+            for (int i = 0; i < spawnNodes.Length; i++)
+            {
+                var c = spawnNodes[(startIndex + i) % spawnNodes.Length];
+                if (c != null && !TrafficVehicle.IsQueueFull(c)) return c;
+            }
+            return null;
         }
 
         void Teleport(TrafficVehicle vehicle, TrafficNode node)

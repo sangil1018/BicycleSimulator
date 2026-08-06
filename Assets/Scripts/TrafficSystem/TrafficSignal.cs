@@ -126,6 +126,9 @@ namespace TrafficSystem
 
         IEnumerator PedestrianGreenRoutine(float duration)
         {
+            // 0이면 elapsed가 증가하지 않아 루프가 끝나지 않음 — 하한 보정
+            float interval = Mathf.Max(0.05f, blinkInterval);
+
             float waitBeforeBlink = Mathf.Max(0f, duration - 1f);
             if (waitBeforeBlink > 0f)
                 yield return new WaitForSeconds(waitBeforeBlink);
@@ -134,11 +137,11 @@ namespace TrafficSystem
             float blinkDuration = Mathf.Min(1f, duration);
             while (elapsed < blinkDuration)
             {
-                bool on = (Mathf.FloorToInt(elapsed / blinkInterval) % 2 == 0);
+                bool on = (Mathf.FloorToInt(elapsed / interval) % 2 == 0);
                 SetEmission(pedestrianGreenLight, _pedGreenEmission, on);
                 SetEmission(pedestrianRedLight,   _pedRedEmission,   false);
-                yield return new WaitForSeconds(blinkInterval);
-                elapsed += blinkInterval;
+                yield return new WaitForSeconds(interval);
+                elapsed += interval;
             }
 
             pedestrianState = PedestrianState.Red;

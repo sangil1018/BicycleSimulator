@@ -39,6 +39,18 @@ namespace TrafficSystem
         [Tooltip("차량 좌우 반폭 (m)")]
         [SerializeField] float vehicleHalfWidth  = 0.8f;
 
+        [Header("교차로 내부 교차 양보")]
+        [Tooltip("교차로 안에서 두 차량의 경로가 교차할 때, 교차 지점에 먼저 도달하는 차량이 우선한다.")]
+        [SerializeField] bool yieldAtPathCrossing = true;
+        [Tooltip("이 거리 안의 차량만 교차 판정 대상 (m)")]
+        [SerializeField] float crossCheckRadius = 25f;
+        [Tooltip("교차 지점이 이 거리 안에 있을 때만 양보를 판단한다 (m).\n교차로 밖 먼 거리에서 미리 감속하는 것을 막는다.")]
+        [SerializeField] float crossYieldDistance = 12f;
+        [Tooltip("두 경로의 진행 방향 차이가 이 각도보다 커야 '교차'로 본다 (도).\n이하는 같은 방향이므로 추종 로직이 처리한다.")]
+        [SerializeField] float crossAngleThreshold = 30f;
+        [Tooltip("교차 지점 앞에 남길 여유 (m)")]
+        [SerializeField] float crossClearance = 2.5f;
+
         [Header("Performance")]
         [Tooltip("N 프레임마다 1회 원거리 BoxCast 실행")]
         [SerializeField] int speedCalcInterval = 4;
@@ -62,12 +74,44 @@ namespace TrafficSystem
         bool           _leaderInSameSegment; // false = 다음 세그먼트에서 찾은 체인 리더
         Vector3        _castHalfExt;
 
+        // 교차 양보 상태 (기즈모 표시용)
+        Vector3        _crossPoint;
+        TrafficVehicle _crossYieldTo;
+
         // ── Node Queue (정적 레지스트리) ──────────────────────────────────────
         static readonly Dictionary<TrafficNode, List<TrafficVehicle>> s_queues = new();
         TrafficNode _queuedAt;
 
+        // 교차 판정용 전체 차량 목록
+        static readonly List<TrafficVehicle> s_all = new();
+
+        const float CapacityRespawnCooldown = 3f;   // 정원 초과 재배치 최소 간격 (s)
+        float _lastCapacityRespawn = -999f;
+
+        // 신호 대기 노드 하나당 진입 가능한 최대 차량 수. 0 이하면 무제한.
+        // TrafficManager.Awake에서 설정한다.
+        public static int MaxQueuePerSignal = 5;
+
         // TrafficManager.Awake에서 호출 — 씬 전환 시 잔류 데이터 초기화
-        public static void ClearQueues() => s_queues.Clear();
+        public static void ClearQueues()
+        {
+            s_queues.Clear();
+            s_all.RemoveAll(v => v == null);
+        }
+
+        // 해당 노드를 향해 달리는(= 그 구간에서 신호를 기다리는) 차량 수
+        public static int QueueCount(TrafficNode node)
+        {
+            if (node == null || !s_queues.TryGetValue(node, out var list)) return 0;
+            int n = 0;
+            foreach (var v in list) if (v != null) n++;
+            return n;
+        }
+
+        // 신호 통제 노드이면서 대기 정원이 찼는지
+        public static bool IsQueueFull(TrafficNode node) =>
+            node != null && node.HasGate && MaxQueuePerSignal > 0 &&
+            QueueCount(node) >= MaxQueuePerSignal;
 
         void EnqueueAt(TrafficNode node)
         {
@@ -156,8 +200,22 @@ namespace TrafficSystem
             _castHalfExt = new Vector3(vehicleHalfWidth * 0.85f, 0.3f, 0.05f);
         }
 
-        void OnDisable() => Dequeue();
-        void OnDestroy() => Dequeue();
+        void OnEnable()
+        {
+            if (!s_all.Contains(this)) s_all.Add(this);
+        }
+
+        void OnDisable()
+        {
+            s_all.Remove(this);
+            Dequeue();
+        }
+
+        void OnDestroy()
+        {
+            s_all.Remove(this);
+            Dequeue();
+        }
 
         void Update()
         {
@@ -177,7 +235,9 @@ namespace TrafficSystem
             float emergency  = CalcEmergencySpeed();
             float queueSpeed = CalcSignalQueueSpeed();
             float signal     = CalcSignalSpeed();
-            float effective  = Mathf.Min(emergency, Mathf.Min(queueSpeed, Mathf.Min(targetSpeed, signal)));
+            float crossing   = CalcCrossingSpeed();
+            float effective  = Mathf.Min(Mathf.Min(emergency, queueSpeed),
+                                         Mathf.Min(Mathf.Min(targetSpeed, signal), crossing));
 
             float rate = effective < currentSpeed ? deceleration : acceleration;
             currentSpeed = Mathf.MoveTowards(currentSpeed, effective, rate * Time.deltaTime);
@@ -226,8 +286,8 @@ namespace TrafficSystem
             if (pendingNode == null)
                 pendingNode = currentNode.PickNext();
 
-            if (currentNode.StopSignal != null && !currentNode.StopSignal.CanPass)
-                return; // 빨간불 → 정지선 대기
+            if (currentNode.MustStop)
+                return; // 빨간불 또는 횡단보도 보행 초록 → 정지선 대기
 
             if (pendingNode == null)
             {
@@ -241,8 +301,39 @@ namespace TrafficSystem
                 return;
             }
 
+            // 진입하려는 구간의 신호 대기 정원이 찼으면 다른 출구로 우회, 없으면 다른 구간으로 재배치.
+            // 정원 초과 차량이 정지선 뒤로 계속 쌓이는 것을 막는다.
+            if (IsQueueFull(pendingNode))
+            {
+                var alt = PickFreeExit(pendingNode);
+                if (alt != null)
+                {
+                    pendingNode = alt;
+                }
+                // 모든 구간이 포화면 재배치해도 갈 곳이 없어 매 프레임 순간이동을 반복하게 된다.
+                // 쿨다운을 두고, 그 안에 다시 걸리면 정원 초과를 허용해 통과시킨다.
+                else if (TrafficManager.Instance != null &&
+                         Time.time - _lastCapacityRespawn > CapacityRespawnCooldown)
+                {
+                    _lastCapacityRespawn = Time.time;
+                    TrafficManager.Instance.OnVehicleNeedsRespawn(this);
+                    return;
+                }
+            }
+
             currentNode = pendingNode;
             pendingNode = null;
+        }
+
+        // currentNode의 출구 중 정원이 차지 않은 다른 노드
+        TrafficNode PickFreeExit(TrafficNode exclude)
+        {
+            for (int i = 0; i < currentNode.ExitCount; i++)
+            {
+                var e = currentNode.GetExitNode(i);
+                if (e != null && e != exclude && !IsQueueFull(e)) return e;
+            }
+            return null;
         }
 
         // ── Speed Calculation ─────────────────────────────────────────────────
@@ -287,10 +378,10 @@ namespace TrafficSystem
             return SpeedFromGap(bumperGap);
         }
 
-        // 매 프레임 — 선두 차량의 빨간불 정지
+        // 매 프레임 — 선두 차량의 빨간불 / 횡단보도 보행 초록 정지
         float CalcSignalSpeed()
         {
-            if (currentNode.StopSignal == null || currentNode.StopSignal.CanPass) return cruiseSpeed;
+            if (!currentNode.MustStop) return cruiseSpeed;
             float dist = PlanarDist(transform.position, currentNode.transform.position);
             if (dist > signalCheckDist) return cruiseSpeed;
             // 같은 세그먼트 앞차만 큐 속도에 위임 — 노드 너머 체인 리더는 빨간불 정지를 대신할 수 없음
@@ -301,6 +392,84 @@ namespace TrafficSystem
             float gap = dist - vehicleHalfLength - stopLineOffset;
             if (gap <= 0f) return 0f;
             return Mathf.Min(cruiseSpeed, Mathf.Sqrt(2f * deceleration * 0.8f * gap));
+        }
+
+        // 매 프레임 — 교차로 내부에서 경로가 교차하는 차량에 대한 양보.
+        // 교차 지점에 먼저 도달하는(= 남은 거리가 짧은) 차량이 우선하고, 늦은 쪽이 정지한다.
+        // 차량 수가 수십 대 수준이라 전체 순회로 충분하다 (거리 제곱 비교로 조기 탈락).
+        float CalcCrossingSpeed()
+        {
+            _crossYieldTo = null;
+            if (!yieldAtPathCrossing || currentNode == null) return cruiseSpeed;
+
+            Vector3 myPos = transform.position;
+            Vector3 myEnd = currentNode.transform.position;
+            Vector3 myDir = myEnd - myPos; myDir.y = 0f;
+            if (myDir.sqrMagnitude < 0.01f) return cruiseSpeed;
+            myDir.Normalize();
+
+            float radiusSq = crossCheckRadius * crossCheckRadius;
+            float best     = cruiseSpeed;
+
+            foreach (var other in s_all)
+            {
+                if (other == null || other == this || other.currentNode == null) continue;
+
+                Vector3 theirPos = other.transform.position;
+                if ((theirPos - myPos).sqrMagnitude > radiusSq) continue;
+
+                Vector3 theirEnd = other.currentNode.transform.position;
+                Vector3 theirDir = theirEnd - theirPos; theirDir.y = 0f;
+                if (theirDir.sqrMagnitude < 0.01f) continue;
+                theirDir.Normalize();
+
+                // 진행 방향이 비슷하면 교차가 아니라 추종 상황 — 기존 로직이 처리한다
+                if (Vector3.Angle(myDir, theirDir) < crossAngleThreshold) continue;
+
+                if (!SegmentIntersect(myPos, myEnd, theirPos, theirEnd, out var point)) continue;
+
+                float myGap = PlanarDist(myPos, point);
+                if (myGap > crossYieldDistance) continue;   // 아직 교차로 밖 — 미리 감속하지 않음
+                if (myGap <= vehicleHalfLength) continue;   // 이미 교차점에 진입 — 멈추면 오히려 위험
+
+                float theirGap = PlanarDist(theirPos, point);
+
+                // 상대가 멈춰 있고 교차점에서도 멀면 실제로 건너올 차가 아니다 (상호 대기 교착 방지)
+                if (other.currentSpeed < 0.5f && theirGap > crossClearance * 2f) continue;
+
+                // 먼저 도달하는 쪽이 우선. 동률이면 InstanceID로 갈라 서로 양보하는 교착을 막는다.
+                bool theyGoFirst = theirGap < myGap - 0.1f ||
+                                   (Mathf.Abs(theirGap - myGap) <= 0.1f &&
+                                    other.GetInstanceID() < GetInstanceID());
+                if (!theyGoFirst) continue;
+
+                _crossYieldTo = other;
+                _crossPoint   = point;
+
+                float stopGap = myGap - vehicleHalfLength - crossClearance;
+                if (stopGap <= 0f) return 0f;
+                best = Mathf.Min(best, Mathf.Sqrt(2f * deceleration * 0.8f * stopGap));
+            }
+
+            return best;
+        }
+
+        // 두 선분(XZ 평면)의 교차점. 교차하지 않으면 false.
+        static bool SegmentIntersect(Vector3 a0, Vector3 a1, Vector3 b0, Vector3 b1, out Vector3 hit)
+        {
+            hit = default;
+            float ax = a1.x - a0.x, az = a1.z - a0.z;
+            float bx = b1.x - b0.x, bz = b1.z - b0.z;
+            float den = ax * bz - az * bx;
+            if (Mathf.Abs(den) < 1e-5f) return false;    // 평행
+
+            float dx = b0.x - a0.x, dz = b0.z - a0.z;
+            float t = (dx * bz - dz * bx) / den;         // a0→a1 상의 위치
+            float u = (dx * az - dz * ax) / den;         // b0→b1 상의 위치
+            if (t < 0f || t > 1f || u < 0f || u > 1f) return false;
+
+            hit = new Vector3(a0.x + ax * t, a0.y, a0.z + az * t);
+            return true;
         }
 
         // gap(범퍼~범퍼 거리) → 목표 속도
@@ -328,7 +497,7 @@ namespace TrafficSystem
             var right = Vector3.Cross(transform.forward, Vector3.up).normalized;
             float w = vehicleHalfWidth;
 
-            if (currentNode != null && currentNode.StopSignal != null)
+            if (currentNode != null && currentNode.HasGate)
             {
                 Gizmos.color = new Color(1f, 0.2f, 0.2f, 0.4f);
                 Gizmos.DrawWireSphere(currentNode.transform.position, signalCheckDist);
@@ -358,6 +527,16 @@ namespace TrafficSystem
                 Gizmos.color = Color.magenta;
                 Gizmos.DrawLine(transform.position + Vector3.up * 0.5f,
                                 _leader.transform.position + Vector3.up * 0.5f);
+            }
+
+            // 교차 양보 — 교차 지점(주황 구)과 양보 대상 연결선
+            if (_crossYieldTo != null)
+            {
+                Gizmos.color = new Color(1f, 0.5f, 0f, 0.9f);
+                Gizmos.DrawWireSphere(_crossPoint + Vector3.up * 0.3f, 0.8f);
+                Gizmos.DrawLine(transform.position + Vector3.up * 0.5f, _crossPoint + Vector3.up * 0.3f);
+                Gizmos.DrawLine(_crossPoint + Vector3.up * 0.3f,
+                                _crossYieldTo.transform.position + Vector3.up * 0.5f);
             }
 
             DrawWheelGizmos();

@@ -19,8 +19,22 @@ namespace TrafficSystem
         [SerializeField] Exit[] exits;
         [Tooltip("이 노드에서 대기해야 하는 차량 신호. null이면 자유 통과.")]
         [SerializeField] TrafficSignal stopSignal;
+        [Tooltip("이 노드 바로 앞 횡단보도의 보행 신호. 보행 초록이면 대기한다 (회전 시 보행자 우선).\n" +
+                 "회전 경로가 적신호 방향의 횡단보도를 가로지르는 노드에 지정할 것. null이면 검사하지 않음.")]
+        [SerializeField] TrafficSignal yieldPedestrianSignal;
 
-        public TrafficSignal StopSignal => stopSignal;
+        public TrafficSignal StopSignal            => stopSignal;
+        public TrafficSignal YieldPedestrianSignal => yieldPedestrianSignal;
+
+        // 신호로 통제되는 노드인지 — 대기 정원 제한 대상 판정에 사용
+        public bool HasGate => stopSignal != null || yieldPedestrianSignal != null;
+
+        // 지금 이 노드 앞에서 정지해야 하는지 — 차량 적신호 또는 횡단보도 보행 초록
+        public bool MustStop =>
+            (stopSignal != null && !stopSignal.CanPass) ||
+            (yieldPedestrianSignal != null &&
+             yieldPedestrianSignal.PedestrianSignal == PedestrianState.Green);
+
         public int ExitCount => exits?.Length ?? 0;
         public TrafficNode GetExitNode(int i) =>
             (exits != null && i >= 0 && i < exits.Length) ? exits[i].node : null;
@@ -72,10 +86,12 @@ namespace TrafficSystem
 #if UNITY_EDITOR
         void OnDrawGizmos()
         {
-            // 노드 구: stopSignal 있으면 빨강, 없으면 노랑
+            // 노드 구: stopSignal 빨강 / 보행 양보 하늘색 / 없으면 노랑
             Gizmos.color = stopSignal != null
                 ? new Color(1f, 0.2f, 0.2f, 0.9f)
-                : new Color(1f, 0.85f, 0f, 0.9f);
+                : yieldPedestrianSignal != null
+                    ? new Color(0.2f, 0.9f, 1f, 0.9f)
+                    : new Color(1f, 0.85f, 0f, 0.9f);
             Gizmos.DrawSphere(transform.position, 0.4f);
 
             if (exits == null) return;
@@ -91,6 +107,13 @@ namespace TrafficSystem
             {
                 Gizmos.color = new Color(1f, 0.3f, 0.3f, 0.5f);
                 Gizmos.DrawLine(transform.position, stopSignal.transform.position);
+            }
+
+            // 보행 양보 연결선
+            if (yieldPedestrianSignal != null)
+            {
+                Gizmos.color = new Color(0.2f, 0.9f, 1f, 0.5f);
+                Gizmos.DrawLine(transform.position, yieldPedestrianSignal.transform.position);
             }
         }
 #endif
