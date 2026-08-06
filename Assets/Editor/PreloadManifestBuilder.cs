@@ -54,7 +54,7 @@ public static class PreloadManifestBuilder
         var seen = new HashSet<string>();
         long totalBytes = 0;
 
-        // 씬 의존성 전체 — 스크립트/씬 파일만 제외하고 모두 포함
+        // 씬 의존성 전체 — 스크립트/씬 파일과 "빌드에 넣으면 안 되는 것"만 제외하고 모두 포함
         // (애니메이션 클립을 통한 네비게이션 스프라이트, 셰이더/머티리얼, 프리팹까지 커버됨)
         foreach (string dep in AssetDatabase.GetDependencies(scenePath, true))
         {
@@ -62,9 +62,11 @@ public static class PreloadManifestBuilder
 
             var type = AssetDatabase.GetMainAssetTypeAtPath(dep);
             if (type == null || type == typeof(MonoScript) || type == typeof(SceneAsset)) continue;
+            if (IsProbeVolumeData(dep) || IsEditorOnly(dep)) continue;
 
             var asset = AssetDatabase.LoadMainAssetAtPath(dep);
             if (asset == null) continue;
+            if ((asset.hideFlags & HideFlags.DontSaveInBuild) != 0) continue; // IsEditorOnly 주석 참고
             assets.Add(asset);
 
             var info = new FileInfo(dep);
@@ -100,4 +102,33 @@ public static class PreloadManifestBuilder
 
         Debug.Log($"[PreloadManifestBuilder] {outputName}: 에셋 {assets.Count}개 → 청크 {chunkCount}개, 원본 {totalBytes / (1024f * 1024f):F1} MB");
     }
+
+    /// <summary>
+    /// Adaptive Probe Volume 베이크 데이터(&lt;베이킹 세트&gt;.Cell*Data.bytes)인지.
+    ///
+    /// 이것만은 매니페스트에서 빼야 한다. APV는 빌드 시 이 데이터를 StreamingAssets로 복사해
+    /// 자체 스트리밍으로 읽고, 디버그용 CellSupportData는 아예 스트립한다
+    /// (ProbeVolumeBuildProcessor.PrepareForBuild). Resources 안의 매니페스트가 TextAsset을
+    /// 직접 참조하면 그 처리가 전부 무효화되고 원본이 통째로 resources.assets에 들어간다.
+    /// 레벨1+2 합 약 1.6 GB로, 단일 직렬화 파일 한계를 넘겨 빌드가 실패했다
+    /// ("Building - Failed to write file: resources.assets").
+    /// </summary>
+    static bool IsProbeVolumeData(string path) =>
+        path.EndsWith(".bytes", System.StringComparison.OrdinalIgnoreCase) &&
+        Path.GetFileNameWithoutExtension(path).Contains(".Cell");
+
+    /// <summary>
+    /// 에디터 전용 에셋 경로인지 (…/Editor/…, …/Editor Resources/…).
+    ///
+    /// GetDependencies(recursive: true)는 에디터 의존성까지 돌려주기 때문에, TMP 컴포넌트의
+    /// 기즈모 아이콘(Packages/com.unity.ugui/Editor Resources/Gizmos/TMP - Text Component Icon.psd)
+    /// 처럼 빌드에 들어가면 안 되는 에셋이 섞여 온다. 매니페스트는 Resources 안에 있어 그 참조가
+    /// 곧 빌드 포함을 의미하는데, 이런 에셋은 HideFlags.DontSave라 직렬화가 거부되고
+    /// resources.assets 쓰기 전체가 실패한다:
+    ///   "An asset is marked with HideFlags.DontSave but is included in the build"
+    ///   → "Building - Failed to write file: resources.assets"
+    /// 씬은 이 아이콘을 참조하지 않는다 — 오직 매니페스트만 끌어온다.
+    /// </summary>
+    static bool IsEditorOnly(string path) =>
+        path.Contains("/Editor/") || path.Contains("/Editor Resources/");
 }

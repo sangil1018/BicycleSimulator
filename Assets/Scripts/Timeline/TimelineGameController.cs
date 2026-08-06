@@ -291,6 +291,15 @@ public class TimelineGameController : MonoBehaviour
         director.Stop();
     }
 
+    public void End()
+    {
+        _canMove = false;
+        if (director == null) return;
+        SetRootSpeed(0f);
+        director.time = director.duration;
+        director.Evaluate();
+    }
+
     /// <summary>자동진행 구간 전환. true이면 입력 무시하고 fixedAutoSpeed로 재생.</summary>
     public void SetAutoPlay(bool auto)
     {

@@ -4,14 +4,15 @@
 >
 > Timeline은 Unity가 자동 재생하지 않습니다.
 > 자전거 페달 속도에 비례해 `TimelineGameController`가 매 프레임 재생 속도를 조절합니다.
-> 이벤트는 네 종류의 트랙으로 배치합니다.
+> 이벤트는 세 종류의 트랙으로 배치합니다.
 > - **게임 이벤트** → Unity 내장 **Signal Track** + Signal Emitter (내장 Signal Receiver가 UnityEvent로 수신)
-> - **방향 안내** → 커스텀 **Direction Track** + `DirectionMarker`
 > - **퀴즈** → 커스텀 **Quiz Track** + `QuizMarker`
 > - **진행도 체크포인트** → 커스텀 **Checkpoint Track** + `CheckpointMarker`
 >
-> 앞의 세 트랙은 최종적으로 `GameSignalReceiver`로 전달되고,
+> 앞의 두 트랙은 최종적으로 `GameSignalReceiver`로 전달되고,
 > **Checkpoint Track만 예외**로 `TimelineGameController`가 타임라인 에셋에서 직접 읽습니다(바인딩 불필요).
+>
+> 방향 안내는 타임라인이 아니라 [`RoadNavigationGuide`](../Navigation/NavigationGuide.md)(노면 셰브론)가 담당합니다.
 
 ---
 
@@ -20,8 +21,8 @@
 ```
 ① GameObject 구성        ← PlayableDirector + 두 컴포넌트 + 내장 Signal Receiver
 ② Timeline Asset 생성    ← .playable 파일 생성 및 연결
-③ 트랙 구성              ← Animation / Signal / Direction / Quiz / Checkpoint Track
-④ 이벤트 배치            ← Signal Emitter · DirectionMarker · QuizMarker · CheckpointMarker
+③ 트랙 구성              ← Animation / Signal / Quiz / Checkpoint Track
+④ 이벤트 배치            ← Signal Emitter · QuizMarker · CheckpointMarker
 ⑤ Inspector 값 설정      ← 속도·배속 파라미터 입력
 ⑥ 바인딩 최종 확인       ← 연결 누락 없는지 체크
 ⑦ Play 테스트            ← 디버그 HUD로 확인
@@ -63,13 +64,8 @@ Inspector → Playable Director
 
 ### 1-4. Game Signal Receiver 설정
 
-```
-Inspector → Game Signal Receiver
-  Speed UI Controller : 씬의 SpeedUIController 오브젝트 드래그
-```
-
-`GameSignalReceiver`의 역할:
-- `QuizMarker`·`DirectionMarker`는 `OnNotify()`에서 직접 수신.
+`GameSignalReceiver`는 별도 Inspector 설정이 없습니다. 역할:
+- `QuizMarker`는 `OnNotify()`에서 직접 수신.
 - 게임 이벤트는 내장 `Signal Receiver`의 UnityEvent가 아래 public 메서드를 호출:
   `TriggerBrakeEvent` · `TriggerWarningStop` · `TriggerBicycleStop` · `TriggerAutoPlayStart` · `TriggerAutoPlayEnd`
 
@@ -127,7 +123,6 @@ Animation Track 위 우클릭 → Add Animation Clip
 ```
 Timeline 창 → + 버튼 →
   Signal Track       ← 게임 이벤트 (브레이크/경고/자동진행 등)
-  Direction Track    ← 방향 안내 화살표
   Quiz Track         ← OX 퀴즈
   Checkpoint Track   ← 진행도 슬라이더 기준점 + 구간 이벤트
 ```
@@ -137,7 +132,6 @@ Timeline 창 → + 버튼 →
 | 트랙 | 바인딩 대상 |
 |------|-------------|
 | Signal Track | 내장 `Signal Receiver` (TimelineDirector) |
-| Direction Track | `GameSignalReceiver` (TimelineDirector) |
 | Quiz Track | `GameSignalReceiver` (TimelineDirector) |
 | Checkpoint Track | **바인딩 없음** — `TimelineGameController`가 에셋에서 직접 읽음 |
 
@@ -176,22 +170,7 @@ Signal Track 위 원하는 시간에 우클릭 → Add Signal Emitter
 > 예: `AutoPlayEnd` 시그널 하나에 `TriggerAutoPlayEnd` + `FollowBikeRotation`을 함께 연결해
 > 자동진행이 끝나는 순간 자전거가 다시 조향을 따라가게 합니다.
 
-### 4-2. 방향 안내 (Direction Track)
-
-```
-Direction Track 위 원하는 시간에 우클릭 → Add DirectionMarker
-생성된 마커 클릭 → Inspector에서 설정
-```
-
-| 필드 | 설명 |
-|------|------|
-| `Direction` | `Normal`(직진) / `Left` / `Right` / `Right45`(우사선) |
-| `Retroactive` | 타임라인 도중 진입 시 이미 지난 마커 재실행 여부 |
-| `Emit Once` | 루프 재생 시 1회만 발화 |
-
-> 속도 tier에 따라 UI 트리거에 자동 postfix가 붙습니다: `left` → `left_y`(yellow) → `left_r`(red)
-
-### 4-3. 퀴즈 (Quiz Track)
+### 4-2. 퀴즈 (Quiz Track)
 
 ```
 Quiz Track 위 원하는 시간에 우클릭 → Add QuizMarker
@@ -201,13 +180,14 @@ Quiz Track 위 원하는 시간에 우클릭 → Add QuizMarker
 | 필드 | 설명 |
 |------|------|
 | `Quiz Index` | 퀴즈 번호 (0~3) |
-| `Retroactive` / `Emit Once` | DirectionMarker와 동일 |
+| `Retroactive` | 타임라인 도중 진입 시 이미 지난 마커 재실행 여부 |
+| `Emit Once` | 루프 재생 시 1회만 발화 |
 
 > 퀴즈 도달 시 타임라인이 Freeze되고 퀴즈 UI가 표시됩니다.
 > **마지막 퀴즈**(`GameManager.FinalQuizIndex`, 기본 3)는 `BlackBoard`의 엔딩 시퀀스가
 > `OnTimelineComplete()`를 호출하여 결과 화면으로 전환합니다.
 
-### 4-4. 진행도 체크포인트 (Checkpoint Track)
+### 4-3. 진행도 체크포인트 (Checkpoint Track)
 
 상단 진행도 슬라이더의 **눈금 위치**를 정의하고, 통과 시 임의의 이벤트를 1회 발동합니다.
 
@@ -233,13 +213,11 @@ Checkpoint Track 위 원하는 시간에 우클릭 → Add CheckpointMarker
 > 시간순 i번째 마커의 `Index`가 i가 아니면 경고가 뜹니다 —
 > **슬라이더는 시간순, 이벤트는 Index 슬롯**으로 동작하므로 둘을 일치시키세요.
 
-### 4-5. 배치 예시 (60초 코스 기준)
+### 4-4. 배치 예시 (60초 코스 기준)
 
 ```
 T= 0:00  ───── 라이딩 시작 (Play() 호출로 진입)
 T= 0:05  [Checkpoint] idx=0    슬라이더 첫 눈금
-T= 0:08  [Direction] Right     방향 화살표 → 우회전
-T= 0:10  [Direction] Normal    방향 화살표 → 직진
 T= 0:15  [Signal] BrakeEvent   돌발 브레이크
 T= 0:25  [Quiz] idx=0          퀴즈 0번
 T= 0:30  [Checkpoint] idx=1    슬라이더 두 번째 눈금
@@ -317,10 +295,9 @@ Play 전 아래 항목을 하나씩 확인합니다.
 □ PlayableDirector.PlayOnAwake = Off
 □ PlayableDirector.Playable = Level1_Timeline (에셋 연결됨)
 □ TimelineGameController.Director 참조가 비어있지 않음
-□ GameSignalReceiver.SpeedUIController 연결됨
 □ Signal Track 바인딩 = 내장 Signal Receiver, 각 Emitter에 Signal Asset 지정
 □ 내장 Signal Receiver의 UnityEvent가 GameSignalReceiver.Trigger* 메서드에 연결됨
-□ Direction Track / Quiz Track 바인딩 = GameSignalReceiver
+□ Quiz Track 바인딩 = GameSignalReceiver
 □ QuizMarker에 Quiz Index가 올바르게 설정됨
 □ CheckpointMarker 8개 배치, Index가 시간순(0→7)과 일치
 □ TimelineGameController.Nav Slider 연결됨 (진행도 슬라이더 사용 시)
@@ -392,10 +369,9 @@ AutoPlayStart 신호 도달:
 | Timeline이 전혀 안 움직임 | `canMove=false` 고착 | O버튼 → `StartRiding()` → `Play()` 호출 경로 확인 |
 | 시그널/마커가 발화 안 됨 | UpdateMode 오류 | PlayableDirector.UpdateMode = **Game Time** 확인 |
 | 게임 이벤트만 발화 안 됨 | Signal Receiver 미연결 | Signal Track 바인딩 + UnityEvent → GameSignalReceiver 연결 확인 |
-| 방향/퀴즈만 발화 안 됨 | 트랙 바인딩 누락 | Direction/Quiz Track 바인딩 = GameSignalReceiver 확인 |
+| 퀴즈만 발화 안 됨 | 트랙 바인딩 누락 | Quiz Track 바인딩 = GameSignalReceiver 확인 |
 | 속도 무관하게 일정 속도 진행 | `_autoPlay=true` 고착 | `AutoPlayEnd` 신호 배치 또는 `SetAutoPlay(false)` 확인 |
 | `graphValid:False` | PlayableAsset 미연결 | PlayableDirector.Playable 필드에 .playable 에셋 재연결 |
-| 방향 화살표가 변경 안 됨 | SpeedUIController 미연결 | GameSignalReceiver.SpeedUIController 드래그 재확인 |
 | 진행도 슬라이더가 안 움직임 | Nav Slider 미연결 | TimelineGameController.Nav Slider에 Slider 드래그 |
 | 슬라이더 간격이 들쭉날쭉 | CheckpointMarker 누락 | 마커 8개 배치 확인 (없으면 시간 비례로 폴백) |
 | 체크포인트 이벤트가 안 나옴 | Index ↔ 슬롯 불일치 | Console의 `Checkpoint Index N — 대응하는 이벤트 슬롯이 없습니다` 경고 확인 후 Index를 0~7로 수정 |

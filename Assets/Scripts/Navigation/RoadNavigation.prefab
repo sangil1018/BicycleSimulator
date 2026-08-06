@@ -60,11 +60,11 @@ MonoBehaviour:
     m_Bits: 1
   rayHeight: 3
   rayLength: 8
-  groundOffset: 0.02
+  groundOffset: 0
   flowSpeed: 2
   flowFollowsBikeSpeed: 1
-  nearFade: 3
-  farFade: 10
+  nearFade: 1
+  farFade: 14
   maxAlpha: 1
   tintBySpeed: 1
   normalColor: {r: 0.01, g: 0.92, b: 0.87, a: 1}

@@ -260,11 +260,6 @@ public class GameManager : SceneSingleton<GameManager>
         if (TimelineController != null) TimelineController.Resume();
     }
 
-    public void TriggerDirectionHint(string direction)
-    {
-        Debug.Log($"[GameManager] Direction Hint: {direction}");
-    }
-
     // ── 이벤트 루틴 ───────────────────────────────────────────────
 
     IEnumerator WarningStopRoutine()
@@ -325,7 +320,7 @@ public class GameManager : SceneSingleton<GameManager>
     {
         // StopAllCoroutines();
         ChangeState(GameState.GameResult);
-        if (TimelineController != null) TimelineController.Stop();
+        if (TimelineController != null) TimelineController.End();
 
         StartCoroutine(FinalResultRoutine(delay));
     }

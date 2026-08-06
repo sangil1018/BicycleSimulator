@@ -1,6 +1,15 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Splines;
+
+/// <summary>속도 등급. 판정 기준은 RoadNavigationGuide가 단독으로 소유한다.</summary>
+public enum SpeedTier
+{
+    Normal,
+    Yellow,
+    Red,
+}
 
 /// <summary>
 /// 도로 위에 셰브론(꺾쇠) 유도선을 깔아주는 월드 공간 네비게이션.
@@ -69,7 +78,7 @@ public class RoadNavigationGuide : MonoBehaviour
     [SerializeField] float maxAlpha = 1f;
 
     [Header("Speed Tier Color")]
-    [Tooltip("속도 등급에 따라 셰브론 색을 바꾼다 (SpeedUIController와 동일 기준)")]
+    [Tooltip("속도 등급에 따라 셰브론 색을 바꾼다. 끄더라도 등급 판정 자체는 계속되어 SpeedUIController로 전달된다")]
     [SerializeField] bool tintBySpeed = true;
     [SerializeField] Color normalColor = new Color(0.01f, 0.92f, 0.87f, 1f);
     [SerializeField] Color yellowColor = new Color(1f, 0.87f, 0.0f, 1f);
@@ -112,6 +121,9 @@ public class RoadNavigationGuide : MonoBehaviour
 
     float _yellowThreshold = 20f;
     float _redThreshold = 30f;
+
+    SpeedTier _tier = SpeedTier.Normal;
+    bool _tierValid;      // 최초 1회는 값이 같아도 반드시 통지한다
 
     bool _stateAllowsShow = true;
 
@@ -198,13 +210,17 @@ public class RoadNavigationGuide : MonoBehaviour
     {
         try
         {
-            if (_lutPos == null || viewer == null) return;
-
             float kph = InputManager.Instance != null ? InputManager.Instance.SpeedKph : 0f;
+
+            // 등급 판정은 경로 유무와 무관하게 항상 갱신한다.
+            // 구독자(SpeedUIController의 과속 UI)가 경로가 없다고 멈춰서는 안 된다.
+            UpdateTier(kph);
+
+            if (_lutPos == null || viewer == null) return;
 
             UpdateFlow(kph);
             UpdateAlpha(kph);
-            UpdateTint(kph);
+            UpdateTint();
 
             if (_alpha <= 0.001f)
             {
@@ -239,6 +255,15 @@ public class RoadNavigationGuide : MonoBehaviour
         _stateAllowsShow = visible;
     }
 
+    /// <summary>
+    /// 현재 속도 등급. 이 컴포넌트가 단독으로 판정하며,
+    /// 속도 HUD(SpeedUIController)를 포함한 모든 소비자가 여기서 값을 받아간다.
+    /// </summary>
+    public SpeedTier CurrentTier => _tier;
+
+    /// <summary>등급이 바뀔 때 발행. 주행(NormalRiding) 진입 시에도 현재 등급으로 다시 발행된다.</summary>
+    public event Action<SpeedTier> OnTierChanged;
+
     public bool HasRoute => _lutPos != null && _lutPos.Length > 1;
     public float RouteLength => _routeLength;
 
@@ -263,14 +288,31 @@ public class RoadNavigationGuide : MonoBehaviour
         _alpha = Mathf.MoveTowards(_alpha, _targetAlpha, step);
     }
 
-    void UpdateTint(float kph)
+    /// <summary>속도 등급을 판정하고, 바뀌었으면 구독자에게 알린다.</summary>
+    void UpdateTier(float kph)
     {
-        Color target = normalColor;
-        if (tintBySpeed)
-        {
-            if (kph >= _redThreshold) target = redColor;
-            else if (kph >= _yellowThreshold) target = yellowColor;
-        }
+        SpeedTier tier;
+        if (kph >= _redThreshold) tier = SpeedTier.Red;
+        else if (kph >= _yellowThreshold) tier = SpeedTier.Yellow;
+        else tier = SpeedTier.Normal;
+
+        if (_tierValid && tier == _tier) return;
+
+        _tier = tier;
+        _tierValid = true;
+        OnTierChanged?.Invoke(tier);
+    }
+
+    void UpdateTint()
+    {
+        Color target = tintBySpeed
+            ? _tier switch
+            {
+                SpeedTier.Red => redColor,
+                SpeedTier.Yellow => yellowColor,
+                _ => normalColor,
+            }
+            : normalColor;
 
         float step = colorBlendDuration > 0.001f ? Time.deltaTime / colorBlendDuration : 1f;
         _tint = Color.Lerp(_tint, target, Mathf.Clamp01(step));
@@ -567,13 +609,12 @@ public class RoadNavigationGuide : MonoBehaviour
     {
         try
         {
-            if (!hideOnNonRiding)
-            {
-                _stateAllowsShow = true;
-                return;
-            }
+            // 주행에 재진입하면 등급을 다시 통지하도록 무효화한다.
+            // (SpeedUIController가 _currentTier를 초기화해 과속 UI를 재무장하던 동작을 이쪽으로 옮긴 것)
+            if (state == GameState.NormalRiding)
+                _tierValid = false;
 
-            _stateAllowsShow = state == GameState.NormalRiding;
+            _stateAllowsShow = !hideOnNonRiding || state == GameState.NormalRiding;
         }
         catch (System.Exception ex)
         {

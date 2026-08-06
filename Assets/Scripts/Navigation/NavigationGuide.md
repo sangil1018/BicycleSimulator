@@ -2,8 +2,8 @@
 
 > **도로 위에 셰브론(꺾쇠) 유도선을 깔아 주행 경로를 안내합니다.**
 >
-> 기존 `SpeedUIController`의 화면 고정 방향 아이콘은 그대로 두고,
-> 노면 유도선을 **추가**하는 구조입니다. (참고 이미지처럼 둘이 공존)
+> 구 시스템(화면 상단 고정 방향 화살표 + Timeline Direction 마커)을 **대체**합니다.
+> 방향 안내는 전적으로 이 컴포넌트가 담당하며, `SpeedUIController`는 속도 텍스트와 과속 경고만 맡습니다.
 
 ---
 
@@ -238,7 +238,7 @@ Chevron Material  : ②에서 만든 NavChevron_MAT 드래그
 | **Flow** | `Flow Speed` | 0이면 노면에 그려진 것처럼 고정 | `0` |
 | | `Flow Follows Bike Speed` | 체크 시 Flow Speed가 자전거 속도 배율로 동작 | ✗ |
 | **Fade** | `Near Fade` / `Far Fade` | 표시 구간 양 끝 페이드 길이(m) | `3` / `12` |
-| **Speed Tier Color** | `Tint By Speed` | 속도 등급별 색 전환 (SpeedUIController와 동일 기준) | ✔ |
+| **Speed Tier Color** | `Tint By Speed` | 속도 등급별 색 전환. **끄더라도 등급 판정 자체는 계속**되어 `SpeedUIController`의 과속 UI로 전달됨 | ✔ |
 | | `Normal/Yellow/Red Color` | 등급별 색 | 청록/노랑/빨강 |
 | **Visibility** | `Hide On Non Riding` | `NormalRiding` 상태에서만 표시 | ✔ |
 | | `Visible Speed Threshold` | 이 속도 미만이면 숨김(km/h) | `1` |
@@ -302,5 +302,6 @@ Road Navigation Guide 인스펙터
 
 ## 관련 문서
 
-- [Timeline 구성 가이드](../Timeline/TimelineGuide.md) — 방향 마커·이벤트 배치
-- [SpeedUIController](../UI/SpeedUIController.cs) — 화면 고정 방향 아이콘 / 속도 등급 기준
+- [Timeline 구성 가이드](../Timeline/TimelineGuide.md) — 이벤트·퀴즈·체크포인트 배치
+- [SpeedUIController](../UI/SpeedUIController.cs) — 속도 텍스트 / 과속 경고 UI.
+  속도 등급은 **이 컴포넌트가 단독 판정**하고 `OnTierChanged` 이벤트로 넘겨준다 (씬에서 자동 탐색, 인스펙터 연결 불필요)

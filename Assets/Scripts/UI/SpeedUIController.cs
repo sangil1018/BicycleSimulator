@@ -3,8 +3,13 @@ using UnityEngine;
 
 
 /// <summary>
-/// 속도 UI 표시 및 네비게이션 방향 애니메이터 제어.
+/// 속도 UI(속도 텍스트 · 과속 경고) 표시 제어.
 /// GameManager.OnStateChanged를 구독하여 자동으로 Show/Hide 처리.
+///
+/// 속도 등급(Normal/Yellow/Red) 판정은 이 컴포넌트가 하지 않는다 —
+/// RoadNavigationGuide가 단독 판정하고 여기서는 통지를 받기만 한다.
+/// 두 곳에서 따로 계산하면 셰브론 색과 과속 UI의 전환 시점이 어긋나기 때문.
+/// 주행 방향 안내 역시 RoadNavigationGuide(노면 셰브론)가 담당한다.
 /// </summary>
 public class SpeedUIController : MonoBehaviour
 {
@@ -15,19 +20,10 @@ public class SpeedUIController : MonoBehaviour
     [Tooltip("속도 숫자 텍스트. 영속 싱글톤인 InputManager가 아니라 씬 스코프인 여기서 갱신한다 — 씬 전환 시 참조가 끊기지 않도록.")]
     [SerializeField] TMPro.TMP_Text speedText;
 
-    [Header("Speed Thresholds (km/h)")]
-    [Tooltip("노란색 속도 경고 기준값")]
-    [SerializeField] float yellowThreshold = 16f;
-    [Tooltip("빨간색 속도 경고 기준값")]
-    [SerializeField] float redThreshold = 25f;
-
     [Header("Over Speed UI")]
     [SerializeField] GameObject overSpeedUI;
     [Tooltip("과속 UI 애니메이션 길이를 읽지 못했을 때 사용할 표시 시간(초)")]
     [SerializeField] float overSpeedFallbackDuration = 1f;
-
-    [Header("Navigation Animator")]
-    [SerializeField] Animator navigationAnimator;
 
     [Header("Fade")]
     [SerializeField] float fadeDuration = 0.3f;
@@ -37,27 +33,17 @@ public class SpeedUIController : MonoBehaviour
     [SerializeField] float visibleSpeedThreshold = 1f;
 
     // ── 내부 상태 ──────────────────────────────────────────────────
-    string _currentDirection = "normal";
-    SpeedTier _currentTier = SpeedTier.Normal;
     Coroutine _fadeCoroutine;
     bool _stateAllowsShow = false;
     bool _isVisible = false;
     Animator _overSpeedAnimator;
     Coroutine _overSpeedCoroutine;
-
-    enum SpeedTier { Normal, Yellow, Red }
+    RoadNavigationGuide _tierSource;
 
     void Start()
     {
         try
         {
-            // InputManager 싱글톤 인스턴스로부터 설정값(Yellow/Red Threshold)을 가져옵니다.
-            if (InputManager.Instance != null)
-            {
-                yellowThreshold = InputManager.Instance.YellowThreshold;
-                redThreshold = InputManager.Instance.RedThreshold;
-            }
-
             if (overSpeedUI != null)
                 _overSpeedAnimator = overSpeedUI.GetComponentInChildren<Animator>(true);
         }
@@ -73,6 +59,15 @@ public class SpeedUIController : MonoBehaviour
         {
             if (GameManager.Instance != null)
                 GameManager.Instance.OnStateChanged += OnGameStateChanged;
+
+            // 등급 판정의 소유자. 같은 씬에 상주하므로 Awake 순서와 무관하게 찾을 수 있다.
+            if (_tierSource == null)
+                _tierSource = FindFirstObjectByType<RoadNavigationGuide>();
+
+            if (_tierSource != null)
+                _tierSource.OnTierChanged += OnSpeedTierChanged;
+            else
+                Debug.LogWarning($"SpeedUIController({name}): 씬에 RoadNavigationGuide가 없어 과속 UI가 동작하지 않습니다.");
         }
         catch (System.Exception ex)
         {
@@ -86,6 +81,10 @@ public class SpeedUIController : MonoBehaviour
         {
             if (GameManager.Instance != null)
                 GameManager.Instance.OnStateChanged -= OnGameStateChanged;
+
+            // 비활성 상태에서 통지를 받으면 StartCoroutine이 실패하므로 반드시 해제한다.
+            if (_tierSource != null)
+                _tierSource.OnTierChanged -= OnSpeedTierChanged;
 
             // 비활성화되면 코루틴이 중단되므로 핸들을 비워 재활성화 시 다시 재생될 수 있게 한다.
             _overSpeedCoroutine = null;
@@ -102,7 +101,7 @@ public class SpeedUIController : MonoBehaviour
         {
             if (InputManager.Instance == null) return;
 
-            float spd = InputManager.Instance.SpeedKph;
+            float spd = GameManager.Instance.CurrentState == GameState.GameResult ? 0f : InputManager.Instance.SpeedKph;
 
             if (speedText != null) speedText.text = $"{spd:F0}";
 
@@ -116,28 +115,28 @@ public class SpeedUIController : MonoBehaviour
                     StartFade(_isVisible ? 1f : 0f);
                 }
             }
-
-            // 속도 등급(Tier) 결정
-            SpeedTier tier;
-            if (spd >= redThreshold) tier = SpeedTier.Red;
-            else if (spd >= yellowThreshold) tier = SpeedTier.Yellow;
-            else tier = SpeedTier.Normal;
-
-            if (tier != _currentTier)
-            {
-                bool enteredRed = tier == SpeedTier.Red && _currentTier != SpeedTier.Red;
-                _currentTier = tier;
-                UpdateNavigationTrigger();
-
-                // Red 진입 시에만 과속 UI 재생 시작. 재생 중에는 무시하고,
-                // 속도가 떨어져도 애니메이션이 끝날 때까지 유지한다.
-                if (enteredRed)
-                    PlayOverSpeed();
-            }
         }
         catch (System.Exception ex)
         {
             Debug.LogError($"SpeedUIController.Update 오류 발생: {ex.Message}");
+        }
+    }
+
+    // ── 속도 등급 통지 ─────────────────────────────────────────────
+
+    /// <summary>RoadNavigationGuide가 등급 변화를 알려올 때 호출된다.</summary>
+    void OnSpeedTierChanged(SpeedTier tier)
+    {
+        try
+        {
+            // Red 진입 시에만 과속 UI 재생 시작. 재생 중에는 무시하고,
+            // 속도가 떨어져도 애니메이션이 끝날 때까지 유지한다.
+            if (tier == SpeedTier.Red)
+                PlayOverSpeed();
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"SpeedUIController.OnSpeedTierChanged 오류 발생: {ex.Message}");
         }
     }
 
@@ -196,57 +195,7 @@ public class SpeedUIController : MonoBehaviour
             overSpeedUI.SetActive(false);
     }
 
-    // ── 네비게이션 트리거 ──────────────────────────────────────────
-
-    /// <summary>Timeline Signal에서 호출. direction: normal / left / right / right_45</summary>
-    public void SetDirection(string direction)
-    {
-        try
-        {
-            _currentDirection = direction;
-            UpdateNavigationTrigger();
-        }
-        catch (System.Exception ex)
-        {
-            Debug.LogError($"SpeedUIController.SetDirection 오류 발생: {ex.Message}");
-        }
-    }
-
-    void UpdateNavigationTrigger()
-    {
-        try
-        {
-            if (navigationAnimator == null) return;
-
-            string postfix = _currentTier switch
-            {
-                SpeedTier.Yellow => "_y",
-                SpeedTier.Red => "_r",
-                _ => "",
-            };
-
-            string trigger = _currentDirection + postfix;
-            navigationAnimator.SetTrigger(trigger);
-        }
-        catch (System.Exception ex)
-        {
-            Debug.LogError($"SpeedUIController.UpdateNavigationTrigger 오류 발생: {ex.Message}");
-        }
-    }
-
     // ── Show / Hide ────────────────────────────────────────────────
-
-    public void Show()
-    {
-        try
-        {
-            StartFade(1f);
-        }
-        catch (System.Exception ex)
-        {
-            Debug.LogError($"SpeedUIController.Show 오류 발생: {ex.Message}");
-        }
-    }
 
     public void Hide()
     {
@@ -300,8 +249,8 @@ public class SpeedUIController : MonoBehaviour
             {
                 case GameState.NormalRiding:
                     _stateAllowsShow = true;
-                    _isVisible = false;              // Update()에서 속도 기반으로 다시 판단
-                    _currentTier = SpeedTier.Normal; // 등급 재평가 유도 (Update에서 SetActive/트리거 재발화)
+                    _isVisible = false; // Update()에서 속도 기반으로 다시 판단
+                    // 과속 UI 재무장은 RoadNavigationGuide가 등급을 재통지하며 처리한다.
                     break;
                 case GameState.OXQuiz:
                 case GameState.EventBrake:
@@ -310,7 +259,6 @@ public class SpeedUIController : MonoBehaviour
                 case GameState.CrosswalkWalk:
                     _stateAllowsShow = false;
                     _isVisible = false;
-                    _currentTier = SpeedTier.Normal;
                     ResetOverSpeed(); // 비주행 상태에선 과속 UI off
                     Hide();
                     break;

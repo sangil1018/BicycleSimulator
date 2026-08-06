@@ -42,7 +42,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 15c38f6fa1940124db1ab7f6fe7268d1, type: 3}
   m_Name: Signal Emitter
   m_EditorClassIdentifier: Unity.Timeline::UnityEngine.Timeline.SignalEmitter
-  m_Time: 26
+  m_Time: 31.600000000000005
   m_Retroactive: 0
   m_EmitOnce: 0
   m_Asset: {fileID: 11400000, guid: 878490993330a1342bea01bd671031e6, type: 2}
@@ -110,22 +110,6 @@ MonoBehaviour:
     - {fileID: -40650869486499203}
     - {fileID: -7129562759664481299}
     - {fileID: 6467042507748025664}
---- !u!114 &-7875973904680397644
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 76b06dec2c9474a4988a335c75cb7917, type: 3}
-  m_Name: Direction Marker
-  m_EditorClassIdentifier: Assembly-CSharp::DirectionMarker
-  m_Time: 4.5
-  direction: 2
-  retroactive: 0
-  emitOnce: 0
 --- !u!114 &-7868407663131107855
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -168,22 +152,6 @@ MonoBehaviour:
   m_Retroactive: 0
   m_EmitOnce: 0
   m_Asset: {fileID: 11400000, guid: f2eb4445e913db34cb834141ffc28583, type: 2}
---- !u!114 &-7727817892310236092
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 76b06dec2c9474a4988a335c75cb7917, type: 3}
-  m_Name: Direction Marker
-  m_EditorClassIdentifier: Assembly-CSharp::DirectionMarker
-  m_Time: 98.83333333333333
-  direction: 1
-  retroactive: 0
-  emitOnce: 0
 --- !u!114 &-7518779838577097925
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -212,22 +180,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fde0d25a170598d46a0b9dc16b4527a5, type: 3}
   m_Name: ActivationPlayableAsset(Clone)
   m_EditorClassIdentifier: Unity.Timeline::UnityEngine.Timeline.ActivationPlayableAsset
---- !u!114 &-7177877900400894001
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 76b06dec2c9474a4988a335c75cb7917, type: 3}
-  m_Name: Direction Marker
-  m_EditorClassIdentifier: Assembly-CSharp::DirectionMarker
-  m_Time: 92.53333333333333
-  direction: 0
-  retroactive: 0
-  emitOnce: 0
 --- !u!114 &-7129562759664481299
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -240,7 +192,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 15c38f6fa1940124db1ab7f6fe7268d1, type: 3}
   m_Name: Signal Emitter
   m_EditorClassIdentifier: Unity.Timeline::UnityEngine.Timeline.SignalEmitter
-  m_Time: 59.33333333333334
+  m_Time: 58.3
   m_Retroactive: 0
   m_EmitOnce: 0
   m_Asset: {fileID: 11400000, guid: fab4276dd6ddc944f9c9765b21c6f093, type: 2}
@@ -2675,7 +2627,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63509003b224726418c1fb2b64a28c26, type: 3}
   m_Name: Checkpoint Marker
   m_EditorClassIdentifier: Assembly-CSharp::CheckpointMarker
-  m_Time: 76
+  m_Time: 70.96666666666667
   index: 2
 --- !u!114 &-4367645797260372274
 MonoBehaviour:
@@ -3049,7 +3001,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: efdab1d5e59ec5048b54d4dce701fea0, type: 3}
   m_Name: Quiz Marker
   m_EditorClassIdentifier: Assembly-CSharp::QuizMarker
-  m_Time: 76
+  m_Time: 70.96666666666667
   quizIndex: 1
   retroactive: 0
   emitOnce: 0
@@ -3819,7 +3771,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 15c38f6fa1940124db1ab7f6fe7268d1, type: 3}
   m_Name: Signal Emitter
   m_EditorClassIdentifier: Unity.Timeline::UnityEngine.Timeline.SignalEmitter
-  m_Time: 5
+  m_Time: 10.6
   m_Retroactive: 0
   m_EmitOnce: 0
   m_Asset: {fileID: 11400000, guid: 513dc1d4322a9b648bfe595e3aae8394, type: 2}
@@ -3949,22 +3901,6 @@ AnimationClip:
   m_HasGenericRootTransform: 0
   m_HasMotionFloatCurves: 0
   m_Events: []
---- !u!114 &397705047121082420
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 76b06dec2c9474a4988a335c75cb7917, type: 3}
-  m_Name: Direction Marker
-  m_EditorClassIdentifier: Assembly-CSharp::DirectionMarker
-  m_Time: 0
-  direction: 0
-  retroactive: 0
-  emitOnce: 0
 --- !u!114 &434264587849691585
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -4004,7 +3940,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63509003b224726418c1fb2b64a28c26, type: 3}
   m_Name: Checkpoint Marker
   m_EditorClassIdentifier: Assembly-CSharp::CheckpointMarker
-  m_Time: 28
+  m_Time: 29.633333333333333
   index: 0
 --- !u!114 &666641642369071716
 MonoBehaviour:
@@ -4747,7 +4683,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 15c38f6fa1940124db1ab7f6fe7268d1, type: 3}
   m_Name: Signal Emitter
   m_EditorClassIdentifier: Unity.Timeline::UnityEngine.Timeline.SignalEmitter
-  m_Time: 46
+  m_Time: 51.59999999999998
   m_Retroactive: 0
   m_EmitOnce: 0
   m_Asset: {fileID: 11400000, guid: b55e65d0e23434946b6d8c0c178ce1d5, type: 2}
@@ -4763,7 +4699,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: efdab1d5e59ec5048b54d4dce701fea0, type: 3}
   m_Name: Quiz Marker
   m_EditorClassIdentifier: Assembly-CSharp::QuizMarker
-  m_Time: 28
+  m_Time: 29.633333333333333
   quizIndex: 0
   retroactive: 0
   emitOnce: 0
@@ -4932,22 +4868,6 @@ AnimationClip:
   m_HasGenericRootTransform: 0
   m_HasMotionFloatCurves: 0
   m_Events: []
---- !u!114 &2370332208545926694
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 76b06dec2c9474a4988a335c75cb7917, type: 3}
-  m_Name: Direction Marker
-  m_EditorClassIdentifier: Assembly-CSharp::DirectionMarker
-  m_Time: 82.7
-  direction: 1
-  retroactive: 0
-  emitOnce: 0
 --- !u!74 &2560879585202154506
 AnimationClip:
   m_ObjectHideFlags: 0
@@ -5422,7 +5342,7 @@ MonoBehaviour:
   m_Children: []
   m_Clips:
   - m_Version: 1
-    m_Start: 1.999999999999992
+    m_Start: 0.5333333333333286
     m_ClipIn: 0
     m_Asset: {fileID: 1795177450621426023}
     m_Duration: 43
@@ -5488,7 +5408,7 @@ MonoBehaviour:
     m_PostExtrapolationMode: 1
     m_PreExtrapolationMode: 1
     m_PostExtrapolationTime: Infinity
-    m_PreExtrapolationTime: 1.999999999999992
+    m_PreExtrapolationTime: 0.5333333333333286
     m_DisplayName: Recorded (2)
   m_Markers:
     m_Objects: []
@@ -6597,22 +6517,6 @@ MonoBehaviour:
   m_Loop: 0
   m_Version: 1
   m_Rotation: {x: 0, y: 0, z: 0, w: 1}
---- !u!114 &4729040108666195281
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 76b06dec2c9474a4988a335c75cb7917, type: 3}
-  m_Name: Direction Marker
-  m_EditorClassIdentifier: Assembly-CSharp::DirectionMarker
-  m_Time: 179.53333333333333
-  direction: 0
-  retroactive: 0
-  emitOnce: 0
 --- !u!114 &4767136467719816313
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -6654,22 +6558,6 @@ MonoBehaviour:
   m_OpenClipOffsetRotation: {x: 0, y: 0, z: 0, w: 1}
   m_Rotation: {x: 0, y: 0, z: 0, w: 1}
   m_ApplyOffsets: 0
---- !u!114 &5039554388641643745
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 76b06dec2c9474a4988a335c75cb7917, type: 3}
-  m_Name: Direction Marker
-  m_EditorClassIdentifier: Assembly-CSharp::DirectionMarker
-  m_Time: 124.10000000000004
-  direction: 2
-  retroactive: 0
-  emitOnce: 0
 --- !u!114 &5245600249313239717
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -6692,7 +6580,7 @@ MonoBehaviour:
   m_Children: []
   m_Clips:
   - m_Version: 1
-    m_Start: 43.66666666666666
+    m_Start: 42.200000000000024
     m_ClipIn: 0
     m_Asset: {fileID: -5134886429247462082}
     m_Duration: 1.0333333333333314
@@ -6722,10 +6610,10 @@ MonoBehaviour:
     m_PostExtrapolationMode: 2
     m_PreExtrapolationMode: 2
     m_PostExtrapolationTime: 0
-    m_PreExtrapolationTime: 43.66666666666666
+    m_PreExtrapolationTime: 42.200000000000024
     m_DisplayName: boy_walking
   - m_Version: 1
-    m_Start: 44.69999999999999
+    m_Start: 43.233333333333356
     m_ClipIn: 0
     m_Asset: {fileID: 4432096245255334309}
     m_Duration: 0.29999999999999716
@@ -6895,22 +6783,6 @@ MonoBehaviour:
   m_Retroactive: 0
   m_EmitOnce: 0
   m_Asset: {fileID: 0}
---- !u!114 &5987915353508981768
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 76b06dec2c9474a4988a335c75cb7917, type: 3}
-  m_Name: Direction Marker
-  m_EditorClassIdentifier: Assembly-CSharp::DirectionMarker
-  m_Time: 143.53333333333336
-  direction: 0
-  retroactive: 0
-  emitOnce: 0
 --- !u!114 &6309962163298566477
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -6945,7 +6817,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 15c38f6fa1940124db1ab7f6fe7268d1, type: 3}
   m_Name: Signal Emitter
   m_EditorClassIdentifier: Unity.Timeline::UnityEngine.Timeline.SignalEmitter
-  m_Time: 44.6
+  m_Time: 43.13333333333333
   m_Retroactive: 0
   m_EmitOnce: 0
   m_Asset: {fileID: 11400000, guid: 00d6f9710a4ab144282f04340cc1af13, type: 2}
@@ -8258,38 +8130,6 @@ MonoBehaviour:
   m_Loop: 0
   m_Version: 1
   m_Rotation: {x: 0, y: 0, z: 0, w: 1}
---- !u!114 &6817263639536602539
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 76b06dec2c9474a4988a335c75cb7917, type: 3}
-  m_Name: Direction Marker
-  m_EditorClassIdentifier: Assembly-CSharp::DirectionMarker
-  m_Time: 129.5
-  direction: 0
-  retroactive: 0
-  emitOnce: 0
---- !u!114 &6964788312163495319
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 76b06dec2c9474a4988a335c75cb7917, type: 3}
-  m_Name: Direction Marker
-  m_EditorClassIdentifier: Assembly-CSharp::DirectionMarker
-  m_Time: 174.99999999999997
-  direction: 2
-  retroactive: 0
-  emitOnce: 0
 --- !u!74 &7203628656543034096
 AnimationClip:
   m_ObjectHideFlags: 0
@@ -9020,22 +8860,6 @@ MonoBehaviour:
   m_Clips: []
   m_Markers:
     m_Objects: []
---- !u!114 &7382918715301938353
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 76b06dec2c9474a4988a335c75cb7917, type: 3}
-  m_Name: Direction Marker
-  m_EditorClassIdentifier: Assembly-CSharp::DirectionMarker
-  m_Time: 102.53333333333333
-  direction: 0
-  retroactive: 0
-  emitOnce: 0
 --- !u!114 &7464984449797900321
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -9048,42 +8872,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 15c38f6fa1940124db1ab7f6fe7268d1, type: 3}
   m_Name: Signal Emitter
   m_EditorClassIdentifier: Unity.Timeline::UnityEngine.Timeline.SignalEmitter
-  m_Time: 45
+  m_Time: 43.53333333333333
   m_Retroactive: 0
   m_EmitOnce: 0
   m_Asset: {fileID: 11400000, guid: e2e664c719168cc479baaf77950b7343, type: 2}
---- !u!114 &7629322616568173269
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 76b06dec2c9474a4988a335c75cb7917, type: 3}
-  m_Name: Direction Marker
-  m_EditorClassIdentifier: Assembly-CSharp::DirectionMarker
-  m_Time: 16.333333333333332
-  direction: 0
-  retroactive: 0
-  emitOnce: 0
---- !u!114 &7722510136977412021
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 76b06dec2c9474a4988a335c75cb7917, type: 3}
-  m_Name: Direction Marker
-  m_EditorClassIdentifier: Assembly-CSharp::DirectionMarker
-  m_Time: 139.46666666666664
-  direction: 3
-  retroactive: 0
-  emitOnce: 0
 --- !u!114 &8214714727658036521
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -9112,7 +8904,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 15c38f6fa1940124db1ab7f6fe7268d1, type: 3}
   m_Name: Signal Emitter
   m_EditorClassIdentifier: Unity.Timeline::UnityEngine.Timeline.SignalEmitter
-  m_Time: 59.83333333333334
+  m_Time: 58.8
   m_Retroactive: 0
   m_EmitOnce: 0
   m_Asset: {fileID: 11400000, guid: 33db19ced89434145862cc434c387dce, type: 2}
@@ -9128,7 +8920,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63509003b224726418c1fb2b64a28c26, type: 3}
   m_Name: Checkpoint Marker
   m_EditorClassIdentifier: Assembly-CSharp::CheckpointMarker
-  m_Time: 59.83333333333334
+  m_Time: 58.8
   index: 1
 --- !u!114 &8408683729128594987
 MonoBehaviour:

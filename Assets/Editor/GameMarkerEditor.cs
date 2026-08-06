@@ -74,20 +74,3 @@ public class CheckpointMarkerEditor : MarkerEditor
     public override void DrawOverlay(IMarker marker, MarkerUIStates uiState, MarkerOverlayRegion region)
         => MarkerOverlayDrawer.Draw(region, uiState, k_Color);
 }
-
-// ── DirectionMarker ────────────────────────────────────────────
-
-[CustomTimelineEditor(typeof(DirectionMarker))]
-public class DirectionMarkerEditor : MarkerEditor
-{
-    static readonly Color k_Color = new Color(0.23f, 0.55f, 0.86f);
-
-    public override MarkerDrawOptions GetMarkerOptions(IMarker marker)
-    {
-        var m = (DirectionMarker)marker;
-        return new MarkerDrawOptions { tooltip = $"Dir: {m.Direction}" };
-    }
-
-    public override void DrawOverlay(IMarker marker, MarkerUIStates uiState, MarkerOverlayRegion region)
-        => MarkerOverlayDrawer.Draw(region, uiState, k_Color);
-}
