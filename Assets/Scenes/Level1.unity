@@ -17,7 +17,7 @@ RenderSettings:
   m_Fog: 1
   m_FogColor: {r: 0.4738562, g: 0.5, b: 0.5, a: 1}
   m_FogMode: 3
-  m_FogDensity: 0.001
+  m_FogDensity: 0.002
   m_LinearFogStart: 0
   m_LinearFogEnd: 300
   m_AmbientSkyColor: {r: 0.2578616, g: 0.2578616, b: 0.2578616, a: 1}
@@ -93,7 +93,7 @@ LightmapSettings:
     m_ExportTrainingData: 0
     m_TrainingDataDestination: TrainingData
     m_LightProbeSampleCountMultiplier: 4
-  m_LightingDataAsset: {fileID: 0}
+  m_LightingDataAsset: {fileID: 112000000, guid: 6056257ea00250e449e44f2f4a9ad4f2, type: 2}
   m_LightingSettings: {fileID: 4890085278179872738, guid: d2bf3e5943123c94e96109db1692d6d6, type: 2}
 --- !u!196 &4
 NavMeshSettings:
@@ -8528,12 +8528,12 @@ MonoBehaviour:
   lowestSubdivLevelOverride: 0
   highestSubdivLevelOverride: 7
   overridesSubdivLevels: 0
-  mightNeedRebaking: 1
+  mightNeedRebaking: 0
   cachedTransform:
     e00: 1
     e01: 0
     e02: 0
-    e03: -200.40375
+    e03: -280.67612
     e10: 0
     e11: 1
     e12: 0
@@ -8541,12 +8541,12 @@ MonoBehaviour:
     e20: 0
     e21: 0
     e22: 1
-    e23: -222.12112
+    e23: -383.7996
     e30: 0
     e31: 0
     e32: 0
     e33: 1
-  cachedHashCode: 1474397699
+  cachedHashCode: 919718396
   fillEmptySpaces: 0
   version: 2
   globalVolume: 0
@@ -18139,7 +18139,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a83d2f7ae04ab6f4f99b0d85377be998, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.RenderPipelines.Core.Runtime::UnityEngine.Rendering.ProbeVolumePerSceneData
-  serializedBakingSet: {fileID: 0}
+  serializedBakingSet: {fileID: 11400000, guid: 5dcc0cb299b60ef408e5c5b88c65abae, type: 2}
   sceneGUID: 4e5a1eae3ec82f54a9d41f38fa0da8ff
   obsoleteAsset: {fileID: 0}
   obsoleteCellSharedDataAsset: {fileID: 0}
@@ -24200,12 +24200,12 @@ MonoBehaviour:
   lowestSubdivLevelOverride: 0
   highestSubdivLevelOverride: 7
   overridesSubdivLevels: 0
-  mightNeedRebaking: 1
+  mightNeedRebaking: 0
   cachedTransform:
     e00: 1
     e01: 0
     e02: 0
-    e03: -200.40375
+    e03: -373.74265
     e10: 0
     e11: 1
     e12: 0
@@ -24213,12 +24213,12 @@ MonoBehaviour:
     e20: 0
     e21: 0
     e22: 1
-    e23: -222.12112
+    e23: -89.60922
     e30: 0
     e31: 0
     e32: 0
     e33: 1
-  cachedHashCode: 1474397699
+  cachedHashCode: -192903819
   fillEmptySpaces: 0
   version: 2
   globalVolume: 0
@@ -203291,6 +203291,18 @@ PrefabInstance:
       propertyPath: m_ReceiveGI
       value: 2
       objectReference: {fileID: 0}
+    - target: {fileID: -3820810127951259293, guid: 678d2727fc3cea046a1695dbc7fca574, type: 3}
+      propertyPath: m_CastShadows
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -3820810127951259293, guid: 678d2727fc3cea046a1695dbc7fca574, type: 3}
+      propertyPath: m_DynamicOccludee
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -3820810127951259293, guid: 678d2727fc3cea046a1695dbc7fca574, type: 3}
+      propertyPath: m_LightProbeUsage
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 678d2727fc3cea046a1695dbc7fca574, type: 3}
       propertyPath: m_Name
       value: Phone
@@ -282205,12 +282217,12 @@ MonoBehaviour:
   lowestSubdivLevelOverride: 0
   highestSubdivLevelOverride: 7
   overridesSubdivLevels: 0
-  mightNeedRebaking: 1
+  mightNeedRebaking: 0
   cachedTransform:
     e00: 1
     e01: 0
     e02: 0
-    e03: -200.40375
+    e03: -38.307755
     e10: 0
     e11: 1
     e12: 0
@@ -282218,12 +282230,12 @@ MonoBehaviour:
     e20: 0
     e21: 0
     e22: 1
-    e23: -222.12112
+    e23: -89.60922
     e30: 0
     e31: 0
     e32: 0
     e33: 1
-  cachedHashCode: 1474397699
+  cachedHashCode: -29433895
   fillEmptySpaces: 0
   version: 2
   globalVolume: 0
