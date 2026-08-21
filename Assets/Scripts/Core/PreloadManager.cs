@@ -149,7 +149,7 @@ public class PreloadManager : MonoBehaviour
 
             // UnityEngine.Debug 정규화 — 전역 Debug 래퍼가 빌드에서 로그를 제거하므로 원본 API 직접 호출
             if (chunk == 0)
-                UnityEngine.Debug.LogWarning($"[PreloadManager] 매니페스트 없음: Resources/{prefix}_000 — 에디터 메뉴 Tools/Build Preload Manifests를 실행하세요.");
+                UnityEngine.Debug.LogWarning($"[PreloadManager] 매니페스트 없음: Resources/{prefix}_000 — Tools > Asset Tools 창의 「프리로드 매니페스트」 탭에서 생성하세요.");
             else
                 UnityEngine.Debug.Log($"[PreloadManager] 프리로드 완료: {prefix} 청크 {chunk}개 ({timer.Elapsed.TotalSeconds:F2}s)");
         }

@@ -239,6 +239,7 @@ public class GameManager : SceneSingleton<GameManager>
     {
         ChangeState(GameState.BicycleStop);
         if (TimelineController != null) TimelineController.Freeze();
+        InputManager.Instance.SendVibrate(VibeState.Danger);
     }
 
     public void TriggerOXQuiz(int quizIndex)
@@ -260,6 +261,18 @@ public class GameManager : SceneSingleton<GameManager>
         if (TimelineController != null) TimelineController.Resume();
     }
 
+    /// <summary>
+    /// 이벤트 UI가 꺼질 때(TimelineEventGate.OnDisable) 호출.
+    /// 자체 재개 루틴이 없는 이벤트 정지 상태(EventWarning, BicycleStop)는
+    /// NormalRiding으로 되돌려야 CanMove가 true가 되어 타임라인이 실제로 진행된다.
+    /// </summary>
+    public void ResumeFromEventGate()
+    {
+        if (CurrentState == GameState.EventWarning || CurrentState == GameState.BicycleStop)
+            ChangeState(GameState.NormalRiding);
+        if (TimelineController != null) TimelineController.Resume();
+    }
+
     // ── 이벤트 루틴 ───────────────────────────────────────────────
 
     IEnumerator WarningStopRoutine()
@@ -270,8 +283,8 @@ public class GameManager : SceneSingleton<GameManager>
 
         yield return new WaitForSeconds(warningStopSec);
 
-        ChangeState(GameState.NormalRiding);
-        if (TimelineController != null) TimelineController.Resume();
+        // ChangeState(GameState.NormalRiding);
+        // if (TimelineController != null) TimelineController.Resume();
     }
 
     IEnumerator BrakeEventRoutine()
@@ -304,6 +317,7 @@ public class GameManager : SceneSingleton<GameManager>
     {
         ChangeState(GameState.OXQuiz);
         if (TimelineController != null) TimelineController.Freeze();
+        InputManager.Instance.SendVibrate(VibeState.Danger);
 
         if (QuizManager.Instance != null) QuizManager.Instance.StartQuiz(quizIndex + 1);
 
@@ -330,6 +344,7 @@ public class GameManager : SceneSingleton<GameManager>
         yield return new WaitForSeconds(delay);
 
         InputManager.Instance.SendVibrate(VibeState.Success);
+        if (TimelineController != null) TimelineController.FillNavSlider();   // 결과 창 = 코스 완주 → 진행도 슬라이더 가득 채움
         if (resultObject != null) resultObject.SetActive(true);
 
         yield return new WaitForSeconds(finalResultWaitSec);

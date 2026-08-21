@@ -10,7 +10,8 @@ namespace TrafficSystem
     public class PedestrianController : MonoBehaviour
     {
         [Header("Movement")]
-        [SerializeField] WalkMode walkMode = WalkMode.PingPong;
+        [Tooltip("스포너로 스폰되면 Init에서 Loop(일방통행 순환)로 강제됨. 수동 배치 시에만 유효.")]
+        [SerializeField] WalkMode walkMode = WalkMode.Loop;
         [Tooltip("스플라인 포인트 도달 판정 거리 (m)")]
         [SerializeField] float reachDist   = 0.15f;
         [Tooltip("초당 회전 각도 (낮을수록 느리게 꺽임)")]
@@ -34,6 +35,8 @@ namespace TrafficSystem
                          float walkSpeed, float lateralOffset, float blendRadius,
                          float heightOffset = 0f)
         {
+            // 스포너 스폰 보행자는 라인을 따라 일방통행 (끝 도달 시 시작점으로 순환)
+            walkMode   = WalkMode.Loop;
             speed      = walkSpeed;
             lateralMag = lateralOffset;
             heightOff  = heightOffset;
@@ -44,15 +47,20 @@ namespace TrafficSystem
 
             pathIdx            = NearestIdx(spawnPos);
             transform.position = OffsetPos(pathIdx);
-
-            int peek = Mathf.Clamp(pathIdx + pathDir, 0, centerPath.Length - 1);
-            Vector3 initDir = centerPath[peek] - centerPath[pathIdx];
-            initDir.y = 0f;
-            if (initDir.sqrMagnitude > 0.0001f)
-                transform.rotation = Quaternion.LookRotation(initDir);
+            SnapLookAlongPath();
 
             if (TryGetComponent(out anim))
                 anim.SetFloat(HashSpeed, speed);
+        }
+
+        // 현재 인덱스에서 진행 방향을 바라보도록 즉시 회전
+        void SnapLookAlongPath()
+        {
+            int peek = Mathf.Clamp(pathIdx + pathDir, 0, centerPath.Length - 1);
+            Vector3 dir = centerPath[peek] - centerPath[pathIdx];
+            dir.y = 0f;
+            if (dir.sqrMagnitude > 0.0001f)
+                transform.rotation = Quaternion.LookRotation(dir);
         }
 
         // 중간 웨이포인트만 Bezier 보간, 나머지는 직선
@@ -186,7 +194,15 @@ namespace TrafficSystem
                     break;
 
                 case WalkMode.Loop:
-                    pathIdx = ((next % centerPath.Length) + centerPath.Length) % centerPath.Length;
+                    // 열린 경로에서 반대편 끝까지 걸어 돌아가지 않도록 순간이동으로 순환
+                    if (next > last || next < 0)
+                    {
+                        pathIdx = next > last ? 0 : last;
+                        transform.position = OffsetPos(pathIdx);
+                        SnapLookAlongPath();
+                    }
+                    else
+                        pathIdx = next;
                     break;
 
                 case WalkMode.OneShot:

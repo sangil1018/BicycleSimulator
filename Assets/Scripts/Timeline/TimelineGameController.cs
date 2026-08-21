@@ -41,6 +41,7 @@ public class TimelineGameController : MonoBehaviour
     bool _canMove = false;
     bool _autoPlay = false;
     bool _completed = false;
+    bool _navLocked = false;   // true면 슬라이더 자동 갱신 중단 (결과 창에서 1로 고정)
     float _currentRate = 0f;   // 마지막으로 적용한 재생 배속 — 체크포인트 선행 판정에 사용
 
     // 체크포인트 (시간 오름차순 정렬)
@@ -213,7 +214,7 @@ public class TimelineGameController : MonoBehaviour
         {
             UpdateCheckpoints(director.time + Time.deltaTime * _currentRate);
 
-            if (navSlider != null)
+            if (navSlider != null && !_navLocked)
                 navSlider.value = RemapProgress(director.time);
         }
 
@@ -266,6 +267,8 @@ public class TimelineGameController : MonoBehaviour
         _canMove = true;
         _autoPlay = false;
         _completed = false;
+        _navLocked = false;
+        if (navSlider != null) navSlider.value = 0f;
         if (_cpFired != null) System.Array.Clear(_cpFired, 0, _cpFired.Length);
         director.time = 0;
         director.Play();
@@ -298,6 +301,18 @@ public class TimelineGameController : MonoBehaviour
         SetRootSpeed(0f);
         director.time = director.duration;
         director.Evaluate();
+    }
+
+    /// <summary>
+    /// 진행도 슬라이더를 끝(1)까지 채우고 자동 갱신을 잠근다.
+    /// 결과 창이 열릴 때 호출 — 타임라인이 duration에 도달하기 전에 종료되거나
+    /// 마지막 프레임 갱신이 누락돼 슬라이더가 1 미만으로 남는 것을 방지한다.
+    /// 잠금은 다음 Play()에서 해제된다.
+    /// </summary>
+    public void FillNavSlider()
+    {
+        _navLocked = true;
+        if (navSlider != null) navSlider.value = 1f;
     }
 
     /// <summary>자동진행 구간 전환. true이면 입력 무시하고 fixedAutoSpeed로 재생.</summary>

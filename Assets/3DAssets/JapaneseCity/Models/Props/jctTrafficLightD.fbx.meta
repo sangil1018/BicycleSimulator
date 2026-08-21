@@ -8,7 +8,7 @@ ModelImporter:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
       name: jctTrafficLight
-    second: {fileID: 2100000, guid: 89e6aef464ecba9438a21f6d41a93940, type: 2}
+    second: {fileID: 2100000, guid: f2fc0c5a67ff3054fa4b9042e963569f, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
@@ -56,7 +56,7 @@ ModelImporter:
     nodeNameCollisionStrategy: 0
     fileIdsGeneration: 2
     swapUVChannels: 0
-    generateSecondaryUV: 0
+    generateSecondaryUV: 1
     useFileUnits: 1
     keepQuads: 0
     weldVertices: 1

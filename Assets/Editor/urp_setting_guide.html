@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unity 6.3 URP 극사실주의 그래픽 세팅 및 최적화 가이드</title>
+<style>
+* { box-sizing: border-box; }
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6; color: #333; margin: 0; padding: 20px; background-color: #f8f9fa;
+}
+.container {
+    max-width: 1040px; margin: auto; background-color: #fff;
+    padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+h1 { color: #2c3e50; text-align: center; border-bottom: 3px solid #3498db; padding-bottom: 15px; margin-top: 0; font-size: 2em; }
+h2 { color: #2980b9; margin-top: 10px; border-left: 5px solid #2980b9; padding-left: 15px;
+     background-color: #f4f6f7; padding-top: 10px; padding-bottom: 10px; border-radius: 0 4px 4px 0; }
+h3 { color: #c0392b; margin-top: 28px; margin-bottom: 12px; font-size: 1.12em; }
+p, li { font-size: 1.05em; margin-bottom: 10px; }
+.subtitle { text-align: center; font-size: 1em; color: #7f8c8d; margin-bottom: 22px; }
+
+/* 범례 */
+.legend { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center;
+          font-size: 0.85em; color: #566573; margin-bottom: 22px; }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+
+/* 탭 */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 3px solid #3498db; margin-bottom: 25px; }
+.tab-btn { appearance: none; border: 1px solid #d5dbdb; border-bottom: none; background-color: #ecf0f1;
+    color: #566573; font-size: 0.95em; font-weight: bold; padding: 12px 18px;
+    border-radius: 8px 8px 0 0; cursor: pointer; transition: background-color .15s, color .15s; font-family: inherit; }
+.tab-btn:hover { background-color: #d6eaf8; color: #21618c; }
+.tab-btn.active { background-color: #3498db; color: #fff; border-color: #3498db; }
+.tab-panel { display: none; animation: fade .25s ease; }
+.tab-panel.active { display: block; }
+@keyframes fade { from { opacity:0; transform: translateY(4px);} to { opacity:1; transform:none;} }
+
+/* 항목 카드 */
+.item { border: 1px solid #e1e5e8; border-radius: 6px; margin-bottom: 12px; background: #fff; overflow: hidden; }
+.item-head { display: flex; align-items: center; gap: 8px; padding: 12px 14px; cursor: pointer;
+             background: #fbfcfc; transition: background-color .15s; }
+.item-head:hover { background: #f2f6f8; }
+.item-head .name { font-weight: bold; color: #2c3e50; flex: 1; }
+.item-head .arrow { color: #95a5a6; font-size: .8em; transition: transform .2s; }
+.item.open .item-head .arrow { transform: rotate(90deg); }
+.item-body { display: none; padding: 4px 16px 16px 16px; border-top: 1px solid #eef1f2; }
+.item.open .item-body { display: block; }
+
+.field-label { font-size: .78em; font-weight: bold; color: #7f8c8d; text-transform: uppercase;
+               letter-spacing: .04em; margin-top: 12px; margin-bottom: 4px; }
+.menu-path { background: #eef6fb; border-left: 3px solid #2980b9; padding: 8px 12px; border-radius: 0 4px 4px 0;
+             font-family: 'Consolas','Courier New',monospace; font-size: .88em; color: #21618c; white-space: pre-line; }
+.recommend { background: #eafaf1; border-left: 3px solid #27ae60; padding: 8px 12px; border-radius: 0 4px 4px 0;
+             font-size: .92em; color: #1e7e46; font-weight: 600; }
+.note { font-size: .95em; color: #566573; margin-top: 10px; margin-bottom: 0; }
+
+/* 뱃지 */
+.badge { display: inline-block; color: #fff; font-size: .72em; padding: 3px 8px; border-radius: 12px;
+         margin-left: 4px; vertical-align: middle; font-weight: bold; white-space: nowrap; }
+.ver-6  { background-color: #8e44ad; }
+.ver-23 { background-color: #27ae60; }
+.ver-22 { background-color: #2980b9; }
+.ver-proj { background-color: #16a085; }
+
+/* 이 프로젝트에서 확정된 값 */
+.proj { background: #e8f8f5; border-left: 3px solid #16a085; padding: 8px 12px; border-radius: 0 4px 4px 0;
+        font-size: .92em; color: #10705f; font-weight: 600; white-space: pre-line; margin-bottom: 6px; }
+.proj-label { font-size: .78em; font-weight: bold; color: #16a085; text-transform: uppercase;
+              letter-spacing: .04em; margin-top: 12px; margin-bottom: 4px; }
+.prio { display: inline-block; font-size: .72em; font-weight: bold; padding: 3px 9px; border-radius: 4px;
+        color: #fff; white-space: nowrap; flex-shrink: 0; }
+.prio-must { background-color: #e74c3c; }
+.prio-rec  { background-color: #e67e22; }
+.prio-opt  { background-color: #95a5a6; }
+
+.info-box { background-color: #eef6fb; padding: 18px 22px; border: 1px solid #aed6f1;
+            border-left: 5px solid #2980b9; border-radius: 0 6px 6px 0; margin: 20px 0; }
+.info-box strong { color: #21618c; }
+.warn-box { background-color: #fdf3e7; padding: 16px 20px; border: 1px solid #f5cba7;
+            border-left: 5px solid #e67e22; border-radius: 0 6px 6px 0; margin: 18px 0; font-size: .96em; }
+.warn-box strong { color: #b9770e; }
+code { background-color: #eaeded; padding: 2px 6px; border-radius: 4px;
+       font-family: 'Consolas','Courier New',monospace; color: #d35400; font-size: .9em; }
+
+.controls { display: flex; gap: 8px; justify-content: flex-end; margin-bottom: 12px; }
+.ctrl-btn { font-size: .82em; padding: 5px 12px; border: 1px solid #d5dbdb; background: #fff;
+            border-radius: 4px; cursor: pointer; color: #566573; font-family: inherit; }
+.ctrl-btn:hover { background: #f2f6f8; }
+
+@media screen and (max-width: 768px) {
+    body { padding: 10px; }
+    .container { padding: 15px; }
+    h1 { font-size: 1.5em; }
+    h2 { font-size: 1.25em; padding-left: 10px; }
+    p, li { font-size: 1em; }
+    .tab-btn { padding: 10px 12px; font-size: .85em; flex: 1 1 auto; }
+    .item-head { flex-wrap: wrap; }
+    .menu-path { font-size: .82em; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>Unity 6.3 URP 극사실주의 그래픽 세팅 및 최적화 가이드</h1>
+    <p class="subtitle">데스크톱 인터랙티브 · 실감형 설치 콘텐츠를 위한 하이엔드 렌더링 설정과 프레임 방어 지침<br>
+    <small>Unity 6.3 (6000.3) / URP 17.3 기준 · 메뉴 경로와 추천값 포함<br>
+    BicycleSimulator 프로젝트의 확정값(Level2 기준, 2026-08-09)을 함께 표기</small></p>
+
+    <div class="legend">
+        <span><span class="prio prio-must">필수</span> 극사실 베이스라인에 반드시 필요</span>
+        <span><span class="prio prio-rec">권장</span> 시각·성능 대비 효과 큼</span>
+        <span><span class="prio prio-opt">선택</span> 상황·씬에 따라 선별 적용</span>
+    </div>
+    <div class="legend">
+        <span><span class="badge ver-proj">이 프로젝트 확정</span> 초록 박스는 BicycleSimulator에서 실제로 검증·확정된 값이며, 초록 박스가 없는 항목은 일반 기준값입니다</span>
+    </div>
+
+    <div class="tabs" role="tablist">
+        <button class="tab-btn active" data-tab="t1">1. 전역 설정</button>
+        <button class="tab-btn" data-tab="t2">2. 라이팅 &amp; GI</button>
+        <button class="tab-btn" data-tab="t3">3. 머티리얼 &amp; 텍스처</button>
+        <button class="tab-btn" data-tab="t4">4. 포스트 프로세싱</button>
+        <button class="tab-btn" data-tab="t5">5. 최적화</button>
+    </div>
+
+    <div class="controls">
+        <button class="ctrl-btn" id="expandAll">전체 펼치기</button>
+        <button class="ctrl-btn" id="collapseAll">전체 접기</button>
+    </div>
+
+    <!-- ============ TAB 1 ============ -->
+    <section class="tab-panel active" id="t1">
+        <h2>1. 프로젝트 및 전역 그래픽 설정</h2>
+        <p>그래픽의 기초 공사 단계입니다. 여기가 틀어져 있으면 뒤에서 아무리 조명을 다듬어도 사실감이 나오지 않습니다.</p>
+
+        <h3>프로젝트 전역</h3>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-must">필수</span><span class="name">Color Space = Linear</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Edit &gt; Project Settings &gt; Player &gt; Other Settings &gt; Rendering</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Color Space: Linear   (Auto Graphics API 해제 후 DX12 우선 권장)</div>
+                <p class="note">감마 공간에서는 빛의 감쇠와 혼합이 물리적으로 틀리게 계산됩니다. PBR의 대전제라 이것부터 확인하세요. 이미 진행 중인 프로젝트라면 변경 시 전체 룩이 바뀌므로 조명 재조정이 필요합니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-must">필수</span><span class="name">Render Graph (Compatibility Mode 해제)<span class="badge ver-6">6.3 기본 활성</span></span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Edit &gt; Project Settings &gt; Graphics &gt; Pipeline Specific Settings &gt; URP</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Compatibility Mode (Render Graph Disabled): 해제 상태 유지</div>
+                <p class="note">Unity 6.3부터 Compatibility Mode는 <code>URP_COMPATIBILITY_MODE</code> 컴파일 디파인 뒤로 숨겨져 사실상 Render Graph가 전제입니다. 구버전에서 올라온 프로젝트나 서드파티 Renderer Feature가 회색 화면을 내면 해당 에셋의 Render Graph 대응 버전을 확인하세요.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-must">필수</span><span class="name">Default Render Pipeline 지정 확인</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Edit &gt; Project Settings &gt; Graphics &gt; Default Render Pipeline
+품질 레벨별 override: Edit &gt; Project Settings &gt; Quality &gt; Render Pipeline Asset</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">고품질 URP Asset 지정 / 설치물은 품질 레벨을 하나만 남겨두기</div>
+                <p class="note">Quality 레벨에 URP Asset이 지정돼 있으면 그것이 우선하고, 비어 있으면 Graphics의 Default가 쓰입니다. 레벨을 하나만 남기면 현장에서 엉뚱한 품질로 실행되는 사고를 막을 수 있습니다.</p>
+            </div>
+        </div>
+
+        <h3>URP Asset / Renderer</h3>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-must">필수</span><span class="name">URP Asset — Quality (HDR · Render Scale · Upscaling)</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">URP Asset 선택 &gt; Inspector &gt; Quality</div>
+                <div class="field-label">일반 기준값</div>
+                <div class="recommend">HDR: 켬 / HDR Precision: 64 Bit / Render Scale: 1.0 (부하 시 0.8~0.9)
+Upscaling Filter: Spatial-Temporal Post-Processing (STP) / Anti Aliasing(MSAA): Disabled</div>
+                <div class="proj-label">이 프로젝트 확정</div>
+                <div class="proj">HDR: 켬 / HDR Precision: 32 Bit / MSAA: Disabled
+Render Scale: <strong>2.0</strong> (2× 슈퍼샘플링) / Upscaling Filter: 무관</div>
+                <p class="note">HDR은 Bloom·ACES 톤매핑의 전제조건입니다. TAA를 쓸 때 MSAA는 비용만 늘고 이점이 적으니 끄는 편이 낫습니다.</p>
+                <p class="note">Render Scale 2.0은 지글거림(스페큘러 시머·에지 알리아싱)을 잡기 위해 의도적으로 택한 2× 슈퍼샘플링입니다. 1.0에서는 TAA만으로 부족했습니다. 픽셀 수는 4배지만 고정 설치물이라 프레임 예산으로 감당하는 선택입니다.</p>
+                <div class="warn-box"><strong>Render Scale이 1을 넘으면 Upscaling Filter가 무시됩니다.</strong> URP는 <code>renderScale &gt; 1.0</code>일 때 <code>imageScalingMode</code>를 Downscaling으로 잡고 업스케일 경로를 통째로 건너뜁니다. 즉 STP·FSR은 이 설정에서 동작하지 않으며 순수한 다운샘플만 수행됩니다. 프레임이 부족해지면 Render Scale 1.0 + STP로 전환하는 것이 다음 카드입니다.<br><br>또한 인스펙터 슬라이더 상한은 2.0이지만 URP는 이 값을 클램프 없이 <code>scaledWidth = pixelWidth × renderScale</code>로 사용합니다. 직렬화 파일을 직접 편집하면 3 이상도 들어가며(과거 이 에셋에 3이 들어가 있었음), 씬 뷰는 렌더 스케일이 무시되어 에디터에서는 증상이 보이지 않습니다. 반드시 슬라이더로만 조정하세요.</div>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-must">필수</span><span class="name">URP Asset — Lighting (Main/Additional Light · Probe)</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">URP Asset 선택 &gt; Inspector &gt; Lighting</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Main Light: Per Pixel + Cast Shadows / Additional Lights: Per Pixel (Forward+에선 개수 제한 없음)
+Light Probe System: Probe Volumes (APV) / Reflection Probe Blending · Box Projection: 켬</div>
+                <p class="note">Forward+에서는 Additional Lights의 개수 상한이 사라져 다중 광원이 자유롭습니다. Reflection Probe Blending을 켜야 프로브 경계에서 반사가 튀지 않습니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-rec">권장</span><span class="name">URP Asset — Shadows</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">URP Asset 선택 &gt; Inspector &gt; Shadows</div>
+                <div class="field-label">일반 기준값</div>
+                <div class="recommend">Max Distance: 씬에 필요한 최소값 (실내 30~50m) / Cascade Count: 4
+Shadow Resolution: 4096 / Soft Shadows: 켬, Quality: High / Depth Bias 1.0 · Normal Bias 1.0에서 미세 조정</div>
+                <div class="proj-label">이 프로젝트 확정</div>
+                <div class="proj">Max Distance 100m / Cascade Count 4 / Main Light Shadow Resolution 4096
+라이트 쪽: Shadow Type Soft / Strength 0.8 / Bias 0.05 / Normal Bias 0.4</div>
+                <p class="note">Max Distance는 화질과 비용을 동시에 좌우하는 최대 변수입니다. 무작정 늘리지 말고 카메라가 실제로 닿는 범위로 조이세요. 그림자 끝단이 끊겨 보이면 Distance를, 표면에 줄무늬(섀도 아크네)가 생기면 Bias를 조정합니다.</p>
+                <p class="note">자전거 주행이라 시야가 멀리 가서 100m가 필요하지만, 프레임이 부족해지면 여기가 1순위 절감 대상입니다. Max Distance를 절반으로 줄이면 같은 4096 해상도로 4배 촘촘한 그림자를 얻습니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-must">필수</span><span class="name">Universal Renderer — Rendering Path = Forward+<span class="badge ver-22">2022.2+</span></span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">URP Asset &gt; Renderer List에서 Renderer 더블클릭 &gt; Inspector &gt; Rendering</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Rendering Path: Forward+ / Depth Priming Mode: Auto / Intermediate Texture: Auto</div>
+                <p class="note">Forward+는 오브젝트당 조명 제한(4~8개)을 없애고, GPU Resident Drawer의 전제 조건이기도 합니다. Deferred+도 GPU Resident Drawer와 호환되지만 반투명·머티리얼 다양성에서 Forward+가 무난합니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-must">필수</span><span class="name">Depth / Opaque Texture 버퍼링</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">URP Asset 선택 &gt; Inspector &gt; Rendering  (Depth Texture / Opaque Texture)</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Depth Texture: 켬 / Opaque Texture: 켬 (굴절·반투명 효과 필요 시) / Opaque Downsampling: None</div>
+                <p class="note">SSAO·SSR·포그 등 화면 공간 효과가 깊이 버퍼를 요구합니다. Depth Texture가 꺼져 있으면 효과가 조용히 동작하지 않으니 먼저 확인하세요. SSAO의 Depth Normals 소스를 쓰면 노멀 프리패스가 추가로 필요합니다.</p>
+            </div>
+        </div>
+
+        <div class="info-box">
+            <strong>파이프라인 선택 참고 —</strong> 레이 트레이싱, 네이티브 볼류메트릭 포그, 물리 광량 단위(Lux/Lumen)까지 필요한 극한의 사실감이 목표라면 <strong>HDRP</strong>가 정공법입니다. URP는 이 문서의 기법들로 HDRP에 근접할 수 있지만 일부는 서드파티나 커스텀으로 메꿔야 합니다. 데스크톱 고정 사양 설치물이면서 위 기능이 핵심이라면 초기 단계에서 HDRP 전환을 한 번 저울질해 보세요.
+        </div>
+    </section>
+
+    <!-- ============ TAB 2 ============ -->
+    <section class="tab-panel" id="t2">
+        <h2>2. 빛의 시뮬레이션: GI · 화면 공간 효과 · 공기감</h2>
+        <p>공간 전체의 거시적인 빛(GI)과 미세한 디테일(SSAO·SSR), 그리고 공기감(포그)을 겹겹이 쌓아 현실감을 부여합니다.</p>
+
+        <h3>APV (Adaptive Probe Volumes)</h3>
+
+        <div class="info-box">
+            APV는 조도를 <strong>'공중의 3D 격자'</strong>에 저장하고, 셰이더가 픽셀의 월드 좌표에서 그 격자를 보간해 읽습니다. 라이트맵처럼 표면에서 직접 계산하는 방식이 아니라는 점이 모든 아티팩트의 출발점입니다. 아래 항목들은 Unity 6.3 / SRP 17.3 패키지 소스를 직접 확인해 정리했습니다.
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-must">필수</span><span class="name">APV 활성화 &amp; 볼륨 배치<span class="badge ver-22">2022.2+</span></span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">① Project Settings &gt; Graphics &gt; Pipeline Specific Settings &gt; URP &gt; Light Probe System = Probe Volumes
+② GameObject &gt; Light &gt; Adaptive Probe Volume
+③ Window &gt; Rendering &gt; Lighting &gt; Adaptive Probe Volumes 탭 &gt; Generate Lighting</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Light Probe System: Probe Volumes / 볼륨은 실제로 오브젝트가 있는 구역만 덮도록 배치
+Fill Empty Spaces: 해제 / Y 범위가 지하·육교까지 포함하는지 확인</div>
+                <p class="note">볼륨 바깥은 데이터가 아예 없어 검거나 평평하게 렌더되므로 씬 경계와 높이 범위를 먼저 확인하세요. Fill Empty Spaces를 켜면 빈 공중까지 프로브를 채워 메모리만 낭비합니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-must">필수</span><span class="name">Probe Placement (Min Probe Spacing / Simplification Levels)</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Window &gt; Rendering &gt; Lighting &gt; Adaptive Probe Volumes 탭 &gt; Baking Set &gt; Probe Placement
+(또는 Project 창에서 '&lt;씬이름&gt; Baking Set' 에셋 선택)</div>
+                <div class="proj-label">Level2 기준</div>
+                <div class="proj">Min Probe Spacing: 1m / Simplification Levels: 3
+Probe Volume 쪽 Override Subdivision Levels 켜고 0~2 (81m 브릭 배제)
+값을 바꾼 뒤 반드시 Generate Lighting 재실행</div>
+                <p class="note">최소 브릭 크기 = Min Probe Spacing × 3, 셀 크기 = 3<sup>(Simplification Levels)</sup> 브릭, 서브디비전 단계 = Levels + 1 입니다. 1m / 3단계면 서브디비전 0~3단계가 생기고 브릭 크기는 3 / 9 / 27 / 81m, 각각 프로브 간격 1 / 3 / 9 / 27m 입니다.</p>
+                <div class="warn-box"><strong>서브디비전 레벨은 숫자가 클수록 '브릭이 큰' 쪽입니다</strong> (<code>BrickSize = minBrickSize × 3^level</code>). Level2는 볼륨 3개 모두 Override를 켜고 상한을 2로 잡아 가장 성긴 81m 브릭을 배제했습니다. 즉 프로브를 <em>줄이는</em> 설정이 아니라 <em>늘리는</em> 설정입니다.<br><br>또 하나: 인스펙터에 보이는 값과 실제로 구워진 값(<code>bakedMinDistanceBetweenProbes</code>)은 별개입니다. 재베이크 전까지는 예전 격자가 그대로 쓰이므로, 값만 고쳐두고 "왜 안 바뀌지" 하는 상황이 흔합니다. 2m 격자로는 도로·인도 폭의 명암을 표현할 수 없어 검은 띠가 남습니다.</div>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-must">필수</span><span class="name">Probe Dilation — Validity Threshold는 UI가 반전됨</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Lighting &gt; Adaptive Probe Volumes 탭 &gt; Baking Set &gt; Probe Dilation Settings</div>
+                <div class="proj-label">Level2 기준</div>
+                <div class="proj">Dilation: 켬 / Validity Threshold: 0.75(UI) / Search Radius: 1.5
+Dilation Iterations: 1 / Squared Distance Weighting: 켬
+→ 검은 얼룩이 남으면 Iterations만 2로 (범위 1~5)</div>
+                <div class="warn-box"><strong>UI 슬라이더는 내부 저장값의 반전(1 − x)입니다.</strong> UI 0.75 = 내부 0.25이고, 값이 클수록 "더 쉽게 무효로 판정해 이웃 값으로 교체"합니다. UI를 0.25처럼 낮게 두면 지오메트리에 75% 이상 파묻힌 프로브만 교체되고, 25~75%로 애매하게 묻힌 프로브는 어두운 값 그대로 남아 도로·벽 표면에 검은 띠를 만듭니다.</div>
+                <p class="note">Virtual Offset의 Validity Threshold에도 같은 반전이 적용되므로 두 값을 UI 기준 0.75로 맞춰두면 서로 어긋나지 않습니다. Search Radius는 에디터가 Min Probe Spacing 미만으로 내려가지 않게 자동으로 잡아줍니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-rec">권장</span><span class="name">Virtual Offset Settings</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Lighting &gt; Adaptive Probe Volumes 탭 &gt; Baking Set &gt; Virtual Offset Settings</div>
+                <div class="proj-label">Level2 기준</div>
+                <div class="proj">Virtual Offset: 켬 / Validity Threshold 0.75(UI) / Search Distance Multiplier 0.2
+Geometry Bias 0.01 / Ray Origin Bias −0.001  (전부 6.3 기본값)
+→ 두꺼운 바닥·슬래브에 갇힌 프로브가 남으면 Search 0.5 / Geometry Bias 0.05 로</div>
+                <p class="note">지오메트리 안에 박힌 프로브를 표면 밖으로 밀어냅니다. Dilation보다 결과가 좋지만 베이크 시간이 늘어납니다. Search Distance Multiplier는 브릭 크기에 대한 비율이라 기본 0.2로는 도로 슬래브처럼 두꺼운 바닥에 갇힌 프로브를 빼내지 못합니다. Geometry Bias 0.01(1cm)은 면에 너무 붙어 밀어낸 뒤에도 다시 자기 자신에 가려집니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-must">필수</span><span class="name">Adaptive Probe Volumes Options (Volume Override)</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Global Volume &gt; Volume Profile &gt; Add Override &gt; Lighting &gt; Adaptive Probe Volumes Options</div>
+                <div class="field-label">일반 기준값 (6.3 기본)</div>
+                <div class="recommend">Normal Bias 0.05 / View Bias 0.1 / Leak Reduction Mode: Quality</div>
+                <div class="proj-label">이 프로젝트 확정</div>
+                <div class="proj">Normal Bias 0.33 / View Bias 0 / Leak Reduction Mode: Performance
+Sampling Noise 0.1 + Animate 켬 / Min Valid Dot Product: 무시 (6.3에서 폐기)</div>
+                <p class="note">베이크 없이 즉시 반영되는 유일한 APV 항목이라 문제 진단 시 가장 먼저 시험해볼 값들입니다.</p>
+                <p class="note">이 프로젝트는 6.3 기본값과 다른 조합을 씁니다. 동적 오브젝트의 컬러 얼룩을 이 값들로 잡으려 했지만 실제 원인은 Disk Streaming이었고(아래 항목 참조), 그것을 해제한 뒤로는 Normal Bias 0.33에서도 문제가 없어 야외 도시 씬에 맞게 그대로 유지하기로 했습니다. Leak Reduction도 Performance로 충분합니다.</p>
+                <p class="note">다만 원리는 알아두세요. Normal Bias는 샘플 지점을 노멀 방향으로 밀어내므로 값이 크면 얇은 벽·바닥을 뚫고 반대편 프로브를 읽습니다. 실내나 좁은 통로가 추가되어 빛이 새거나 곡면에 색이 갈라지면 여기부터 0.05까지 내리고 Leak Reduction을 Quality로 올리세요.</p>
+                <div class="warn-box"><code>Min Valid Dot Product Value</code>는 6000.0에서 <code>[Obsolete]</code> 처리되어 <strong>프로파일에 값이 남아 있어도 아무 동작을 하지 않습니다.</strong> 튜닝 대상에서 제외하세요.</div>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-opt">선택</span><span class="name">Sky Occlusion — 고정 하늘이면 끄기<span class="badge ver-6">Unity 6</span></span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Lighting &gt; Adaptive Probe Volumes 탭 &gt; Baking Set &gt; Sky Occlusion Settings</div>
+                <div class="proj-label">Level2 기준</div>
+                <div class="proj">Sky Occlusion: 해제 — 이 프로젝트는 스카이박스를 런타임에 바꾸지 않으므로 이득 없음
+→ 시간대 기능을 넣게 되면 Samples 2048, Bounces 2, Albedo Override 0.6, Sky Direction 켬</div>
+                <p class="note">하늘이 바뀔 때 씬을 다시 라이팅하기 위한 기능입니다. 스카이박스를 교체하지 않는 씬에서는 베이크 시간과 메모리만 소모합니다.</p>
+                <p class="note">게다가 지오메트리에 묻힌 프로브는 하늘 가시성이 0으로 구워지고 그 값이 앰비언트에 곱해지므로, '조금 어두움'이 아니라 <strong>완전한 검정</strong>이 됩니다. 검은 면 문제를 추적할 때 한 번 꺼보면 원인 분리가 쉽습니다. 끄고 확보한 메모리로 SH Bands를 L2로 올리는 편이 화질 이득이 큽니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-must">필수</span><span class="name">Disk Streaming — 동적 오브젝트 컬러 아티팩트의 원인<span class="badge ver-proj">이 프로젝트에서 재현·확정</span></span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">URP Asset &gt; Inspector &gt; Lighting &gt; Probe Volumes &gt; Enable Disk Streaming</div>
+                <div class="proj-label">이 프로젝트 확정</div>
+                <div class="proj">Enable Disk Streaming: 해제 (필수) / Enable GPU Streaming: 켬 유지 가능</div>
+                <div class="warn-box"><strong>Disk Streaming을 켜면 보행자·차량 같은 동적 오브젝트 표면에 빨강·녹색 얼룩이 번집니다.</strong> 셀 데이터가 부분 로드되면서 프로브 값이 깨지는 것으로 보이며, 해제하면 즉시 사라집니다.<br><br>2026-08-09 이 프로젝트에서 확정된 원인입니다. SH L2 전환, Indirect Multiplier 정상화, 프로브 밀도 1m 재베이크로도 해결되지 않았고 오직 Disk Streaming 해제만이 효과가 있었습니다. Unity 포럼에도 APV 블록형 아티팩트가 Disk/GPU Streaming 해제로 해결된 동일 사례가 보고돼 있습니다.</div>
+                <p class="note">APV 색 이상이 재발하면 Normal Bias나 Leak Reduction보다 이 설정을 먼저 의심하세요. 대신 셀이 전량 메모리에 상주하므로 Memory Budget(2048MB) 초과 여부를 함께 봐야 합니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-rec">권장</span><span class="name">Probe Adjustment Volume (국소 수정)<span class="badge ver-6">Unity 6</span></span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">GameObject &gt; Light &gt; Probe Adjustment Volume</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">검은 구역: Override Validity Threshold 또는 Override Virtual Offset Settings
+최후 수단: Invalidate Probes, Intensity Scale / 밀도 보강은 이걸로 안 됨</div>
+                <p class="note">전역 베이크 설정을 흔들지 않고 문제 구역만 고치는 도구입니다. 6.3의 모드는 Invalidate Probes · Override Validity Threshold · Apply Virtual Offset · Override Virtual Offset Settings · Override Sky Direction · Override Sample Count · Override Rendering Layer Mask · Intensity Scale 입니다.</p>
+                <div class="warn-box">이 컴포넌트는 프로브 <strong>'밀도'</strong>를 바꾸지 못합니다. 특정 구역만 촘촘하게 하려면 그 구역에 Adaptive Probe Volume을 하나 더 만들고 Override Subdivision Levels를 켜세요.</div>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-must">필수</span><span class="name">Receive GI 선택 기준 — 라이트맵 vs 프로브</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">MeshRenderer &gt; Inspector &gt; Lighting &gt; Receive Global Illumination
+일괄 적용: Tools &gt; Asset Tools &gt; 라이팅 프리셋</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">도로·바닥·벽·간판 등 얇거나 넓은 면 → Lightmaps
+나무·프롭·차량 등 부피 있는 것 → Light Probes
+Light Probes를 고를 땐 Renderer의 Light Probes 드롭다운이 Off가 아닌지(Blend Probes) 반드시 확인</div>
+                <p class="note">라이트맵은 표면 텍셀마다(해상도 20이면 약 5cm) 계산하고, APV는 1~2m 공중 격자를 픽셀 위치에서 보간합니다. 양면이 서로 다른 조명 환경에 접한 얇은 면은 샘플 지점이 반대편으로 넘어가 검은 띠가 생기며, 이건 어떤 APV 설정으로도 완전히 없앨 수 없습니다. <strong>판단 기준은 '면적'이 아니라 '두께와 폐색 관계'입니다.</strong></p>
+                <div class="warn-box">Receive GI를 Light Probes로 바꿔도 Renderer의 <strong>Light Probes 드롭다운이 Off면 APV를 아예 샘플링하지 않아</strong> 오브젝트가 새까맣게 나옵니다. 두 값은 별개 필드라 함께 맞춰야 합니다.</div>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-opt">선택</span><span class="name">APV 메모리 / SH Bands</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">URP Asset &gt; Inspector &gt; Lighting &gt; Probe Volumes (SH Bands · Memory Budget · Streaming)</div>
+                <div class="proj-label">이 프로젝트 확정</div>
+                <div class="proj">SH Bands: L2 / Memory Budget: High(2048) / Blending Budget: 256
+GPU Streaming: 켬 / Disk Streaming: 해제</div>
+                <p class="note">L1은 메모리가 절반이지만 방향성이 뭉개져, 프로브로 라이팅되는 오브젝트가 라이트맵 오브젝트 옆에서 평평하게 붕 떠 보입니다. 다만 Min Probe Spacing을 촘촘히 하면서 L2까지 켜면 예산을 넘겨 셀이 통째로 로드되지 않고, 그 구역이 또 검게 보입니다.</p>
+                <p class="note">Disk Streaming은 위 별도 항목의 이유로 반드시 꺼둡니다. 끈 상태에서는 셀이 전량 상주하므로 예산 초과 감시가 더 중요해집니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-rec">권장</span><span class="name">APV 디버그 (Rendering Debugger &gt; Probe Volume)</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Window &gt; Analysis &gt; Rendering Debugger &gt; Probe Volume</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Display Probes 켜고 Probe Shading Mode: Validity → 빨간 프로브 위치 확인
+Virtual Offset 기즈모로 밀려난 방향 확인
+Debug Probe Sampling으로 특정 픽셀이 읽는 프로브 추적</div>
+                <p class="note">검은 면의 원인이 무효 프로브인지, 밀도 부족인지, 볼륨 바깥인지 추측하지 말고 여기서 확인하세요. Validity 표시 색은 Dilation Validity Threshold에 연동되므로 임계값을 바꾸면 색도 함께 바뀝니다. 메모리 사용량과 스트리밍 상태도 같은 패널에서 볼 수 있습니다.</p>
+            </div>
+        </div>
+
+        <h3>전역 조명 (GI)</h3>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-rec">권장</span><span class="name">베이크 GI (Progressive GPU Lightmapper)</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Window &gt; Rendering &gt; Lighting &gt; Scene 탭 &gt; Lightmapping Settings
+대상 오브젝트: Inspector 우상단 Static 드롭다운 &gt; Contribute GI</div>
+                <div class="proj-label">Level2 기준</div>
+                <div class="proj">Lightmapper: Progressive GPU / Resolution 20 texels / Max Size 2048 / Padding 2
+Compression: High Quality / Samples  Direct 32 · Indirect 128 · Environment 64
+Bounces 3 (Min 2) / Denoiser: Optix (Direct·Indirect·AO 전부) / Filtering: Auto
+Directional Mode: Directional / Ambient Occlusion: 켬, Max Distance 1, Exponent 1</div>
+                <p class="note">정적 설치물이라면 실시간 GI보다 베이크가 화질·프레임 모두 압도적으로 유리합니다. 대상 오브젝트는 Inspector 우상단 Static 드롭다운에서 Contribute GI를 켜야 라이트맵에 포함됩니다.</p>
+                <p class="note"><strong>AO Max Distance는 Level1의 3에서 1로 낮춘 값입니다.</strong> 3m는 나무 캐노피 아래를 통째로 먹어버려 밑면이 새까맣게 나왔고, 런타임 SSAO와 이중으로 걸리는 문제도 있었습니다.</p>
+                <p class="note">샘플 수(32/128/64)는 Level1(64/256/128)의 절반입니다. 노이즈가 보이면 Indirect부터 올리세요.</p>
+                <div class="warn-box"><strong>리프 카드는 라이트맵에 구우면 안 됩니다.</strong> 나무 캐노피는 알파컷 리프 카드 수십~수백 장인데, 해상도 20 texels/unit에 Padding 2면 카드 하나당 실질 텍셀이 한두 개뿐입니다. 그 값이 캐노피 내부의 가려진 지점 한 곳을 샘플한 결과라 사실상 검정이 찍히고, Directional 라이트맵의 단일 우세 방향까지 겹쳐 아랫면이 더 어두워집니다.<br><br>Level1 기준 2048 라이트맵이 <strong>110장</strong> 나왔으므로, 나무·프롭을 Light Probes로 돌려 장수를 줄이는 것이 베이크 시간과 메모리 양쪽에 가장 효과가 큽니다. 머티리얼 쪽은 Double Sided GI · Alpha Clip · Cull Off가 이미 맞아도 이 문제는 해결되지 않습니다.</div>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-rec">권장</span><span class="name">Mixed Lighting 모드</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Window &gt; Rendering &gt; Lighting &gt; Scene 탭 &gt; Mixed Lighting
+라이트별 모드: Light 컴포넌트 &gt; Mode</div>
+                <div class="proj-label">Level2 기준</div>
+                <div class="proj">Lighting Mode: Shadowmask / 씬의 유일한 광원 = Directional 1개
+Mode: Mixed / Color (1, 0.99, 0.96) / Intensity 2.5 / Indirect Multiplier 1
+Environment: Skybox 소스, Ambient Intensity 1.0, Fog 해제, Reflection Bounces 2</div>
+                <p class="note">Shadowmask는 정적 그림자를 텍스처로 굽고 동적 오브젝트만 실시간 그림자를 받게 해 실시간 그림자 개수를 크게 줄입니다. Baked Indirect는 그림자가 전부 실시간이라 더 무겁지만 동적 변화에 자연스럽습니다. 설치물은 Shadowmask 권장.</p>
+                <div class="warn-box">APV와 함께 쓰면 프로브가 라이트별 차폐값(Probe Occlusion)까지 저장합니다. <strong>라이트맵은 텍셀 단위로 그림자를 판정하지만 프로브는 브릭 단위</strong>라, 프로브로 라이팅되는 표면은 격자 경계를 따라 통째로 어두워지는 직선 경계가 생길 수 있습니다.<br><br>또한 <strong>Indirect Multiplier</strong>를 1보다 크게 올리면 바운스 표면의 알베도 색이 그만큼 증폭되어 프로브에 들어갑니다. 씬에 컬러 조명이 하나도 없어도 곡면(얼굴 등)에 색이 갈라져 보이는 원인이 될 수 있으니 1을 기본으로 두세요.</div>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-opt">선택</span><span class="name">Area Light (베이크 전용)</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">GameObject &gt; Light &gt; Area Light  →  Inspector &gt; Mode = Baked</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Mode: Baked 고정 / 창문·간접 조명·소프트박스 연출에 사용 / 실시간 필요 시 Spot + 쿠키로 근사</div>
+                <p class="note">URP에서 Area Light는 실시간으로 동작하지 않습니다(베이크에만 기여). 실시간처럼 켜두면 씬 뷰에서만 보이고 플레이 모드에서 사라져 혼란스러우니 Mode를 반드시 Baked로 두세요.</p>
+            </div>
+        </div>
+
+        <h3>화면 공간 효과 (Renderer Feature)</h3>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-must">필수</span><span class="name">SSAO (Screen Space Ambient Occlusion)</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Renderer(Universal Renderer Data) 선택 &gt; Inspector &gt; Add Renderer Feature &gt; Screen Space Ambient Occlusion</div>
+                <div class="proj-label">이 프로젝트 확정</div>
+                <div class="proj">Method: Interleaved Gradient / Source: Depth Normals / Intensity 1.0 / Radius 0.5
+Direct Lighting Strength 0.221 / Falloff 30 / Samples: Medium(8) / Blur Quality: High(Bilateral)
+Downsample·After Opaque: 해제
+→ Render Scale 2.0(4배 픽셀)이므로 Medium 고정. Render Scale을 1.0으로 내리면 High(12)로 올릴 것</div>
+                <p class="note">접촉면 그림자로 물체가 바닥에 "앉아 있는" 느낌을 만듭니다. Direct Lighting Strength를 높이면 직사광까지 어두워져 때가 낀 듯 인위적인 느낌이 나므로 낮게 유지하는 것이 사실감의 핵심입니다.</p>
+                <div class="warn-box"><strong>SSAO는 베이크 AO를 대체하지 못합니다.</strong> 베이크 AO는 캐노피 아래·골목 같은 <em>대규모 폐색</em>을, SSAO는 Radius 0.5m 범위의 <em>접촉 음영</em>만 담당합니다. 대규모 폐색은 SSAO Radius를 키워서가 아니라 APV·라이트맵의 간접광 자체로 해결해야 합니다 — Radius를 키우면 기둥·난간에 헤일로가 생기고 비용만 늘어납니다.</div>
+                <p class="note">Source가 Depth Normals면 <strong>Normal Quality 필드는 비활성이며 사용되지 않습니다</strong>(노멀 프리패스에서 받아옴). After Opaque를 켜면 AO가 앰비언트가 아니라 최종 색에 곱해져 과하게 어두워지고 Direct Lighting Strength가 제대로 동작하지 않습니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-rec">권장</span><span class="name">SSR (Screen Space Reflections)<span class="badge ver-23">2023.2+</span></span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Renderer &gt; Add Renderer Feature &gt; Screen Space Reflections
+세부값: Global Volume &gt; Add Override &gt; Screen Space Reflection</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Resolution: Half (부하 큼) / Max Steps 32~64 / Thickness 0.05~0.1
+젖은 바닥·유리·금속 등 Smoothness 높은 표면 위주로 사용</div>
+                <p class="note">화면 밖 정보는 반사할 수 없어 화면 경계에서 반사가 사라집니다. Reflection Probe를 밑에 깔고 SSR을 그 위에 얹는 조합이 안정적입니다. 프레임이 부족하면 가장 먼저 Half Resolution 또는 해제를 검토할 항목입니다. 2023.2 미만에서는 내장되어 있지 않아 서드파티(SSRR 등)나 Planar Reflection으로 대체해야 합니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-opt">선택</span><span class="name">Decal Renderer Feature</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Renderer &gt; Add Renderer Feature &gt; Decal</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Technique: Automatic / 누수·얼룩·마모 표현으로 표면 반복감 제거</div>
+                <p class="note">같은 텍스처가 반복되는 바닥·벽에 데칼로 불규칙성을 주면 사실감이 크게 올라갑니다. 극사실주의에서 가장 저렴하게 "실제로 쓰인 공간" 느낌을 내는 방법입니다.</p>
+            </div>
+        </div>
+
+        <h3>공기감 (볼류메트릭)</h3>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-rec">권장</span><span class="name">볼류메트릭 포그 — URP 네이티브 미지원</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">(내장 없음) 서드파티 / 오픈소스 도입 필요</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">HAZE (Alisavakis) — RenderGraph froxel 방식, 라이트 쿠키·SSMS 지원, 아트 컨트롤 풍부
+AERO (Mirza Beig) — 무료 레이마칭, Shader Graph 연동, 경량 (Unity 6.2+)
+Unity-URP-Volumetric-Light (오픈소스) — Render Graph · APV 호환, Forward+/Deferred+ 권장</div>
+                <p class="note">URP는 Unity 6 기준으로도 볼류메트릭 포그가 내장되어 있지 않습니다. 실내 빛줄기(God Ray)는 극사실 분위기의 핵심이라 SSR처럼 외부 솔루션으로 메워야 합니다. 도입 시 반드시 Render Graph 대응 버전인지 확인하세요.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-opt">선택</span><span class="name">기본 Fog + Height Fog (경량 대안)</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Window &gt; Rendering &gt; Lighting &gt; Environment 탭 &gt; Fog</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Mode: Exponential Squared / Density 0.005~0.02 / 색은 하늘·주광원 색과 맞추기</div>
+                <p class="note">볼류메트릭까지 갈 예산이 없을 때 원경 공기 원근만이라도 확보하는 방법입니다. 포그 색을 스카이박스와 어긋나게 두면 원경이 붕 떠 보이니 색 매칭이 중요합니다.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ TAB 3 ============ -->
+    <section class="tab-panel" id="t3">
+        <h2>3. 머티리얼 &amp; 텍스처 품질</h2>
+        <p>극사실주의는 렌더 세팅보다 <strong>애셋 품질</strong>이 좌우하는 경우가 많습니다. 조명을 아무리 잘 깔아도 텍스처와 머티리얼 정합이 무너지면 CG 티가 납니다.</p>
+
+        <h3>텍스처 메모리 / 품질</h3>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-must">필수</span><span class="name">Texture Streaming (Mipmap Streaming)</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Edit &gt; Project Settings &gt; Quality &gt; Textures &gt; Texture Streaming
+텍스처별: 텍스처 선택 &gt; Inspector &gt; Streaming Mip Maps 체크</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Texture Streaming: 켬 / Memory Budget: VRAM의 50~60% (12GB 카드 기준 4096~6144MB)
+Max Level Reduction: 2</div>
+                <p class="note">4K 텍스처를 다수 쓰는 극사실 씬에서 VRAM 초과를 막는 안전장치입니다. Budget이 너무 낮으면 카메라 이동 시 텍스처가 흐릿하게 늦게 로드되는 팝핑이 보이니 현장 GPU 기준으로 여유 있게 잡으세요.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-rec">권장</span><span class="name">Anisotropic Filtering</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Edit &gt; Project Settings &gt; Quality &gt; Rendering &gt; Anisotropic Textures</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Anisotropic Textures: Forced On / 개별 텍스처는 Aniso Level 4~8 (바닥·벽 등 시선에 비스듬한 표면)</div>
+                <p class="note">바닥처럼 시선과 각도가 큰 표면의 원경이 뭉개지는 것을 방지합니다. 비용 대비 체감 화질 개선이 커서 데스크톱 타깃이면 Forced On으로 두는 편이 편합니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-opt">선택</span><span class="name">텍스처 압축 포맷 (BC7 / BC5)</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">텍스처 선택 &gt; Inspector(Import Settings) &gt; 하단 Windows 플랫폼 탭 &gt; Override 체크 &gt; Format</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Albedo · Mask: BC7 / Normal Map: BC5 (Texture Type을 Normal map으로 지정)
+Max Size 2048~4096 / sRGB는 컬러만 켜고 Mask · Roughness는 해제</div>
+                <p class="note">노멀맵을 일반 컬러 압축(BC1)으로 두면 굴곡이 계단처럼 깨집니다. Metallic/Smoothness 같은 데이터 텍스처에 sRGB가 켜져 있으면 값이 왜곡되니 반드시 해제하세요. 여러 텍스처를 한 번에 선택하면 일괄 적용됩니다.</p>
+            </div>
+        </div>
+
+        <h3>PBR 머티리얼 (Lit 셰이더)</h3>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-must">필수</span><span class="name">Metallic / Smoothness 채널 정합</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">머티리얼 선택 &gt; Inspector &gt; Surface Inputs
+(Shader: Universal Render Pipeline/Lit)</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Workflow Mode: Metallic / 금속 1.0 · 비금속 0.0 (중간값은 혼합 표면만)
+Smoothness Source: Metallic Alpha
+Smoothness 참고값 — 완전 매트 0.1~0.3 / 광택 목재 0.5~0.7 / 젖은 표면·유리 0.85+</div>
+                <p class="note">알베도에 조명이나 AO가 이미 구워진 텍스처는 이중 음영을 만들어 CG 티의 주범이 됩니다. 금속은 알베도가 반사색을 담당하고 확산광이 거의 없다는 PBR 규칙을 지켜야 조명 반응이 자연스럽습니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-rec">권장</span><span class="name">Normal Map 강도</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">머티리얼 &gt; Inspector &gt; Surface Inputs &gt; Normal Map (맵 할당 시 우측에 강도 필드 표시)</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Strength 0.8~1.0 유지 (1.5 이상은 실루엣과 어긋나 가짜 티) / 큰 요철은 지오메트리, 미세 굴곡만 노멀</div>
+                <p class="note">노멀맵을 과하게 올리면 그림자 방향과 실제 실루엣이 충돌해 오히려 평평해 보입니다. 강도를 올리고 싶어지면 대개 텍스처 자체나 지오메트리 문제입니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-rec">권장</span><span class="name">Detail Map (근접 디테일)</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">머티리얼 &gt; Inspector &gt; Detail Inputs (Mask · Detail Albedo x2 · Detail Normal Map)</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Detail Albedo / Normal 할당 후 Tiling을 메인의 8~20배 / Detail Normal Scale 0.5~1.0
+관람객이 가까이 붙는 바닥·벽·손잡이에 우선 적용</div>
+                <p class="note">인터랙티브 설치물은 관람객이 표면에 얼굴을 들이대는 상황이 실제로 발생합니다. 메인 텍스처 해상도를 올리는 것보다 디테일 맵을 겹치는 편이 메모리 대비 효율이 훨씬 좋습니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-opt">선택</span><span class="name">Parallax Occlusion (Height Map)</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">머티리얼 &gt; Inspector &gt; Surface Inputs &gt; Height Map</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Height Scale 0.02~0.08 (과하면 가장자리 왜곡) / 벽돌·자갈·타일 등 깊이감이 중요한 표면만 선별 적용</div>
+                <p class="note">픽셀 셰이더 부하가 있으니 카메라가 가까이 가는 핵심 표면에만 쓰세요. 값을 크게 올리면 실루엣 경계에서 텍스처가 미끄러지듯 흘러내리는 현상이 보입니다. 시선을 비스듬히 두고 확인하는 것이 검증 요령입니다.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ TAB 4 ============ -->
+    <section class="tab-panel" id="t4">
+        <h2>4. 영화적 마감 및 포스트 프로세싱</h2>
+        <p>디지털 렌더링 특유의 날것 느낌을 제거하고 영화 카메라 렌즈의 특성을 부여합니다. 대부분 <strong>Global Volume</strong>의 Override로 추가합니다.</p>
+
+        <div class="info-box">
+            <strong>Global Volume이 없다면 —</strong> <code>GameObject &gt; Volume &gt; Global Volume</code>으로 생성한 뒤, Inspector의 Profile 옆 <strong>New</strong> 버튼으로 프로파일을 만들고 <strong>Add Override</strong>로 아래 항목들을 추가합니다.
+        </div>
+
+        <h3>안티앨리어싱 / 업스케일</h3>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-rec">권장</span><span class="name">STP (Spatial-Temporal Post-Processing)<span class="badge ver-6">Unity 6</span></span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">URP Asset 선택 &gt; Inspector &gt; Quality &gt; Upscaling Filter</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Upscaling Filter: Spatial-Temporal Post-Processing
+여유 있으면 Render Scale 1.0 유지 / 프레임 부족하면 0.7~0.85로 낮춰 활용</div>
+                <p class="note">STP는 Render Scale이 1.0이어도 계속 동작하며 최종 렌더 출력에 TAA를 적용합니다. 즉 업스케일과 안티앨리어싱을 겸합니다. 저해상도 렌더에서 재구성 품질이 뛰어나 4K 디스플레이 설치물에서 프레임을 확보하는 가장 효과적인 수단입니다.</p>
+                <div class="warn-box"><strong>단, Render Scale이 1을 넘으면 STP는 동작하지 않습니다.</strong> URP는 <code>renderScale &gt; 1.0</code>에서 <code>imageScalingMode</code>를 Downscaling으로 잡고 업스케일 경로를 건너뜁니다. 이 프로젝트는 현재 Render Scale 2.0(2× 슈퍼샘플링 + 일반 TAA)이라 STP가 비활성 상태입니다. 프레임이 부족해지면 <strong>Render Scale 1.0 + STP</strong>로 전환하는 것이 다음 카드입니다.</div>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-must">필수</span><span class="name">TAA (Temporal Anti-Aliasing)<span class="badge ver-22">2022.2+</span></span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Main Camera 선택 &gt; Inspector &gt; Rendering &gt; Anti-aliasing</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Anti-aliasing: Temporal Anti-aliasing / Quality: High / 잔상이 거슬리면 샤프닝 소량 병행</div>
+                <p class="note">외곽선 계단은 물론 SSAO·SSR의 노이즈까지 시간축으로 뭉개줘 화질 향상 폭이 가장 큰 항목입니다. STP를 켠 경우 STP가 TAA 역할을 겸하므로 중복 설정하지 않아도 됩니다. 빠른 움직임에서 고스팅이 생길 수 있습니다.</p>
+            </div>
+        </div>
+
+        <h3>톤 &amp; 컬러</h3>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-must">필수</span><span class="name">Tonemapping = ACES</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Global Volume 선택 &gt; Inspector &gt; Volume Profile &gt; Add Override &gt; Post-processing &gt; Tonemapping</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Mode: ACES   (HDR 디스플레이 출력 시 Neutral + HDR Output 조합 검토)</div>
+                <p class="note">HDR 광량을 필름 반응 곡선으로 압축해 하이라이트가 하얗게 타지 않게 합니다. ACES는 대비가 강하게 걸리므로 적용 후 조명 강도를 다시 조정하는 것이 보통입니다. URP Asset의 HDR이 켜져 있어야 의미가 있습니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-rec">권장</span><span class="name">Color Adjustments / Color Curves / Shadows Midtones Highlights</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Volume Profile &gt; Add Override &gt; Post-processing &gt; Color Adjustments / Color Curves / Shadows Midtones Highlights</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Post Exposure: 0 기준 ±0.5 미세 조정 / Contrast 5~15 / Saturation -5~+10
+Shadows에 약한 청색, Highlights에 약한 난색 (시네마틱 스플릿 톤)</div>
+                <p class="note">채도를 과하게 올리면 즉시 게임 룩이 됩니다. 실사 레퍼런스는 대체로 채도가 낮고 대비가 정돈돼 있습니다. URP에는 HDRP 같은 물리 기반 자동 노출이 없으므로 Post Exposure가 수동 노출 조절 창구 역할을 합니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-opt">선택</span><span class="name">White Balance / Lift Gamma Gain</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Volume Profile &gt; Add Override &gt; Post-processing &gt; White Balance / Lift Gamma Gain</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Temperature -10~+10 범위로 조명 색온도와 맞추기 / Lift로 블랙 레벨을 살짝 띄우면 필름 느낌</div>
+                <p class="note">블랙을 완전한 0으로 두면 디지털 느낌이 강합니다. Lift를 아주 살짝 올려 어두운 부분에 정보를 남기는 것이 필름 룩의 흔한 트릭입니다. URP 볼륨에는 커스텀 LUT 슬롯이 없어 이 조합으로 대체합니다.</p>
+            </div>
+        </div>
+
+        <h3>렌즈 &amp; 필름 특성</h3>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-must">필수</span><span class="name">Bloom</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Volume Profile &gt; Add Override &gt; Post-processing &gt; Bloom</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Threshold 0.9~1.1 / Intensity 0.1~0.3 (과용 금물) / Scatter 0.6~0.7 / High Quality Filtering: 켬</div>
+                <p class="note">Intensity를 높이면 즉시 뿌옇고 값싼 느낌이 납니다. 실사에서 블룸은 아주 밝은 광원 주변에만 미세하게 보입니다. Threshold를 1.0 근처로 두어 진짜 HDR 하이라이트에만 반응하게 하는 것이 핵심입니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-rec">권장</span><span class="name">Depth of Field (보케)</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Volume Profile &gt; Add Override &gt; Post-processing &gt; Depth Of Field</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Mode: Bokeh / Focal Length 50mm / Aperture (F-Stop) 2.8~5.6 / Blade Count 6~8
+시점 이동이 많으면 Gaussian 모드나 약한 설정으로</div>
+                <p class="note">실제 렌즈 파라미터를 쓰므로 사진 지식이 그대로 적용됩니다. F값이 낮을수록 심도가 얕아집니다. 관람객이 카메라를 조작하는 콘텐츠라면 초점이 계속 어긋나 답답할 수 있으니 연출 샷 위주로 쓰세요.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-opt">선택</span><span class="name">Motion Blur</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Volume Profile &gt; Add Override &gt; Post-processing &gt; Motion Blur</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Mode: Camera Only / Quality: Medium / Intensity 0.05~0.15 (아주 약하게)
+체험형·시점 이동 잦은 설치물은 생략 검토</div>
+                <p class="note">실감형 콘텐츠에서 모션 블러는 멀미를 유발하는 흔한 원인입니다. 영상 녹화용 빌드에서는 켜고 현장 체험 빌드에서는 끄는 식으로 분리하는 것도 방법입니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-opt">선택</span><span class="name">Vignette / Film Grain / Chromatic Aberration</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Volume Profile &gt; Add Override &gt; Post-processing &gt; Vignette / Film Grain / Chromatic Aberration</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Vignette: Intensity 0.15~0.25, Smoothness 0.4
+Film Grain: Type Thin1, Intensity 0.1~0.2
+Chromatic Aberration: Intensity 0.03~0.08</div>
+                <p class="note">세 가지 모두 "있는 줄 모를 정도"가 정답입니다. 미세한 그레인은 그라데이션 밴딩을 가려주는 실용적 효과도 있습니다. 과용하면 오히려 인디 게임 필터처럼 보이니 수치를 올리고 싶을 때 한 번 더 참으세요.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ TAB 5 ============ -->
+    <section class="tab-panel" id="t5">
+        <h2>5. 안정적인 프레임 방어를 위한 최적화</h2>
+        <p>인터랙티브 환경에서 실시간 렌더링 부하와 외부 데이터 처리(OpenCV·뎁스 카메라 등)가 충돌할 때 해결하는 방법론입니다.</p>
+
+        <h3>A. CPU 바운드 — 드로우콜 &amp; 컬링</h3>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-rec">권장</span><span class="name">GPU Resident Drawer (3단계 설정)<span class="badge ver-6">Unity 6</span></span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">① Project Settings &gt; Graphics &gt; Shader Stripping &gt; BatchRendererGroup Variants = Keep All
+② URP Asset &gt; Inspector &gt; Rendering &gt; SRP Batcher 켬 → GPU Resident Drawer = Instanced Drawing
+③ Renderer List에서 Renderer 더블클릭 &gt; Rendering Path = Forward+ (또는 Deferred+)</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">GPU Resident Drawer: Instanced Drawing / Small-Mesh Screen Percentage: 0 (전부 포함)
+활성화 직후 나타나는 GPU Occlusion Culling도 함께 켜기</div>
+                <p class="note"><strong>세 조건이 모두 맞아야 동작합니다.</strong> 다음에 해당하는 오브젝트는 자동 제외됩니다 — MaterialPropertyBlock 사용, Light Probes가 Use Proxy Volume, LOD 크로스페이드 애니메이션, DOTS Instancing 미지원 커스텀 셰이더. BRG 배리언트를 모두 컴파일하므로 빌드 시간이 늘어납니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-rec">권장</span><span class="name">GPU Occlusion Culling<span class="badge ver-6">Unity 6</span></span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">URP Asset &gt; Inspector &gt; Rendering  (GPU Resident Drawer 활성화 후 나타남)
+디버그: Window &gt; Analysis &gt; Rendering Debugger &gt; GPU Resident Drawer &gt; Occlusion Test Overlay</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">GPU Occlusion Culling: 켬 / 오버레이로 실제 컬링 범위 확인 후 판단</div>
+                <p class="note">이전 프레임의 깊이 버퍼로 가려진 지오메트리를 GPU에서 컬링합니다. 기존 베이크 방식과 달리 동적 오브젝트에도 적용되고 베이크가 필요 없습니다. 실내 공간형 씬에서 효과가 큽니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-must">필수</span><span class="name">Occlusion Culling (베이크 방식)</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Window &gt; Rendering &gt; Occlusion Culling
+대상 오브젝트: Inspector 우상단 Static 드롭다운 &gt; Occluder Static / Occludee Static</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Smallest Occluder 5 (실내는 2~3) / Smallest Hole 0.25 / Backface Threshold 100 → Bake 실행</div>
+                <p class="note">벽 뒤 지오메트리를 아예 렌더에서 제외합니다. 실내 공간형 설치물에서 가장 확실한 절감 수단입니다. GPU Occlusion Culling을 쓰는 경우 중복 투자일 수 있으니 둘 중 하나로 정리해도 됩니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-must">필수</span><span class="name">LOD Group</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">GameObject 선택 &gt; Inspector &gt; Add Component &gt; LOD Group
+전역 배율: Edit &gt; Project Settings &gt; Quality &gt; Rendering &gt; LOD Bias</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">폴리곤 — LOD0 100% → LOD1 50% → LOD2 25%
+전환 지점 — LOD0 60% / LOD1 30% / LOD2 12% / Culled 1~2%
+LOD Bias 1.5~2.0 (품질 우선) / GPU Resident Drawer 사용 시 Cross-fade 애니메이션은 미지원</div>
+                <p class="note">원경 오브젝트의 정점 부하를 줄이는 기본기입니다. 자동 생성이 필요하면 Unity Mesh Simplifier를 쓰거나 DCC 툴에서 미리 LOD 메시를 만들어 임포트하세요.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-opt">선택</span><span class="name">Batching (SRP Batcher / Static / GPU Instancing)</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">SRP Batcher: URP Asset &gt; Inspector &gt; Rendering
+Static Batching: Edit &gt; Project Settings &gt; Player &gt; Other Settings &gt; Rendering
+GPU Instancing: 머티리얼 &gt; Inspector &gt; Advanced Options &gt; Enable GPU Instancing</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">SRP Batcher: 켬(기본) / GPU Resident Drawer 사용 시 Static Batching은 오히려 해제 권장
+동일 메시 반복 배치는 머티리얼의 Enable GPU Instancing 체크</div>
+                <p class="note">GPU Resident Drawer와 Static Batching은 함께 쓰면 서로의 이점을 깎아먹습니다. GRD를 쓰기로 했다면 Static Batching은 끄고 GRD에 맡기는 편이 낫습니다.</p>
+            </div>
+        </div>
+
+        <h3>B. CPU 바운드 — 외부 연산 (실감형 특화)</h3>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-must">필수</span><span class="name">C# Job System &amp; Burst Compiler</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Window &gt; Package Manager에서 Burst 설치
+확인: Jobs &gt; Burst &gt; Enable Compilation / Jobs &gt; Leak Detection</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">IJobParallelFor + [BurstCompile] / NativeArray로 데이터 전달
+Schedule 후 같은 프레임에 Complete() 호출하지 말고 다음 프레임에 회수</div>
+                <p class="note">뎁스 카메라 파싱, OpenCV 전처리 같은 대량 픽셀 연산을 <code>Update()</code>에서 돌리면 메인 스레드가 그대로 멈춥니다. Job으로 넘기고 Burst로 컴파일하면 수십 배 빨라지는 경우가 흔합니다. 같은 프레임에 <code>Complete()</code>를 부르면 결국 대기하게 되므로 한 프레임 지연을 허용하는 설계가 핵심입니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-rec">권장</span><span class="name">AsyncGPUReadback</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">(코드 레벨) UnityEngine.Rendering.AsyncGPUReadback.Request(...)</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">동기 Texture2D.ReadPixels 금지 / Request 후 콜백 또는 폴링으로 수신
+요청 큐를 2~3개로 제한해 지연 누적 방지</div>
+                <p class="note">카메라 렌더 결과를 CPU로 가져와 OpenCV에 넘길 때 동기 읽기는 GPU 파이프라인을 정지시켜 수 밀리초~수십 밀리초 스파이크를 만듭니다. 비동기 요청은 보통 1~3프레임 지연되지만 프레임은 유지됩니다.</p>
+            </div>
+        </div>
+
+        <h3>C. GPU 바운드 — 렌더링 다이어트</h3>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-rec">권장</span><span class="name">Render Scale (1순위 조절 레버)</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">URP Asset &gt; Inspector &gt; Quality &gt; Render Scale
+런타임: UniversalRenderPipelineAsset.renderScale</div>
+                <div class="field-label">일반 기준값</div>
+                <div class="recommend">1.0 기준 → 부하 시 0.85 → 0.75 순으로 단계 하향 (STP 병행 시 0.7까지 실용)</div>
+                <div class="proj-label">이 프로젝트 확정</div>
+                <div class="proj">Render Scale 2.0 — 화질 우선으로 <em>올려서</em> 쓰는 예외 케이스
+프레임 절감이 필요해지면 2.0 → 1.0(+STP) → 0.85 순으로 내릴 것</div>
+                <p class="note">개별 이펙트를 끄면 룩이 무너지지만 Render Scale은 전 화면에 균일하게 작용해 룩 손상이 가장 적습니다. 프레임이 부족할 때 가장 먼저 손댈 값이라는 점은 동일하지만, 이 프로젝트는 반대 방향으로 써서 지글거림을 잡았습니다. 즉 <strong>양방향 조절 레버</strong>로 보는 편이 맞습니다.</p>
+                <p class="note">Render Scale은 SSAO·SSR 같은 화면 공간 효과의 비용에 그대로 곱해집니다. 2.0이면 픽셀이 4배이므로 SSAO 샘플 수 같은 값은 한 단계 낮춰 잡아야 균형이 맞습니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-rec">권장</span><span class="name">Shadow Distance 조이기</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">URP Asset &gt; Inspector &gt; Shadows &gt; Max Distance / Cascade Count</div>
+                <div class="field-label">일반 기준값</div>
+                <div class="recommend">실내 30~50m / 중형 공간 75m / Cascade 4단계, 분할을 앞쪽에 집중 (0.05 / 0.15 / 0.35)
+Last Border 0.8로 원경 그림자 페이드</div>
+                <div class="proj-label">이 프로젝트 확정</div>
+                <div class="proj">Max Distance 100m / Cascade 4 / Resolution 4096 — 자전거 주행이라 시야가 멀리 감
+프레임 절감 시 Render Scale 다음으로 손댈 항목</div>
+                <p class="note">Max Distance를 절반으로 줄이면 같은 4096 해상도로 4배 촘촘한 그림자를 얻습니다. 해상도를 올리기 전에 거리부터 조이는 것이 항상 효율적입니다. 원경 그림자는 라이트맵으로 대체하세요.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-opt">선택</span><span class="name">Frame Debugger / Render Graph Viewer</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Window &gt; Analysis &gt; Frame Debugger
+Window &gt; Rendering &gt; Render Graph Viewer</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">패스별 비용을 확인해 상위 3개부터 손대기 / 보통 SSR · 볼류메트릭 포그 · 그림자 순으로 무거움</div>
+                <p class="note">추측으로 최적화하지 말고 실제 패스 비용을 보고 판단하세요. Render Graph Viewer는 패스 병합과 리소스 수명을 시각화해 불필요한 중간 텍스처를 찾아줍니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-opt">선택</span><span class="name">Rendering Debugger</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Window &gt; Analysis &gt; Rendering Debugger</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Lighting 탭에서 조명 기여도 분리 확인 / GPU Resident Drawer 탭에서 Occlusion Test Overlay</div>
+                <p class="note">라이팅 문제를 진단할 때 각 조명 성분(직사광·간접광·반사)을 분리해 볼 수 있어 "왜 이 부분만 어둡지" 같은 문제를 빠르게 좁힐 수 있습니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-opt">선택</span><span class="name">Reflection Probe (정적 반사)</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">GameObject &gt; Light &gt; Reflection Probe  →  Inspector &gt; Type = Baked
+블렌딩: URP Asset &gt; Lighting &gt; Reflection Probe Blending</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Type: Baked / Resolution 256~512 / Box Projection: 켬 (실내 필수) / 방마다 1~2개 배치</div>
+                <p class="note">SSR은 화면 밖을 반사하지 못하므로 프로브를 바탕에 깔아두는 것이 정석입니다. Box Projection을 켜야 실내에서 반사가 벽 위치에 맞게 투영됩니다.</p>
+            </div>
+        </div>
+
+        <h3>D. 설치물 운영 세팅</h3>
+
+        <div class="warn-box">
+            <strong>현장 사고 방지 —</strong> 아래 두 항목은 무인 운영 설치물에서 가장 흔한 장애 원인입니다. 빌드 전 반드시 확인하세요.
+            <br>① <code>Run In Background</code>가 꺼져 있으면 포커스를 잃는 순간 콘텐츠가 정지합니다.
+            <br>② 멀티 디스플레이는 <code>Display.displays[i].Activate()</code>를 호출하지 않으면 2번째 이후 화면이 검게 남습니다.
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-rec">권장</span><span class="name">Target Frame Rate / VSync</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Edit &gt; Project Settings &gt; Quality &gt; Rendering &gt; VSync Count
+(코드) Application.targetFrameRate = 60;</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">VSync Count: Every V Blank (디스플레이 60Hz 기준) / targetFrameRate는 주사율과 일치
+VSync를 쓸 때 targetFrameRate는 -1로 두는 것이 충돌이 적음</div>
+                <p class="note">전시장 디스플레이는 대부분 60Hz 고정입니다. 프레임을 그 이상 뽑아봐야 티어링과 발열만 늘어납니다. 프레임 상한을 걸어 GPU 여유를 남겨두면 인터랙션 순간의 스파이크를 흡수할 수 있습니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-rec">권장</span><span class="name">Player 빌드 / 해상도 설정</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Edit &gt; Project Settings &gt; Player &gt; Resolution and Presentation</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">Fullscreen Mode: Exclusive Fullscreen (성능 유리) 또는 Fullscreen Window (멀티 디스플레이 시)
+Run In Background: 켬 / Visible In Background: 켬 / Resizable Window: 해제</div>
+                <p class="note">무인 운영 설치물은 Run In Background가 꺼져 있으면 포커스를 잃는 순간 멈춥니다. 다면 프로젝션이면 Exclusive Fullscreen이 오히려 방해가 되므로 Fullscreen Window를 씁니다.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-opt">선택</span><span class="name">멀티 디스플레이 / 프로젝터</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">카메라 선택 &gt; Inspector &gt; Output &gt; Target Display
+(코드) Display.displays[i].Activate();</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">카메라별 Target Display 지정 / 시작 시 Display.displays 전체 Activate 호출 필수
+베젤 보정·엣지 블렌딩은 별도 셰이더나 프로젝터 자체 기능 활용</div>
+                <p class="note">빌드에서는 Activate()를 명시적으로 호출하지 않으면 2번째 이후 디스플레이가 검게 남습니다. 현장 셋업 전에 반드시 실제 다중 출력 환경에서 검증하세요.</p>
+            </div>
+        </div>
+
+        <div class="item">
+            <div class="item-head"><span class="prio prio-opt">선택</span><span class="name">Profiler / Memory Profiler</span><span class="arrow">▶</span></div>
+            <div class="item-body">
+                <div class="field-label">메뉴 경로</div>
+                <div class="menu-path">Window &gt; Analysis &gt; Profiler
+Memory Profiler는 Window &gt; Package Manager에서 별도 설치</div>
+                <div class="field-label">추천 설정</div>
+                <div class="recommend">빌드에 연결해 측정 (에디터 수치는 부정확) / Development Build + Autoconnect Profiler
+Deep Profile은 원인을 좁힐 때만 / CPU · GPU · Memory 모듈 위주 확인</div>
+                <p class="note">에디터에서의 프레임은 실제 빌드와 크게 다릅니다. 반드시 실측하세요. GPU 내부까지 파야 하면 RenderDoc을 병행합니다.</p>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+(function () {
+    // 탭 전환
+    var btns = document.querySelectorAll('.tab-btn');
+    var panels = document.querySelectorAll('.tab-panel');
+    btns.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var target = btn.getAttribute('data-tab');
+            btns.forEach(function (b) { b.classList.remove('active'); });
+            panels.forEach(function (p) { p.classList.remove('active'); });
+            btn.classList.add('active');
+            document.getElementById(target).classList.add('active');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    });
+
+    // 항목 접기/펼치기
+    document.querySelectorAll('.item-head').forEach(function (head) {
+        head.addEventListener('click', function () {
+            head.parentElement.classList.toggle('open');
+        });
+    });
+
+    // 전체 펼치기/접기 (현재 탭 기준)
+    document.getElementById('expandAll').addEventListener('click', function () {
+        var panel = document.querySelector('.tab-panel.active');
+        panel.querySelectorAll('.item').forEach(function (i) { i.classList.add('open'); });
+    });
+    document.getElementById('collapseAll').addEventListener('click', function () {
+        var panel = document.querySelector('.tab-panel.active');
+        panel.querySelectorAll('.item').forEach(function (i) { i.classList.remove('open'); });
+    });
+})();
+</script>
+</body>
+</html>

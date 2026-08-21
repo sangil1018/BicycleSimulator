@@ -88,20 +88,24 @@ public class PedestrianSpawnerEditor : Editor
 
             for (int i = 0; i < groupsProp.arraySize; i++)
             {
-                var    groupProp  = groupsProp.GetArrayElementAtIndex(i);
-                var    wpsProp    = groupProp.FindPropertyRelative("waypoints");
-                var    labelProp  = groupProp.FindPropertyRelative("label");
-                var    afProp     = groupProp.FindPropertyRelative("adultsForward");
-                var    arProp     = groupProp.FindPropertyRelative("adultsReverse");
-                var    cfProp     = groupProp.FindPropertyRelative("childrenForward");
-                var    crProp     = groupProp.FindPropertyRelative("childrenReverse");
+                var    groupProp    = groupsProp.GetArrayElementAtIndex(i);
+                var    wpsProp      = groupProp.FindPropertyRelative("waypoints");
+                var    labelProp    = groupProp.FindPropertyRelative("label");
+                var    rightProp    = groupProp.FindPropertyRelative("right");
+                var    leftProp     = groupProp.FindPropertyRelative("left");
+                var    adultsProp   = groupProp.FindPropertyRelative("adults");
+                var    childrenProp = groupProp.FindPropertyRelative("children");
 
-                int total = afProp.intValue + arProp.intValue + cfProp.intValue + crProp.intValue;
+                int dirCount = (rightProp.boolValue ? 1 : 0) + (leftProp.boolValue ? 1 : 0);
+                int total    = dirCount * (adultsProp.intValue + childrenProp.intValue);
+                string dirs  = dirCount == 0 ? "없음"
+                             : rightProp.boolValue && leftProp.boolValue ? "우+좌"
+                             : rightProp.boolValue ? "우" : "좌";
 
                 Rect r = GUILayoutUtility.GetRect(0, 18, GUILayout.ExpandWidth(true));
                 EditorGUI.DrawRect(r, routeColors[i % routeColors.Length] * 0.4f);
                 EditorGUI.LabelField(r,
-                    $"  Group [{i}] \"{labelProp.stringValue}\"  WPs: {wpsProp.arraySize}  Peds: {total}",
+                    $"  Group [{i}] \"{labelProp.stringValue}\"  WPs: {wpsProp.arraySize}  Dir: {dirs}  Peds: {total}",
                     EditorStyles.miniLabel);
             }
         }
@@ -299,14 +303,14 @@ public class PedestrianSpawnerEditor : Editor
         var childPrefabs = childPrefabsProp;
 
         if (adultPrefabs.arraySize == 0)
-            sb.AppendLine("✗ Adult Prefabs 미할당.");
+            sb.AppendLine("⚠ Adult Prefabs 미할당 (어른은 스폰되지 않음).");
         else
         {
             bool allOk = true;
             for (int i = 0; i < adultPrefabs.arraySize; i++)
             {
                 var go = adultPrefabs.GetArrayElementAtIndex(i).objectReferenceValue as GameObject;
-                if (go == null) { sb.AppendLine($"✗ adultPrefabs[{i}] null."); allOk = false; continue; }
+                if (go == null) { sb.AppendLine($"⚠ adultPrefabs[{i}] null (스폰에서 제외됨)."); allOk = false; continue; }
                 if (go.GetComponent<PedestrianController>() == null)
                 { sb.AppendLine($"✗ adultPrefabs[{i}] '{go.name}' — PedestrianController 없음."); allOk = false; }
             }
@@ -314,14 +318,14 @@ public class PedestrianSpawnerEditor : Editor
         }
 
         if (childPrefabs.arraySize == 0)
-            sb.AppendLine("⚠ Child Prefabs 미할당 (아이 캐릭터 없음).");
+            sb.AppendLine("⚠ Child Prefabs 미할당 (아이는 스폰되지 않음).");
         else
         {
             bool allOk = true;
             for (int i = 0; i < childPrefabs.arraySize; i++)
             {
                 var go = childPrefabs.GetArrayElementAtIndex(i).objectReferenceValue as GameObject;
-                if (go == null) { sb.AppendLine($"✗ childPrefabs[{i}] null."); allOk = false; continue; }
+                if (go == null) { sb.AppendLine($"⚠ childPrefabs[{i}] null (스폰에서 제외됨)."); allOk = false; continue; }
                 if (go.GetComponent<PedestrianController>() == null)
                 { sb.AppendLine($"✗ childPrefabs[{i}] '{go.name}' — PedestrianController 없음."); allOk = false; }
             }
@@ -340,11 +344,19 @@ public class PedestrianSpawnerEditor : Editor
                 var groupProp = groupsProp.GetArrayElementAtIndex(i);
                 var wpsProp   = groupProp.FindPropertyRelative("waypoints");
                 var labelProp = groupProp.FindPropertyRelative("label");
+                var rightProp = groupProp.FindPropertyRelative("right");
+                var leftProp  = groupProp.FindPropertyRelative("left");
                 string lbl    = labelProp.stringValue;
 
                 if (wpsProp.arraySize < 2)
                 {
                     sb.AppendLine($"✗ Group [{i}] \"{lbl}\" — 웨이포인트 최소 2개 필요 (현재 {wpsProp.arraySize}개).");
+                    continue;
+                }
+
+                if (!rightProp.boolValue && !leftProp.boolValue)
+                {
+                    sb.AppendLine($"⚠ Group [{i}] \"{lbl}\" — 좌/우 방향이 모두 꺼져 있어 스폰되지 않음.");
                     continue;
                 }
 

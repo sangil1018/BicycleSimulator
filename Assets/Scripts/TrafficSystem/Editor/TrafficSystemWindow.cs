@@ -9,28 +9,28 @@ using TrafficSystem;
 public class TrafficSystemWindow : EditorWindow
 {
     enum Tab { Overview, Nodes, Junctions, Signals, Manager, Validate }
-    Tab     _tab;
+    Tab _tab;
     Vector2 _scroll;
 
     // 씬 도구 상태
-    bool        _nodeCreateMode;
-    bool        _nodeConnectMode;
+    bool _nodeCreateMode;
+    bool _nodeConnectMode;
     TrafficNode _connectSource;
 
     // 씬 캐시 (OnFocus 및 Refresh에서 갱신)
-    List<TrafficNode>                  _nodes       = new();
-    List<TrafficJunction>              _junctions   = new();
-    List<TrafficSignal>                _signals     = new();
-    List<PedestrianSignalController>   _controllers = new();
-    TrafficManager                     _manager;
+    List<TrafficNode> _nodes = new();
+    List<TrafficJunction> _junctions = new();
+    List<TrafficSignal> _signals = new();
+    List<PedestrianSignalController> _controllers = new();
+    TrafficManager _manager;
 
     // 타임라인 가이드 펼침 상태
     bool _guideOpen;
 
     // 교차로 마법사 설정
-    string _wizardLabel       = "교차로";
-    int    _wizardPhases      = 2;
-    float  _wizardGreenDur    = 25f;
+    string _wizardLabel = "교차로";
+    int _wizardPhases = 2;
+    float _wizardGreenDur = 25f;
 
     // 교차로 목록 펼침 상태
     readonly Dictionary<int, bool> _junctionFold = new();
@@ -41,7 +41,7 @@ public class TrafficSystemWindow : EditorWindow
 
     // ── 윈도우 열기 ─────────────────────────────────────────────────────────
 
-    [MenuItem("교통시스템/에디터 열기 %#t", priority = 0)]
+    [MenuItem("Tools/교통시스템/에디터 열기 %#v", priority = 0)]
     static void Open() => GetWindow<TrafficSystemWindow>("교통 시스템 에디터");
 
     void OnEnable()
@@ -62,11 +62,11 @@ public class TrafficSystemWindow : EditorWindow
 
     void Refresh()
     {
-        _nodes       = Object.FindObjectsByType<TrafficNode>                (FindObjectsSortMode.None).OrderBy(n => n.name).ToList();
-        _junctions   = Object.FindObjectsByType<TrafficJunction>            (FindObjectsSortMode.None).OrderBy(j => j.name).ToList();
-        _signals     = Object.FindObjectsByType<TrafficSignal>              (FindObjectsSortMode.None).ToList();
+        _nodes = Object.FindObjectsByType<TrafficNode>(FindObjectsSortMode.None).OrderBy(n => n.name).ToList();
+        _junctions = Object.FindObjectsByType<TrafficJunction>(FindObjectsSortMode.None).OrderBy(j => j.name).ToList();
+        _signals = Object.FindObjectsByType<TrafficSignal>(FindObjectsSortMode.None).ToList();
         _controllers = Object.FindObjectsByType<PedestrianSignalController>(FindObjectsSortMode.None).ToList();
-        _manager     = Object.FindFirstObjectByType<TrafficManager>();
+        _manager = Object.FindFirstObjectByType<TrafficManager>();
 
         // 삭제된 교차로 인덱스의 Foldout 상태 제거
         var validCount = _junctions.Count;
@@ -85,12 +85,12 @@ public class TrafficSystemWindow : EditorWindow
         _scroll = EditorGUILayout.BeginScrollView(_scroll);
         switch (_tab)
         {
-            case Tab.Overview:  DrawOverview();  break;
-            case Tab.Nodes:     DrawNodes();     break;
+            case Tab.Overview: DrawOverview(); break;
+            case Tab.Nodes: DrawNodes(); break;
             case Tab.Junctions: DrawJunctions(); break;
-            case Tab.Signals:   DrawSignals();   break;
-            case Tab.Manager:   DrawManager();   break;
-            case Tab.Validate:  DrawValidate();  break;
+            case Tab.Signals: DrawSignals(); break;
+            case Tab.Manager: DrawManager(); break;
+            case Tab.Validate: DrawValidate(); break;
         }
         EditorGUILayout.EndScrollView();
 
@@ -145,10 +145,10 @@ public class TrafficSystemWindow : EditorWindow
     void DrawOverview()
     {
         Header("시스템 현황");
-        DrawStat("TrafficManager",      _manager ? "✓ 있음" : "✗ 없음",  _manager ? Color.green : Color.red);
-        DrawStat("TrafficNode (노드)",   _nodes.Count.ToString(),          Color.white);
+        DrawStat("TrafficManager", _manager ? "✓ 있음" : "✗ 없음", _manager ? Color.green : Color.red);
+        DrawStat("TrafficNode (노드)", _nodes.Count.ToString(), Color.white);
         DrawStat("TrafficJunction (교차로)", _junctions.Count.ToString(), Color.white);
-        DrawStat("TrafficSignal (신호기)", _signals.Count.ToString(),       Color.white);
+        DrawStat("TrafficSignal (신호기)", _signals.Count.ToString(), Color.white);
 
         // ── 교차로 마법사 ──────────────────────────────────────────────────
         Header("교차로 마법사");
@@ -160,8 +160,8 @@ public class TrafficSystemWindow : EditorWindow
                 "생성 후 각 신호기 오브젝트를 TrafficNode의 Stop Signal에 드래그하세요.",
                 MessageType.Info);
 
-            _wizardLabel    = EditorGUILayout.TextField("교차로 이름",   _wizardLabel);
-            _wizardPhases   = EditorGUILayout.IntSlider("페이즈 수",     _wizardPhases, 1, 4);
+            _wizardLabel = EditorGUILayout.TextField("교차로 이름", _wizardLabel);
+            _wizardPhases = EditorGUILayout.IntSlider("페이즈 수", _wizardPhases, 1, 4);
             _wizardGreenDur = EditorGUILayout.FloatField("초록 지속(초)", _wizardGreenDur);
 
             EditorGUILayout.BeginHorizontal();
@@ -194,7 +194,7 @@ public class TrafficSystemWindow : EditorWindow
         var parent = new GameObject(_wizardLabel);
         Undo.RegisterCreatedObjectUndo(parent, "Create 4Way Intersection");
 
-        string[]  dirs    = { "N", "S", "E", "W" };
+        string[] dirs = { "N", "S", "E", "W" };
         Vector3[] offsets = {
             new Vector3( 0, 0,  6), new Vector3(0, 0, -6),
             new Vector3( 6, 0,  0), new Vector3(-6, 0,  0)
@@ -254,8 +254,8 @@ public class TrafficSystemWindow : EditorWindow
             return;
         }
 
-        int phaseCount  = Mathf.Min(_wizardPhases, sigs.Length);
-        int perPhase    = Mathf.Max(1, sigs.Length / phaseCount);
+        int phaseCount = Mathf.Min(_wizardPhases, sigs.Length);
+        int perPhase = Mathf.Max(1, sigs.Length / phaseCount);
 
         var jGo = new GameObject($"{_wizardLabel}_Junction");
         Undo.RegisterCreatedObjectUndo(jGo, "Create Junction from Selection");
@@ -269,8 +269,8 @@ public class TrafficSystemWindow : EditorWindow
         phases.arraySize = phaseCount;
         for (int p = 0; p < phaseCount; p++)
         {
-            int start     = p * perPhase;
-            int count     = (p == phaseCount - 1) ? sigs.Length - start : perPhase;
+            int start = p * perPhase;
+            int count = (p == phaseCount - 1) ? sigs.Length - start : perPhase;
             var phaseSigs = sigs.Skip(start).Take(count).ToArray();
             WritePhase(phases, p, $"페이즈 {p}", phaseSigs, null, _wizardGreenDur);
         }
@@ -356,9 +356,9 @@ public class TrafficSystemWindow : EditorWindow
         EditorGUILayout.Space(4);
         using (new EditorGUILayout.HorizontalScope())
         {
-            if (GUILayout.Button("원점에 노드 생성"))        CreateNode(Vector3.zero);
+            if (GUILayout.Button("원점에 노드 생성")) CreateNode(Vector3.zero);
             if (GUILayout.Button("선택 오브젝트에 노드 추가")) AddNodeToSelected();
-            if (GUILayout.Button("모두 방향 자동 설정"))      AutoOrientAll();
+            if (GUILayout.Button("모두 방향 자동 설정")) AutoOrientAll();
         }
 
         // 노드 목록
@@ -368,9 +368,9 @@ public class TrafficSystemWindow : EditorWindow
         foreach (var node in _nodes)
         {
             if (!node) continue;
-            var  so        = new SerializedObject(node);
-            int  exitCount = so.FindProperty("exits").arraySize;
-            bool hasSig    = node.StopSignal != null;
+            var so = new SerializedObject(node);
+            int exitCount = so.FindProperty("exits").arraySize;
+            bool hasSig = node.StopSignal != null;
 
             using (new EditorGUILayout.HorizontalScope("box"))
             {
@@ -405,7 +405,7 @@ public class TrafficSystemWindow : EditorWindow
 
     TrafficNode CreateNode(Vector3 pos)
     {
-        var go   = new GameObject($"TrafficNode_{_nodes.Count:D3}");
+        var go = new GameObject($"TrafficNode_{_nodes.Count:D3}");
         go.transform.position = pos;
         var node = go.AddComponent<TrafficNode>();
         Undo.RegisterCreatedObjectUndo(go, "Create TrafficNode");
@@ -437,7 +437,7 @@ public class TrafficSystemWindow : EditorWindow
 
     void ConnectNodes(TrafficNode from, TrafficNode to)
     {
-        var so    = new SerializedObject(from);
+        var so = new SerializedObject(from);
         so.Update();
         var exits = so.FindProperty("exits");
 
@@ -451,8 +451,8 @@ public class TrafficSystemWindow : EditorWindow
 
         exits.arraySize++;
         var e = exits.GetArrayElementAtIndex(exits.arraySize - 1);
-        e.FindPropertyRelative("node").objectReferenceValue   = to;
-        e.FindPropertyRelative("weight").intValue             = 10;
+        e.FindPropertyRelative("node").objectReferenceValue = to;
+        e.FindPropertyRelative("weight").intValue = 10;
         so.ApplyModifiedProperties();
         EditorUtility.SetDirty(from);
         Debug.Log($"[교통시스템] 연결 완료: {from.name}  →  {to.name}");
@@ -493,11 +493,11 @@ public class TrafficSystemWindow : EditorWindow
                     GUILayout.FlexibleSpace();
                     if (GUILayout.Button("선택", EditorStyles.miniButton, GUILayout.Width(36)))
                         Selection.activeObject = jct;
-                    if (GUILayout.Button("핑",   EditorStyles.miniButton, GUILayout.Width(28)))
+                    if (GUILayout.Button("핑", EditorStyles.miniButton, GUILayout.Width(28)))
                         EditorGUIUtility.PingObject(jct);
                 }
 
-                var so     = new SerializedObject(jct);
+                var so = new SerializedObject(jct);
                 var phases = so.FindProperty("phases");
                 float yell = so.FindProperty("yellowDuration").floatValue;
                 GUILayout.Label($"페이즈: {phases.arraySize}개  |  황색: {yell}s", EditorStyles.miniLabel);
@@ -507,12 +507,12 @@ public class TrafficSystemWindow : EditorWindow
                     EditorGUILayout.Space(2);
                     for (int pi = 0; pi < phases.arraySize; pi++)
                     {
-                        var ph   = phases.GetArrayElementAtIndex(pi);
+                        var ph = phases.GetArrayElementAtIndex(pi);
                         string l = ph.FindPropertyRelative("label").stringValue;
-                        float  g = ph.FindPropertyRelative("greenDuration").floatValue;
-                        float  c = ph.FindPropertyRelative("pedestrianCountdown").floatValue;
-                        int   vc = ph.FindPropertyRelative("vehicleGreen").arraySize;
-                        int   pc = ph.FindPropertyRelative("pedestrianGreen").arraySize;
+                        float g = ph.FindPropertyRelative("greenDuration").floatValue;
+                        float c = ph.FindPropertyRelative("pedestrianCountdown").floatValue;
+                        int vc = ph.FindPropertyRelative("vehicleGreen").arraySize;
+                        int pc = ph.FindPropertyRelative("pedestrianGreen").arraySize;
 
                         // 페이즈 헤더
                         using (new EditorGUILayout.HorizontalScope())
@@ -573,11 +573,11 @@ public class TrafficSystemWindow : EditorWindow
         foreach (var jct in _junctions)
         {
             if (!jct) continue;
-            var so     = new SerializedObject(jct);
+            var so = new SerializedObject(jct);
             var phases = so.FindProperty("phases");
             for (int pi = 0; pi < phases.arraySize; pi++)
             {
-                var ph  = phases.GetArrayElementAtIndex(pi);
+                var ph = phases.GetArrayElementAtIndex(pi);
                 string l = ph.FindPropertyRelative("label").stringValue;
 
                 var vg = ph.FindPropertyRelative("vehicleGreen");
@@ -626,16 +626,16 @@ public class TrafficSystemWindow : EditorWindow
         foreach (var sig in _signals)
         {
             if (!sig) continue;
-            var  so        = new SerializedObject(sig);
-            bool hasRed      = so.FindProperty("redRenderer").objectReferenceValue;
-            bool hasYellow   = so.FindProperty("yellowRenderer").objectReferenceValue;
-            bool hasGreen    = so.FindProperty("greenRenderer").objectReferenceValue;
-            bool hasPedRed   = so.FindProperty("pedestrianRedLight").objectReferenceValue;
+            var so = new SerializedObject(sig);
+            bool hasRed = so.FindProperty("redRenderer").objectReferenceValue;
+            bool hasYellow = so.FindProperty("yellowRenderer").objectReferenceValue;
+            bool hasGreen = so.FindProperty("greenRenderer").objectReferenceValue;
+            bool hasPedRed = so.FindProperty("pedestrianRedLight").objectReferenceValue;
             bool hasPedGreen = so.FindProperty("pedestrianGreenLight").objectReferenceValue;
-            bool renderOk    = hasRed && hasYellow && hasGreen && hasPedRed && hasPedGreen;
+            bool renderOk = hasRed && hasYellow && hasGreen && hasPedRed && hasPedGreen;
 
-            string jctInfo  = sigJunction.TryGetValue(sig, out var jn) ? jn : "교차로 미등록";
-            string nodeInfo = sigNode.TryGetValue(sig, out var nd)      ? nd : "";
+            string jctInfo = sigJunction.TryGetValue(sig, out var jn) ? jn : "교차로 미등록";
+            string nodeInfo = sigNode.TryGetValue(sig, out var nd) ? nd : "";
             bool isCurrentNodeSig = selectedNode && selectedNode.StopSignal == sig;
 
             using (new EditorGUILayout.HorizontalScope("box"))
@@ -648,10 +648,10 @@ public class TrafficSystemWindow : EditorWindow
                 GUILayout.Label(sig.name, GUILayout.MinWidth(110));
 
                 // 렌더러 칩 (R / Y / G)
-                RendererChip("R",  hasRed,      new Color(1f,   0.3f, 0.3f));
-                RendererChip("Y",  hasYellow,   new Color(1f,   0.85f,0.1f));
-                RendererChip("G",  hasGreen,    new Color(0.2f, 0.9f, 0.3f));
-                RendererChip("PR", hasPedRed,   new Color(1f,   0.3f, 0.3f));
+                RendererChip("R", hasRed, new Color(1f, 0.3f, 0.3f));
+                RendererChip("Y", hasYellow, new Color(1f, 0.85f, 0.1f));
+                RendererChip("G", hasGreen, new Color(0.2f, 0.9f, 0.3f));
+                RendererChip("PR", hasPedRed, new Color(1f, 0.3f, 0.3f));
                 RendererChip("PG", hasPedGreen, new Color(0.2f, 0.9f, 0.3f));
 
                 // 교차로 및 노드 정보
@@ -667,7 +667,7 @@ public class TrafficSystemWindow : EditorWindow
                 // 선택한 노드에 StopSignal로 연결
                 if (selectedNode)
                 {
-                    GUI.backgroundColor = isCurrentNodeSig ? new Color(0.3f,1f,0.5f) : Color.white;
+                    GUI.backgroundColor = isCurrentNodeSig ? new Color(0.3f, 1f, 0.5f) : Color.white;
                     if (GUILayout.Button(isCurrentNodeSig ? "연결됨" : "노드 연결", EditorStyles.miniButton, GUILayout.Width(60)))
                     {
                         if (!isCurrentNodeSig)
@@ -710,11 +710,11 @@ public class TrafficSystemWindow : EditorWindow
         foreach (var ctrl in _controllers)
         {
             if (!ctrl) continue;
-            var so      = new SerializedObject(ctrl);
+            var so = new SerializedObject(ctrl);
             var jctProp = so.FindProperty("junction");
             var lgtProp = so.FindProperty("lights");
-            var jct     = jctProp.objectReferenceValue as TrafficJunction;
-            int lgtCnt  = lgtProp.arraySize;
+            var jct = jctProp.objectReferenceValue as TrafficJunction;
+            int lgtCnt = lgtProp.arraySize;
 
             using (new EditorGUILayout.HorizontalScope("box"))
             {
@@ -821,8 +821,8 @@ public class TrafficSystemWindow : EditorWindow
 
         Header("차량 풀");
         EditorGUILayout.PropertyField(so.FindProperty("vehiclePrefabs"), new GUIContent("차량 프리팹"), true);
-        EditorGUILayout.PropertyField(so.FindProperty("vehicleCount"),   new GUIContent("차량 수"));
-        EditorGUILayout.PropertyField(so.FindProperty("heightOffset"),   new GUIContent("스폰 높이 오프셋"));
+        EditorGUILayout.PropertyField(so.FindProperty("vehicleCount"), new GUIContent("차량 수"));
+        EditorGUILayout.PropertyField(so.FindProperty("heightOffset"), new GUIContent("스폰 높이 오프셋"));
 
         Header("스폰 노드");
         EditorGUILayout.PropertyField(so.FindProperty("spawnNodes"), new GUIContent("스폰 노드"), true);
@@ -849,7 +849,7 @@ public class TrafficSystemWindow : EditorWindow
 
         Header("성능");
         EditorGUILayout.PropertyField(so.FindProperty("spawnPerFrame"), new GUIContent("프레임당 스폰 수"));
-        EditorGUILayout.PropertyField(so.FindProperty("vehicleLayer"),  new GUIContent("차량 레이어"));
+        EditorGUILayout.PropertyField(so.FindProperty("vehicleLayer"), new GUIContent("차량 레이어"));
 
         so.ApplyModifiedProperties();
     }
@@ -865,7 +865,7 @@ public class TrafficSystemWindow : EditorWindow
         {
             Refresh();
             _validResults = RunValidation();
-            _validDone    = true;
+            _validDone = true;
         }
 
         if (!_validDone) return;
@@ -900,7 +900,7 @@ public class TrafficSystemWindow : EditorWindow
         foreach (var node in _nodes)
         {
             if (!node) continue;
-            var so    = new SerializedObject(node);
+            var so = new SerializedObject(node);
             var exits = so.FindProperty("exits");
             if (exits.arraySize > 0)
             {
@@ -917,7 +917,7 @@ public class TrafficSystemWindow : EditorWindow
         foreach (var jct in _junctions)
         {
             if (!jct) continue;
-            var so     = new SerializedObject(jct);
+            var so = new SerializedObject(jct);
             var phases = so.FindProperty("phases");
             if (phases.arraySize == 0)
             { r.Add((MessageType.Error, $"교차로 [{jct.name}]: 페이즈가 없습니다.")); continue; }
@@ -936,16 +936,16 @@ public class TrafficSystemWindow : EditorWindow
         foreach (var sig in _signals)
         {
             if (!sig) continue;
-            var so  = new SerializedObject(sig);
-            bool r_  = so.FindProperty("redRenderer").objectReferenceValue;
-            bool y_  = so.FindProperty("yellowRenderer").objectReferenceValue;
-            bool g_  = so.FindProperty("greenRenderer").objectReferenceValue;
+            var so = new SerializedObject(sig);
+            bool r_ = so.FindProperty("redRenderer").objectReferenceValue;
+            bool y_ = so.FindProperty("yellowRenderer").objectReferenceValue;
+            bool g_ = so.FindProperty("greenRenderer").objectReferenceValue;
             bool pr_ = so.FindProperty("pedestrianRedLight").objectReferenceValue;
             bool pg_ = so.FindProperty("pedestrianGreenLight").objectReferenceValue;
             if (!r_ || !y_ || !g_ || !pr_ || !pg_)
                 r.Add((MessageType.Warning,
                     $"신호기 [{sig.name}]: 렌더러 미할당  " +
-                    $"(R:{(r_?"✓":"✗")}  Y:{(y_?"✓":"✗")}  G:{(g_?"✓":"✗")}  PR:{(pr_?"✓":"✗")}  PG:{(pg_?"✓":"✗")})"));
+                    $"(R:{(r_ ? "✓" : "✗")}  Y:{(y_ ? "✓" : "✗")}  G:{(g_ ? "✓" : "✗")}  PR:{(pr_ ? "✓" : "✗")}  PG:{(pg_ ? "✓" : "✗")})"));
         }
 
         // ── 어느 교차로에도 등록되지 않은 신호기 ────────────────────────
@@ -953,7 +953,7 @@ public class TrafficSystemWindow : EditorWindow
         foreach (var jct in _junctions)
         {
             if (!jct) continue;
-            var so     = new SerializedObject(jct);
+            var so = new SerializedObject(jct);
             var phases = so.FindProperty("phases");
             for (int i = 0; i < phases.arraySize; i++)
             {
@@ -1045,7 +1045,7 @@ public class TrafficSystemWindow : EditorWindow
             // 출발 → 마우스 미리보기 선
             if (_connectSource)
             {
-                Ray   r2  = HandleUtility.GUIPointToWorldRay(e.mousePosition);
+                Ray r2 = HandleUtility.GUIPointToWorldRay(e.mousePosition);
                 Vector3 mp = Physics.Raycast(r2, out RaycastHit h2) ? h2.point : r2.GetPoint(10f);
                 Handles.color = new Color(0.3f, 1f, 1f, 0.6f);
                 Handles.DrawDottedLine(_connectSource.transform.position, mp, 5f);
@@ -1063,7 +1063,7 @@ public class TrafficSystemWindow : EditorWindow
             }
             else
             {
-                _nodeCreateMode  = false;
+                _nodeCreateMode = false;
                 _nodeConnectMode = false;
             }
             e.Use();

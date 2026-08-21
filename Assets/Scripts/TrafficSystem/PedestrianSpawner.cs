@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace TrafficSystem
 {
@@ -44,44 +45,86 @@ namespace TrafficSystem
                 yield break;
             }
 
+            // 프리팹 유효성은 여기서 1회만 검사·로그하고, 없으면 해당 타입만 조용히 건너뜀
+            GameObject[] validAdults = FilterValidPrefabs(adultPrefabs, "Adult");
+            GameObject[] validChildren = FilterValidPrefabs(childPrefabs, "Child");
+
             int spawnedThisFrame = 0;
 
             foreach (PedestrianGroup g in groups)
             {
                 if (g == null || g.waypoints == null || g.waypoints.Length < 2) continue;
 
+                if (HasNullWaypoint(g.waypoints))
+                {
+                    Debug.LogWarning($"[PedestrianSpawner] Group \"{g.label}\" waypoints에 null 요소가 있어 건너뜁니다.");
+                    continue;
+                }
+
+                if (!g.right && !g.left)
+                {
+                    Debug.LogWarning($"[PedestrianSpawner] Group \"{g.label}\" 좌/우 방향이 모두 꺼져 있어 스폰하지 않습니다.");
+                    continue;
+                }
+
                 float[] cum = BuildCumLengths(g.waypoints);
                 float totalLen = cum[g.waypoints.Length - 1];
                 if (totalLen < 0.1f) continue;
 
-                int fwdTotal = g.adultsForward + g.childrenForward;
-                int revTotal = g.adultsReverse + g.childrenReverse;
+                int adultCount = validAdults.Length > 0 ? g.adults : 0;
+                int childCount = validChildren.Length > 0 ? g.children : 0;
+                int total = adultCount + childCount;
+                if (total <= 0) continue;
 
-                // 경로 선분 위 랜덤 위치 샘플링 (층화 샘플링 - 구간별 1개 보장)
-                List<SpawnPoint> fwd = SamplePath(g.waypoints, cum, totalLen, fwdTotal, false);
-                List<SpawnPoint> rev = SamplePath(g.waypoints, cum, totalLen, revTotal, true);
+                // 우측(정방향) = index 0→N, 좌측(역방향) = N→0. 각 방향 일방통행.
+                for (int d = 0; d < 2; d++)
+                {
+                    bool reverse = d == 1;
+                    if (reverse ? !g.left : !g.right) continue;
 
-                for (int i = 0; i < g.adultsForward; i++)
-                {
-                    Spawn(g, fwd[i], false, PedestrianType.Adult);
-                    if (Yield(ref spawnedThisFrame)) yield return null;
-                }
-                for (int i = 0; i < g.childrenForward; i++)
-                {
-                    Spawn(g, fwd[g.adultsForward + i], false, PedestrianType.Child);
-                    if (Yield(ref spawnedThisFrame)) yield return null;
-                }
-                for (int i = 0; i < g.adultsReverse; i++)
-                {
-                    Spawn(g, rev[i], true, PedestrianType.Adult);
-                    if (Yield(ref spawnedThisFrame)) yield return null;
-                }
-                for (int i = 0; i < g.childrenReverse; i++)
-                {
-                    Spawn(g, rev[g.adultsReverse + i], true, PedestrianType.Child);
-                    if (Yield(ref spawnedThisFrame)) yield return null;
+                    // 경로 선분 위 랜덤 위치 샘플링 (층화 샘플링 - 구간별 1개 보장)
+                    List<SpawnPoint> pts = SamplePath(g.waypoints, cum, totalLen, total, reverse);
+
+                    for (int i = 0; i < adultCount; i++)
+                    {
+                        Spawn(validAdults, g, pts[i], reverse, PedestrianType.Adult);
+                        if (Yield(ref spawnedThisFrame)) yield return null;
+                    }
+                    for (int i = 0; i < childCount; i++)
+                    {
+                        Spawn(validChildren, g, pts[adultCount + i], reverse, PedestrianType.Child);
+                        if (Yield(ref spawnedThisFrame)) yield return null;
+                    }
                 }
             }
+        }
+
+        // null 요소를 걸러낸 프리팹 배열 반환. 문제는 로그만 남기고 예외는 내지 않는다.
+        static GameObject[] FilterValidPrefabs(GameObject[] src, string label)
+        {
+            if (src == null || src.Length == 0)
+            {
+                Debug.LogWarning($"[PedestrianSpawner] {label} 프리팹이 등록되지 않아 해당 타입은 스폰하지 않습니다.");
+                return System.Array.Empty<GameObject>();
+            }
+
+            var valid = new List<GameObject>(src.Length);
+            foreach (GameObject p in src)
+                if (p != null) valid.Add(p);
+
+            if (valid.Count < src.Length)
+                Debug.LogWarning($"[PedestrianSpawner] {label} 프리팹 배열에 null 요소 {src.Length - valid.Count}개가 있어 제외합니다.");
+            if (valid.Count == 0)
+                Debug.LogWarning($"[PedestrianSpawner] {label} 유효한 프리팹이 없어 해당 타입은 스폰하지 않습니다.");
+
+            return valid.ToArray();
+        }
+
+        static bool HasNullWaypoint(Transform[] wps)
+        {
+            foreach (Transform t in wps)
+                if (t == null) return true;
+            return false;
         }
 
         // 경로 전체 길이를 count 구간으로 나눠 각 구간 내 랜덤 위치 샘플링
@@ -138,21 +181,11 @@ namespace TrafficSystem
             return (wps[last].position, endDir, reverse ? Mathf.Max(last - 1, 0) : last);
         }
 
-        void Spawn(PedestrianGroup g, SpawnPoint sp, bool reverse, PedestrianType type)
+        void Spawn(GameObject[] prefabs, PedestrianGroup g, SpawnPoint sp, bool reverse, PedestrianType type)
         {
-            GameObject[] prefabs = type == PedestrianType.Adult ? adultPrefabs : childPrefabs;
-            if (prefabs == null || prefabs.Length == 0)
-            {
-                Debug.LogWarning($"[PedestrianSpawner] {type} 프리팹이 없습니다.");
-                return;
-            }
+            if (prefabs.Length == 0) return; // SpawnRoutine에서 이미 로그 처리
 
             GameObject prefab = prefabs[Random.Range(0, prefabs.Length)];
-            if (prefab == null)
-            {
-                Debug.LogWarning($"[PedestrianSpawner] {type} 프리팹 배열에 null 요소가 있습니다.");
-                return;
-            }
 
             float walkSpeed = type == PedestrianType.Adult ? adultWalkSpeed : childWalkSpeed;
 
@@ -185,18 +218,22 @@ namespace TrafficSystem
         [Tooltip("그룹 식별 이름 (에디터 정리용)")]
         public string label = "Group";
 
-        [Tooltip("연속된 웨이포인트. 정방향(우측) = index 0→N, 역방향(좌측) = N→0.")]
+        [Tooltip("연속된 웨이포인트. 우측 = index 0→N, 좌측 = N→0. 각 방향 일방통행.")]
         public Transform[] waypoints;
 
+        [Header("Direction")]
+        [Tooltip("우측 통행 스폰 (index 0→N 방향 일방통행)")]
+        public bool right = true;
+        [Tooltip("좌측 통행 스폰 (index N→0 방향 일방통행)")]
+        public bool left = true;
+
         [Header("Spawn Count")]
-        [Tooltip("우측(정방향) 어른 수")]
-        public int adultsForward = 2;
-        [Tooltip("좌측(역방향) 어른 수")]
-        public int adultsReverse = 2;
-        [Tooltip("우측(정방향) 아이 수")]
-        public int childrenForward = 1;
-        [Tooltip("좌측(역방향) 아이 수")]
-        public int childrenReverse = 1;
+        [Tooltip("방향당 어른 수 (체크된 방향마다 이 수만큼 스폰)")]
+        [FormerlySerializedAs("adultsForward")]
+        [Min(0)] public int adults = 2;
+        [Tooltip("방향당 아이 수 (체크된 방향마다 이 수만큼 스폰)")]
+        [FormerlySerializedAs("childrenForward")]
+        [Min(0)] public int children = 1;
 
         [Header("Spacing")]
         [Tooltip("웨이포인트 중심선에서 좌우로 떨어지는 거리 (m). 0 = 중심선 위.")]

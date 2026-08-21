@@ -19,10 +19,9 @@ PedestrianSpawner (씬 오브젝트)
  └─ groups[]            — 보행로 그룹 목록
       └─ PedestrianGroup (보행로 하나)
           ├─ waypoints[]       — 중심선 웨이포인트
-          ├─ adultsForward     — 우측(정방향) 어른 수
-          ├─ adultsReverse     — 좌측(역방향) 어른 수
-          ├─ childrenForward   — 우측(정방향) 아이 수
-          ├─ childrenReverse   — 좌측(역방향) 아이 수
+          ├─ right / left      — 우측/좌측 통행 스폰 여부 (체크박스)
+          ├─ adults            — 방향당 어른 수
+          ├─ children          — 방향당 아이 수
           └─ lateralOffset     — 중심선 기준 좌우 간격(m)
 
 캐릭터 프리팹
@@ -43,7 +42,7 @@ PedestrianSpawner (씬 오브젝트)
 > **PedestrianController Inspector 옵션**
 > | 항목 | 설명 | 기본값 |
 > |---|---|---|
-> | Walk Mode | PingPong(왕복) / Loop(순환) / OneShot(1회) | PingPong |
+> | Walk Mode | 스포너 스폰 시 Loop(일방통행 순환)로 강제. 수동 배치 시에만 유효 | Loop |
 > | Waypoint Reach Dist | 웨이포인트 도달 판정 거리 (m) | 0.15 |
 > | Turn Speed | 초당 회전 각도 (낮을수록 자연스럽게 꺾임) | 120 |
 
@@ -110,11 +109,14 @@ PedestrianSpawner (씬 오브젝트)
 |---|---|---|
 | **Label** | 그룹 식별 이름 (에디터 정리용) | "북쪽 인도", "남쪽 인도" |
 | **Waypoints** | STEP 2에서 만든 웨이포인트 Transform 배열 | WP_00 ~ WP_03 |
-| **Adults Forward** | 우측(정방향) 어른 스폰 수 | 2 |
-| **Adults Reverse** | 좌측(역방향) 어른 스폰 수 | 2 |
-| **Children Forward** | 우측(정방향) 아이 스폰 수 | 1 |
-| **Children Reverse** | 좌측(역방향) 아이 스폰 수 | 1 |
+| **Right** | 우측 통행(0→N 일방통행) 스폰 여부 | ✔ |
+| **Left** | 좌측 통행(N→0 일방통행) 스폰 여부 | ✔ |
+| **Adults** | 체크된 방향당 어른 스폰 수 | 2 |
+| **Children** | 체크된 방향당 아이 스폰 수 | 1 |
 | **Lateral Offset** | 중심선에서 좌우로 떨어지는 거리 (m) | 0.5 |
+
+> 보행자는 자기 방향으로만 걷는 **일방통행**입니다. 경로 끝에 도달하면
+> 시작점으로 순간이동해 다시 걷습니다. (왕복하지 않음)
 
 > **Lateral Offset 가이드**
 > - `0.0` : 모든 보행자가 웨이포인트 중심선 위를 걸음
@@ -128,7 +130,7 @@ PedestrianSpawner (씬 오브젝트)
 1. **Play 모드** 실행
 2. Hierarchy에서 `PedestrianSpawner` 하위에 `Ped_Adult_R_00` 같은 이름으로 생성되는지 확인
    - `R` = 우측(정방향), `L` = 좌측(역방향)
-3. 보행자가 웨이포인트를 따라 걷다가 **끝에서 방향 전환** 후 되돌아오는지 확인
+3. 보행자가 웨이포인트를 따라 일방통행으로 걷다가 **끝에서 시작점으로 순환**하는지 확인
 4. 어른/아이의 속도 차이가 보이는지 확인
 5. 같은 프리팹끼리도 키가 조금씩 다르게 생성되는지 확인 (Scale Variation)
 
@@ -136,28 +138,18 @@ PedestrianSpawner (씬 오브젝트)
 
 ## 자주 쓰는 설정 예시
 
-### 일반 인도 (양방향 통행)
+### 일반 인도 (좌우 양쪽 차선, 각 차선 일방통행)
 ```
-Adults Forward  : 3   Adults Reverse  : 3
-Children Forward: 1   Children Reverse: 1
-Lateral Offset  : 0.5
-Walk Mode       : PingPong
-```
-
-### 넓은 광장 (단방향 많음)
-```
-Adults Forward  : 5   Adults Reverse  : 2
-Children Forward: 2   Children Reverse: 1
-Lateral Offset  : 0.8
-Walk Mode       : PingPong
+Right : ✔   Left : ✔
+Adults  : 3   Children : 1     ← 방향당 수 (총 8명)
+Lateral Offset : 0.5
 ```
 
-### 단방향 통행 (1회만 이동)
+### 우측 통행만
 ```
-Adults Forward  : 3   Adults Reverse  : 0
-Children Forward: 1   Children Reverse: 0
-Lateral Offset  : 0.3
-Walk Mode       : OneShot  ← PedestrianController Inspector에서 변경
+Right : ✔   Left : ✗
+Adults  : 5   Children : 2
+Lateral Offset : 0.3
 ```
 
 ---

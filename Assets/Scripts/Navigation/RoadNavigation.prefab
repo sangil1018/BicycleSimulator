@@ -60,7 +60,7 @@ MonoBehaviour:
     m_Bits: 1
   rayHeight: 3
   rayLength: 8
-  groundOffset: 0
+  groundOffset: 0.1
   flowSpeed: 2
   flowFollowsBikeSpeed: 1
   nearFade: 1

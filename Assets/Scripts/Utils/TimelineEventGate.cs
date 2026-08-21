@@ -14,7 +14,7 @@ public class TimelineEventGate : MonoBehaviour
 
     void OnDisable()
     {
-        if (GameManager.Instance != null && GameManager.Instance.TimelineController != null)
-            GameManager.Instance.TimelineController.Resume();
+        if (GameManager.Instance != null)
+            GameManager.Instance.ResumeFromEventGate();
     }
 }

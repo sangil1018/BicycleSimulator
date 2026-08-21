@@ -320,7 +320,7 @@ MonoBehaviour:
     m_Value: 0
   scaleBiasWithMinProbeDistance:
     m_OverrideState: 1
-    m_Value: 0
+    m_Value: 1
   samplingNoise:
     m_OverrideState: 1
     m_Value: 0.1
@@ -335,7 +335,7 @@ MonoBehaviour:
     m_Value: 0.1
   occlusionOnlyReflectionNormalization:
     m_OverrideState: 1
-    m_Value: 1
+    m_Value: 0
   intensityMultiplier:
     m_OverrideState: 1
     m_Value: 1

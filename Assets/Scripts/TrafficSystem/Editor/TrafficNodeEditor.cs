@@ -253,7 +253,7 @@ public class TrafficNodeEditor : Editor
         EditorGUI.LabelField(inner, label, style);
     }
 
-    [MenuItem("Tools/Traffic/모든 TrafficNode 자동 방향 설정")]
+    [MenuItem("Tools/교통시스템/모든 TrafficNode 자동 방향 설정", priority = 20)]
     static void AutoOrientAll()
     {
         var all = Object.FindObjectsByType<TrafficNode>(FindObjectsSortMode.None);
