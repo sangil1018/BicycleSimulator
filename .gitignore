@@ -107,9 +107,9 @@ InitTestScene*.unity*
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
 
 # Media files
-*.mp4
-*.mov
-*.avi
+# *.mp4
+# *.mov
+# *.avi
 
 /[Aa]ssets/[Cc]apture/
 __pycache__
